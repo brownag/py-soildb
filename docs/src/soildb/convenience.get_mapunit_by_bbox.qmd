@@ -1,0 +1,17 @@
+# convenience.get_mapunit_by_bbox { #soildb.convenience.get_mapunit_by_bbox }
+
+```python
+convenience.get_mapunit_by_bbox(min_x, min_y, max_x, max_y, client=None)
+```
+
+Get map unit data within a bounding box.
+
+Args:
+    min_x: Western boundary (longitude)
+    min_y: Southern boundary (latitude)
+    max_x: Eastern boundary (longitude)
+    max_y: Northern boundary (latitude)
+    client: Optional client instance
+
+Returns:
+    SDAResponse containing map unit data

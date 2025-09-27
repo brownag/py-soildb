@@ -1,0 +1,117 @@
+# response.SDAResponse { #soildb.response.SDAResponse }
+
+```python
+response.SDAResponse(raw_data)
+```
+
+Represents a response from the Soil Data Access web service.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [columns](#soildb.response.SDAResponse.columns) | Get column names. |
+| [data](#soildb.response.SDAResponse.data) | Get raw data rows. |
+| [metadata](#soildb.response.SDAResponse.metadata) | Get column metadata. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_json](#soildb.response.SDAResponse.from_json) | Create response from JSON string. |
+| [get_column_types](#soildb.response.SDAResponse.get_column_types) | Extract column data types from metadata. |
+| [get_python_types](#soildb.response.SDAResponse.get_python_types) | Get Python-compatible type mapping. |
+| [is_empty](#soildb.response.SDAResponse.is_empty) | Check if the response contains no data. |
+| [to_dataframe](#soildb.response.SDAResponse.to_dataframe) | Convert to pandas or polars DataFrame with proper type conversion. |
+| [to_dict](#soildb.response.SDAResponse.to_dict) | Convert to list of dictionaries with basic type conversion. |
+| [to_geodataframe](#soildb.response.SDAResponse.to_geodataframe) | Convert to GeoPandas GeoDataFrame if geometry column exists. |
+| [to_pandas](#soildb.response.SDAResponse.to_pandas) | Convert to pandas DataFrame with proper type conversion. |
+| [to_polars](#soildb.response.SDAResponse.to_polars) | Convert to polars DataFrame with proper type conversion. |
+| [to_records](#soildb.response.SDAResponse.to_records) | Alias for to_dict() for compatibility. |
+
+### from_json { #soildb.response.SDAResponse.from_json }
+
+```python
+response.SDAResponse.from_json(json_str)
+```
+
+Create response from JSON string.
+
+### get_column_types { #soildb.response.SDAResponse.get_column_types }
+
+```python
+response.SDAResponse.get_column_types()
+```
+
+Extract column data types from metadata.
+
+### get_python_types { #soildb.response.SDAResponse.get_python_types }
+
+```python
+response.SDAResponse.get_python_types()
+```
+
+Get Python-compatible type mapping.
+
+### is_empty { #soildb.response.SDAResponse.is_empty }
+
+```python
+response.SDAResponse.is_empty()
+```
+
+Check if the response contains no data.
+
+Returns:
+    True if the response contains no rows, False otherwise.
+
+### to_dataframe { #soildb.response.SDAResponse.to_dataframe }
+
+```python
+response.SDAResponse.to_dataframe(library='pandas', convert_types=True)
+```
+
+Convert to pandas or polars DataFrame with proper type conversion.
+
+### to_dict { #soildb.response.SDAResponse.to_dict }
+
+```python
+response.SDAResponse.to_dict()
+```
+
+Convert to list of dictionaries with basic type conversion.
+
+Returns:
+    List of dictionaries where each dictionary represents a row with
+    column names as keys and converted values as values.
+
+### to_geodataframe { #soildb.response.SDAResponse.to_geodataframe }
+
+```python
+response.SDAResponse.to_geodataframe(convert_types=True)
+```
+
+Convert to GeoPandas GeoDataFrame if geometry column exists.
+
+### to_pandas { #soildb.response.SDAResponse.to_pandas }
+
+```python
+response.SDAResponse.to_pandas(convert_types=True)
+```
+
+Convert to pandas DataFrame with proper type conversion.
+
+### to_polars { #soildb.response.SDAResponse.to_polars }
+
+```python
+response.SDAResponse.to_polars(convert_types=True)
+```
+
+Convert to polars DataFrame with proper type conversion.
+
+### to_records { #soildb.response.SDAResponse.to_records }
+
+```python
+response.SDAResponse.to_records()
+```
+
+Alias for to_dict() for compatibility.

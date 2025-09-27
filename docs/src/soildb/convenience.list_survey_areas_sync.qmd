@@ -1,0 +1,19 @@
+# convenience.list_survey_areas_sync { #soildb.convenience.list_survey_areas_sync }
+
+```python
+convenience.list_survey_areas_sync(client=None)
+```
+
+Synchronous version of list_survey_areas().
+
+Get a simple list of all survey area symbols.
+
+.. deprecated::
+    Use get_sacatalog_sync() instead. This function is maintained for backward compatibility.
+
+Returns:
+    List of survey area symbols (e.g., ['IA015', 'IA109', ...])
+
+Note:
+    This function creates a new event loop if one doesn't exist.
+    For better performance in async applications, use list_survey_areas() instead.

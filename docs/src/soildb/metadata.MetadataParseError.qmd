@@ -1,0 +1,7 @@
+# metadata.MetadataParseError { #soildb.metadata.MetadataParseError }
+
+```python
+metadata.MetadataParseError(message, details=None)
+```
+
+Raised when XML metadata parsing fails.

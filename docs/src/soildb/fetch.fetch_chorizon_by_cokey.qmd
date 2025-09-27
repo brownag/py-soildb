@@ -1,0 +1,26 @@
+# fetch.fetch_chorizon_by_cokey { #soildb.fetch.fetch_chorizon_by_cokey }
+
+```python
+fetch.fetch_chorizon_by_cokey(
+    cokeys,
+    columns=None,
+    chunk_size=1000,
+    client=None,
+)
+```
+
+Fetch chorizon data for a list of cokeys.
+
+Performance Notes:
+- Horizon data includes detailed soil properties (texture, chemistry, etc.)
+- Each component typically has 3-7 horizons; expect large result sets
+- Use chunk_size of 200-500 for large cokey lists
+
+Args:
+    cokeys: Component key(s) (single key or list of keys)
+    columns: Columns to select (default: key chorizon columns)
+    chunk_size: Chunk size for pagination (recommended: 200-500)
+    client: Optional SDA client
+
+Returns:
+    SDAResponse with chorizon data

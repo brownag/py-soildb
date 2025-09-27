@@ -1,0 +1,12 @@
+# spatial.query_featline { #soildb.spatial.query_featline }
+
+```python
+spatial.query_featline(
+    geometry,
+    return_type='tabular',
+    spatial_relation='intersects',
+    client=None,
+)
+```
+
+Query feature lines with a geometry.

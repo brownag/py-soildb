@@ -1,0 +1,13 @@
+# query.SpatialQuery.intersects_geometry { #soildb.query.SpatialQuery.intersects_geometry }
+
+```python
+query.SpatialQuery.intersects_geometry(wkt)
+```
+
+Add a geometry intersection filter using WKT.
+
+Args:
+    wkt: Well-Known Text representation of the geometry.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

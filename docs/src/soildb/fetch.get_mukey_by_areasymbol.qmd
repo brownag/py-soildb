@@ -1,0 +1,10 @@
+# fetch.get_mukey_by_areasymbol { #soildb.fetch.get_mukey_by_areasymbol }
+
+```python
+fetch.get_mukey_by_areasymbol(areasymbols, client=None)
+```
+
+Get all mukeys for given area symbols.
+
+This is useful for getting all map units in specific survey areas
+before fetching detailed data.

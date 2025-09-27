@@ -1,0 +1,58 @@
+# fetch.fetch_by_keys { #soildb.fetch.fetch_by_keys }
+
+```python
+fetch.fetch_by_keys(
+    keys,
+    table,
+    key_column=None,
+    columns=None,
+    chunk_size=1000,
+    include_geometry=False,
+    client=None,
+)
+```
+
+Fetch data from a table using a list of key values with pagination.
+
+Similar to fetchSDA_spatial() in R soilDB, this function efficiently handles
+large lists of keys by breaking them into manageable chunks and combining results.
+
+Performance Notes:
+- Uses concurrent requests for chunked fetches (chunk_size < total_keys)
+- Recommended chunk_size: 500-2000 keys depending on key length and network
+- For very large datasets (>10,000 keys), consider processing in batches
+- Geometry inclusion increases response size significantly
+
+Args:
+    keys: Key value(s) to fetch (single key or list of keys, e.g., mukeys, cokeys, areasymbols)
+    table: Target SSURGO table name
+    key_column: Column name for the key (auto-detected if None)
+    columns: Columns to select (default: all columns)
+    chunk_size: Number of keys to process per query (default: 1000, recommended: 500-2000)
+    include_geometry: Whether to include geometry as WKT for spatial tables
+    client: Optional SDA client instance
+
+Returns:
+    SDAResponse with combined results from all chunks
+
+Examples:
+    # Fetch map unit data for specific mukeys
+    >>> mukeys = [123456, 123457, 123458]
+    >>> response = await fetch_by_keys(mukeys, "mapunit")
+    >>> df = response.to_pandas()
+
+    # Fetch component data with specific columns
+    >>> cokeys = ["12345:1", "12345:2", "12346:1"]
+    >>> response = await fetch_by_keys(
+    ...     cokeys, "component", columns=["cokey", "compname", "comppct_r"]
+    ... )
+
+    # Fetch spatial data with geometry
+    >>> response = await fetch_by_keys(
+    ...     mukeys, "mupolygon", include_geometry=True
+    ... )
+    >>> gdf = response.to_geodataframe()  # If GeoPandas available
+
+    # Fetch survey area polygons by areasymbol
+    >>> areas = ["IA109", "IA113", "MN001"]
+    >>> response = await fetch_by_keys(areas, "sapolygon")

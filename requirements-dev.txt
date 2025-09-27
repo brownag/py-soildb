@@ -1,0 +1,27 @@
+# Development dependencies
+pytest>=7.0
+pytest-asyncio>=0.21.0
+pytest-httpx>=0.21.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+pre-commit>=3.0.0
+
+# Optional DataFrame support for testing
+pandas>=1.5.0
+polars>=0.18.0
+
+# Optional spatial support for testing
+geopandas>=0.13.0
+shapely>=2.0.0
+
+# Documentation
+quartodoc
+quarto
+jupyter
+matplotlib
+
+# Build tools
+build>=0.10.0
+twine>=4.0.0

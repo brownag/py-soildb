@@ -1,0 +1,26 @@
+# fetch.fetch_component_by_mukey { #soildb.fetch.fetch_component_by_mukey }
+
+```python
+fetch.fetch_component_by_mukey(
+    mukeys,
+    columns=None,
+    chunk_size=1000,
+    client=None,
+)
+```
+
+Fetch component data for a list of mukeys.
+
+Performance Notes:
+- Components are the most numerous SSURGO entities (often 1000s per survey area)
+- Use chunk_size of 500-1000 for large mukey lists
+- Consider filtering for major components only if not needed
+
+Args:
+    mukeys: Map unit key(s) (single key or list of keys)
+    columns: Columns to select (default: key component columns)
+    chunk_size: Chunk size for pagination (recommended: 500-1000)
+    client: Optional SDA client
+
+Returns:
+    SDAResponse with component data

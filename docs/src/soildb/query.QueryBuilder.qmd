@@ -1,0 +1,99 @@
+# query.QueryBuilder { #soildb.query.QueryBuilder }
+
+```python
+query.QueryBuilder()
+```
+
+Factory class for common SDA query patterns.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [available_survey_areas](#soildb.query.QueryBuilder.available_survey_areas) | Get list of available survey areas. |
+| [component_horizons_by_legend](#soildb.query.QueryBuilder.component_horizons_by_legend) | Get component and horizon data for a survey area. |
+| [components_at_point](#soildb.query.QueryBuilder.components_at_point) | Get soil component data at a specific point. |
+| [components_by_legend](#soildb.query.QueryBuilder.components_by_legend) | Get components for a survey area. |
+| [from_sql](#soildb.query.QueryBuilder.from_sql) | Create a query from a raw SQL string. |
+| [mapunits_by_legend](#soildb.query.QueryBuilder.mapunits_by_legend) | Get map units for a survey area by legend/area symbol. |
+| [mapunits_intersecting_bbox](#soildb.query.QueryBuilder.mapunits_intersecting_bbox) | Get map units that intersect with a bounding box. |
+| [spatial_by_legend](#soildb.query.QueryBuilder.spatial_by_legend) | Get spatial data for map units on a legend/area symbol. |
+| [survey_area_boundaries](#soildb.query.QueryBuilder.survey_area_boundaries) | Get survey area boundary polygons. |
+
+### available_survey_areas { #soildb.query.QueryBuilder.available_survey_areas }
+
+```python
+query.QueryBuilder.available_survey_areas()
+```
+
+Get list of available survey areas.
+
+### component_horizons_by_legend { #soildb.query.QueryBuilder.component_horizons_by_legend }
+
+```python
+query.QueryBuilder.component_horizons_by_legend(areasymbol)
+```
+
+Get component and horizon data for a survey area.
+
+### components_at_point { #soildb.query.QueryBuilder.components_at_point }
+
+```python
+query.QueryBuilder.components_at_point(longitude, latitude)
+```
+
+Get soil component data at a specific point.
+
+### components_by_legend { #soildb.query.QueryBuilder.components_by_legend }
+
+```python
+query.QueryBuilder.components_by_legend(areasymbol)
+```
+
+Get components for a survey area.
+
+### from_sql { #soildb.query.QueryBuilder.from_sql }
+
+```python
+query.QueryBuilder.from_sql(query)
+```
+
+Create a query from a raw SQL string.
+
+Args:
+    query: The raw SQL query string.
+
+Returns:
+    A Query object.
+
+### mapunits_by_legend { #soildb.query.QueryBuilder.mapunits_by_legend }
+
+```python
+query.QueryBuilder.mapunits_by_legend(areasymbol)
+```
+
+Get map units for a survey area by legend/area symbol.
+
+### mapunits_intersecting_bbox { #soildb.query.QueryBuilder.mapunits_intersecting_bbox }
+
+```python
+query.QueryBuilder.mapunits_intersecting_bbox(min_x, min_y, max_x, max_y)
+```
+
+Get map units that intersect with a bounding box.
+
+### spatial_by_legend { #soildb.query.QueryBuilder.spatial_by_legend }
+
+```python
+query.QueryBuilder.spatial_by_legend(areasymbol)
+```
+
+Get spatial data for map units on a legend/area symbol.
+
+### survey_area_boundaries { #soildb.query.QueryBuilder.survey_area_boundaries }
+
+```python
+query.QueryBuilder.survey_area_boundaries()
+```
+
+Get survey area boundary polygons.

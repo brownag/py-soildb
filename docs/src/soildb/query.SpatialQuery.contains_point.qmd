@@ -1,0 +1,14 @@
+# query.SpatialQuery.contains_point { #soildb.query.SpatialQuery.contains_point }
+
+```python
+query.SpatialQuery.contains_point(x, y)
+```
+
+Add a point containment filter.
+
+Args:
+    x: Longitude of the point.
+    y: Latitude of the point.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

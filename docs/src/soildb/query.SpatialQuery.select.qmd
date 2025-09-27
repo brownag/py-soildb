@@ -1,0 +1,13 @@
+# query.SpatialQuery.select { #soildb.query.SpatialQuery.select }
+
+```python
+query.SpatialQuery.select(*columns)
+```
+
+Set the SELECT clause.
+
+Args:
+    *columns: Column names to select. Use "*" for all columns.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

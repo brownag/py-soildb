@@ -1,0 +1,23 @@
+# metadata.parse_survey_metadata { #soildb.metadata.parse_survey_metadata }
+
+```python
+metadata.parse_survey_metadata(xml_content, areasymbol=None)
+```
+
+Parse XML metadata from sacatalog.fgdcmetadata column.
+
+Args:
+    xml_content: Raw XML metadata string from fgdcmetadata column
+    areasymbol: Optional area symbol for reference
+
+Returns:
+    SurveyMetadata object with parsed information
+
+Raises:
+    MetadataParseError: If XML parsing fails
+
+Example:
+    >>> xml_data = client.get_sacatalog(areasymbol='IA015')['fgdcmetadata'].iloc[0]
+    >>> metadata = parse_survey_metadata(xml_data, areasymbol='IA015')
+    >>> print(metadata.title)
+    Soil Survey Geographic (SSURGO) Database for Iowa County, Iowa

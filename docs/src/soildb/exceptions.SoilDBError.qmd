@@ -1,0 +1,7 @@
+# exceptions.SoilDBError { #soildb.exceptions.SoilDBError }
+
+```python
+exceptions.SoilDBError(message, details=None)
+```
+
+Base exception for all soildb errors.

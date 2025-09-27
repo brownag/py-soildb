@@ -1,0 +1,14 @@
+# query.SpatialQuery.left_join { #soildb.query.SpatialQuery.left_join }
+
+```python
+query.SpatialQuery.left_join(table, on_condition)
+```
+
+Add a LEFT JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

@@ -1,0 +1,13 @@
+# query.Query.from_ { #soildb.query.Query.from_ }
+
+```python
+query.Query.from_(table)
+```
+
+Set the FROM clause.
+
+Args:
+    table: Name of the table to query from.
+
+Returns:
+    Query: This Query instance for method chaining.

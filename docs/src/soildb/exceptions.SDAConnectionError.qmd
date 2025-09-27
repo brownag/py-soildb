@@ -1,0 +1,7 @@
+# exceptions.SDAConnectionError { #soildb.exceptions.SDAConnectionError }
+
+```python
+exceptions.SDAConnectionError(message, details=None)
+```
+
+Raised when there are connection issues with the SDA service.

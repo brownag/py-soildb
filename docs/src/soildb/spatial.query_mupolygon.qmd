@@ -1,0 +1,12 @@
+# spatial.query_mupolygon { #soildb.spatial.query_mupolygon }
+
+```python
+spatial.query_mupolygon(
+    geometry,
+    return_type='tabular',
+    spatial_relation='intersects',
+    client=None,
+)
+```
+
+Query map unit polygons with a geometry.

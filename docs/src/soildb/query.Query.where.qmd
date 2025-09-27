@@ -1,0 +1,13 @@
+# query.Query.where { #soildb.query.Query.where }
+
+```python
+query.Query.where(condition)
+```
+
+Add a WHERE condition.
+
+Args:
+    condition: SQL WHERE condition string.
+
+Returns:
+    Query: This Query instance for method chaining.

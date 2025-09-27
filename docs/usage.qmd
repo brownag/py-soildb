@@ -1,0 +1,96 @@
+# Common Usage Patterns
+
+This document shows common soildb usage patterns without extensive explanation.
+
+## Basic Queries
+
+```{python}
+import asyncio
+import soildb
+
+# Point query
+response = await soildb.get_mapunit_by_point(-93.6, 42.0)
+df = response.to_pandas()
+
+# Area query  
+response = await soildb.get_mapunit_by_areasymbol("IA015")
+df = response.to_pandas()
+```
+
+## Spatial Queries
+
+```{python}
+# Bounding box
+bbox = {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}
+response = await soildb.spatial_query(bbox, "mupolygon", spatial_relation="intersects")
+df = response.to_pandas()
+
+# Point with geometry
+response = await soildb.spatial_query(
+    "POINT(-93.6 42.0)", 
+    "mupolygon", 
+    spatial_relation="intersects",
+    return_type="spatial"
+)
+gdf = response.to_geodataframe()  # Requires GeoPandas
+```
+
+## Bulk Data
+
+```{python}
+# Get many mukeys
+mukeys = await soildb.get_mukey_by_areasymbol(["IA015", "IA109"])
+
+# Fetch map unit data
+response = await soildb.fetch_by_keys(mukeys, "mapunit")
+df = response.to_pandas()
+
+# Fetch with specific columns
+response = await soildb.fetch_by_keys(
+    mukeys, 
+    "component",
+    key_column="mukey",
+    columns=["cokey", "compname", "comppct_r"]
+)
+df = response.to_pandas()
+```
+
+## Custom Queries
+
+```{python}
+# Build SQL
+query = (soildb.Query()
+    .select("mukey", "muname")
+    .from_("mapunit")
+    .where("mukind = 'Consociation'")
+    .limit(100))
+
+# Execute
+async with soildb.SDAClient() as client:
+    response = await client.execute(query)
+    df = response.to_pandas()
+```
+
+## Error Handling
+
+```{python}
+try:
+    response = await soildb.get_mapunit_by_point(-93.6, 42.0)
+except soildb.SDAConnectionError:
+    print("SDA service unavailable")
+except soildb.SDAQueryError as e:
+    print(f"Query error: {e}")
+```
+
+## DataFrame Export
+
+```{python}
+# Pandas (default)
+df = response.to_pandas()
+
+# Polars (if installed)
+df = response.to_polars()
+
+# GeoPandas (only for spatial data)
+# gdf = response.to_geodataframe()
+```

@@ -1,0 +1,21 @@
+# metadata.extract_metadata_summary { #soildb.metadata.extract_metadata_summary }
+
+```python
+metadata.extract_metadata_summary(xml_content)
+```
+
+Extract a summary of key metadata fields.
+
+Args:
+    xml_content: Raw XML metadata string
+
+Returns:
+    Dictionary with key metadata fields including title, publication_date,
+    publisher, bounding_box, keywords_count, contact_email, and abstract_length
+
+Example:
+    >>> xml_data = client.get_sacatalog(areasymbol='CA077')['fgdcmetadata'].iloc[0]
+    >>> summary = extract_metadata_summary(xml_data)
+    >>> print(f"Title: {summary['title']}")
+    >>> print(f"Keywords: {summary['keywords_count']}")
+    >>> print(f"Bounds: {summary['bounding_box']}")

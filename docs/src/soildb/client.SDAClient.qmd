@@ -1,0 +1,98 @@
+# client.SDAClient { #soildb.client.SDAClient }
+
+```python
+client.SDAClient(
+    base_url='https://sdmdataaccess.sc.egov.usda.gov',
+    timeout=60.0,
+    max_retries=3,
+    retry_delay=1.0,
+)
+```
+
+Async HTTP client for Soil Data Access web service.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [close](#soildb.client.SDAClient.close) | Close the HTTP client. |
+| [connect](#soildb.client.SDAClient.connect) | Test connection to SDA service. |
+| [execute](#soildb.client.SDAClient.execute) | Execute a query against SDA. |
+| [execute_many](#soildb.client.SDAClient.execute_many) | Execute multiple queries concurrently. |
+| [execute_sql](#soildb.client.SDAClient.execute_sql) | Execute a raw SQL query against SDA. |
+
+### close { #soildb.client.SDAClient.close }
+
+```python
+client.SDAClient.close()
+```
+
+Close the HTTP client.
+
+### connect { #soildb.client.SDAClient.connect }
+
+```python
+client.SDAClient.connect()
+```
+
+Test connection to SDA service.
+
+Returns:
+    True if connection successful
+
+Raises:
+    SDAConnectionError: If connection fails
+
+### execute { #soildb.client.SDAClient.execute }
+
+```python
+client.SDAClient.execute(query)
+```
+
+Execute a query against SDA.
+
+Args:
+    query: Query object or raw SQL string to execute
+
+Returns:
+    SDAResponse containing query results
+
+Raises:
+    SDAQueryError: If query execution fails
+    SDAMaintenanceError: If service is under maintenance
+    SDATimeoutError: If request times out
+    SDAConnectionError: If connection fails
+
+### execute_many { #soildb.client.SDAClient.execute_many }
+
+```python
+client.SDAClient.execute_many(queries)
+```
+
+Execute multiple queries concurrently.
+
+Args:
+    queries: List of query objects to execute
+
+Returns:
+    List of SDAResponse objects in same order as input queries
+
+### execute_sql { #soildb.client.SDAClient.execute_sql }
+
+```python
+client.SDAClient.execute_sql(sql)
+```
+
+Execute a raw SQL query against SDA.
+
+Args:
+    sql: The raw SQL query string.
+
+Returns:
+    SDAResponse containing query results
+
+Raises:
+    SDAQueryError: If query execution fails
+    SDAMaintenanceError: If service is under maintenance
+    SDATimeoutError: If request times out
+    SDAConnectionError: If connection fails

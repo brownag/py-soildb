@@ -1,0 +1,7 @@
+# exceptions.SDAQueryError { #soildb.exceptions.SDAQueryError }
+
+```python
+exceptions.SDAQueryError(message, query=None, details=None)
+```
+
+Raised when a query fails or returns invalid results.

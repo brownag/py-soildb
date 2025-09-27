@@ -1,0 +1,92 @@
+# metadata.SurveyMetadata { #soildb.metadata.SurveyMetadata }
+
+```python
+metadata.SurveyMetadata(xml_content, areasymbol=None)
+```
+
+Represents parsed metadata for a soil survey area.
+
+Parses FGDC-compliant XML metadata from sacatalog.fgdcmetadata column.
+Provides access to survey information including title, publication details,
+spatial bounds, keywords, and contact information.
+
+Example:
+    >>> # Get metadata for a survey area
+    >>> xml_data = client.get_sacatalog(areasymbol='IA015')['fgdcmetadata'].iloc[0]
+    >>> metadata = SurveyMetadata(xml_data, areasymbol='IA015')
+    >>>
+    >>> # Access basic information
+    >>> print(f"Title: {metadata.title}")
+    >>> print(f"Published: {metadata.publication_date}")
+    >>> print(f"Publisher: {metadata.publisher}")
+    >>>
+    >>> # Access spatial bounds
+    >>> bounds = metadata.bounding_box
+    >>> print(f"Covers area from {bounds['west']} to {bounds['east']}")
+    >>>
+    >>> # Access keywords and contact info
+    >>> print(f"Keywords: {', '.join(metadata.keywords[:3])}")
+    >>> print(f"Contact: {metadata.contact_person} ({metadata.contact_email})")
+    >>>
+    >>> # Convert to dictionary for further processing
+    >>> data = metadata.to_dict()
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [abstract](#soildb.metadata.SurveyMetadata.abstract) | Survey abstract/description. |
+| [access_constraints](#soildb.metadata.SurveyMetadata.access_constraints) | Access constraints. |
+| [attribute_accuracy](#soildb.metadata.SurveyMetadata.attribute_accuracy) | Attribute accuracy information. |
+| [bounding_box](#soildb.metadata.SurveyMetadata.bounding_box) | Geographic bounding box coordinates in decimal degrees (WGS84). |
+| [completeness](#soildb.metadata.SurveyMetadata.completeness) | Completeness information. |
+| [contact_email](#soildb.metadata.SurveyMetadata.contact_email) | Primary contact email. |
+| [contact_organization](#soildb.metadata.SurveyMetadata.contact_organization) | Primary contact organization. |
+| [contact_person](#soildb.metadata.SurveyMetadata.contact_person) | Primary contact person. |
+| [contact_phone](#soildb.metadata.SurveyMetadata.contact_phone) | Primary contact phone. |
+| [contact_position](#soildb.metadata.SurveyMetadata.contact_position) | Primary contact position. |
+| [coordinate_system](#soildb.metadata.SurveyMetadata.coordinate_system) | Coordinate system name. |
+| [datum](#soildb.metadata.SurveyMetadata.datum) | Geodetic datum. |
+| [ellipsoid](#soildb.metadata.SurveyMetadata.ellipsoid) | Reference ellipsoid. |
+| [horizontal_accuracy](#soildb.metadata.SurveyMetadata.horizontal_accuracy) | Horizontal positional accuracy. |
+| [keywords](#soildb.metadata.SurveyMetadata.keywords) | Combined list of all theme and place keywords from the metadata. |
+| [logical_consistency](#soildb.metadata.SurveyMetadata.logical_consistency) | Logical consistency information. |
+| [online_link](#soildb.metadata.SurveyMetadata.online_link) | Online link to data. |
+| [origin](#soildb.metadata.SurveyMetadata.origin) | Originating organization. |
+| [place_keywords](#soildb.metadata.SurveyMetadata.place_keywords) | Place-based keywords. |
+| [publication_date](#soildb.metadata.SurveyMetadata.publication_date) | Publication date from citation in YYYYMMDD format. |
+| [publication_date_parsed](#soildb.metadata.SurveyMetadata.publication_date_parsed) | Publication date as datetime object. |
+| [publish_place](#soildb.metadata.SurveyMetadata.publish_place) | Publication place. |
+| [publisher](#soildb.metadata.SurveyMetadata.publisher) | Publisher organization. |
+| [purpose](#soildb.metadata.SurveyMetadata.purpose) | Survey purpose. |
+| [scale_denominator](#soildb.metadata.SurveyMetadata.scale_denominator) | Map scale denominator. |
+| [theme_keywords](#soildb.metadata.SurveyMetadata.theme_keywords) | Theme-based keywords. |
+| [title](#soildb.metadata.SurveyMetadata.title) | Survey area title from the metadata citation. |
+| [use_constraints](#soildb.metadata.SurveyMetadata.use_constraints) | Use constraints. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [get_process_steps](#soildb.metadata.SurveyMetadata.get_process_steps) | Get all processing steps with dates and descriptions. |
+| [to_dict](#soildb.metadata.SurveyMetadata.to_dict) | Convert metadata to dictionary format. |
+
+### get_process_steps { #soildb.metadata.SurveyMetadata.get_process_steps }
+
+```python
+metadata.SurveyMetadata.get_process_steps()
+```
+
+Get all processing steps with dates and descriptions.
+
+### to_dict { #soildb.metadata.SurveyMetadata.to_dict }
+
+```python
+metadata.SurveyMetadata.to_dict()
+```
+
+Convert metadata to dictionary format.
+
+Returns:
+    Dict containing all metadata fields including title, publication info,
+    spatial bounds, keywords, contact details, and processing information.

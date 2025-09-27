@@ -1,0 +1,15 @@
+# query.Query.join { #soildb.query.Query.join }
+
+```python
+query.Query.join(table, on_condition, join_type='INNER')
+```
+
+Add a JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+    join_type: Type of join ("INNER", "LEFT", "RIGHT", "FULL").
+
+Returns:
+    Query: This Query instance for method chaining.

@@ -1,0 +1,13 @@
+# query.Query.select { #soildb.query.Query.select }
+
+```python
+query.Query.select(*columns)
+```
+
+Set the SELECT clause.
+
+Args:
+    *columns: Column names to select. Use "*" for all columns.
+
+Returns:
+    Query: This Query instance for method chaining.

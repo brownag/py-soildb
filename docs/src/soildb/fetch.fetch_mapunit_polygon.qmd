@@ -1,0 +1,28 @@
+# fetch.fetch_mapunit_polygon { #soildb.fetch.fetch_mapunit_polygon }
+
+```python
+fetch.fetch_mapunit_polygon(
+    mukeys,
+    columns=None,
+    include_geometry=True,
+    chunk_size=1000,
+    client=None,
+)
+```
+
+Fetch map unit polygon data for a list of mukeys.
+
+Performance Notes:
+- Geometry data significantly increases response size and processing time
+- For large areas, consider using smaller chunk_size (500-1000)
+- Polygon geometries can be very large; consider bbox filtering first
+
+Args:
+    mukeys: Map unit key(s) (single key or list of keys)
+    columns: Columns to select (default: key columns + geometry)
+    include_geometry: Whether to include polygon geometry as WKT
+    chunk_size: Chunk size for pagination (recommended: 500-1000 for geometry)
+    client: Optional SDA client
+
+Returns:
+    SDAResponse with map unit polygon data

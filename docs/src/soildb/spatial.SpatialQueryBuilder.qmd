@@ -1,0 +1,54 @@
+# spatial.SpatialQueryBuilder { #soildb.spatial.SpatialQueryBuilder }
+
+```python
+spatial.SpatialQueryBuilder(client=None)
+```
+
+Generic spatial query builder for SSURGO data.
+
+Similar to soilDB::SDA_spatialQuery() in R, supports arbitrary input geometries
+with flexible table and return type options.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [query](#soildb.spatial.SpatialQueryBuilder.query) | Build a spatial query for SSURGO data. |
+
+### query { #soildb.spatial.SpatialQueryBuilder.query }
+
+```python
+spatial.SpatialQueryBuilder.query(
+    geometry,
+    table='mupolygon',
+    return_type='tabular',
+    spatial_relation='intersects',
+    what=None,
+    geom_column=None,
+)
+```
+
+Build a spatial query for SSURGO data.
+
+Args:
+    geometry: Input geometry as WKT string, shapely geometry, or bbox dict
+    table: Target SSURGO table name
+    return_type: Whether to return 'tabular' or 'spatial' data
+    spatial_relation: Spatial relationship to test
+    what: Custom selection of columns (defaults based on table/return_type)
+    geom_column: Custom geometry column name (defaults based on table)
+
+Returns:
+    Query object ready for execution
+
+Examples:
+    # Get map unit info intersecting a point
+    >>> query = builder.query("POINT(-94.68 42.03)", "mupolygon", "tabular")
+
+    # Get spatial polygons within a bounding box
+    >>> bbox = {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
+    >>> query = builder.query(bbox, "mupolygon", "spatial")
+
+    # Custom selection from survey areas
+    >>> query = builder.query(polygon_wkt, "sapolygon", "tabular",
+    ...                      what="areasymbol, areaname, areaacres")

@@ -1,0 +1,7 @@
+# exceptions.SDAMaintenanceError { #soildb.exceptions.SDAMaintenanceError }
+
+```python
+exceptions.SDAMaintenanceError(message, details=None)
+```
+
+Raised when the SDA service is under maintenance.

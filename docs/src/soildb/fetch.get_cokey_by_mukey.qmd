@@ -1,0 +1,15 @@
+# fetch.get_cokey_by_mukey { #soildb.fetch.get_cokey_by_mukey }
+
+```python
+fetch.get_cokey_by_mukey(mukeys, major_components_only=True, client=None)
+```
+
+Get all cokeys for given mukeys.
+
+Args:
+    mukeys: Map unit key(s) (single key or list of keys)
+    major_components_only: Whether to only return major components
+    client: Optional SDA client
+
+Returns:
+    List of component keys

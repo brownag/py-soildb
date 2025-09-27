@@ -1,0 +1,14 @@
+# spatial.mupolygon_in_bbox { #soildb.spatial.mupolygon_in_bbox }
+
+```python
+spatial.mupolygon_in_bbox(
+    xmin,
+    ymin,
+    xmax,
+    ymax,
+    return_type='tabular',
+    client=None,
+)
+```
+
+Get map unit polygons in a bounding box.

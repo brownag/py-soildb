@@ -1,0 +1,7 @@
+# exceptions.SDAResponseError { #soildb.exceptions.SDAResponseError }
+
+```python
+exceptions.SDAResponseError(message, query=None, details=None)
+```
+
+Raised when SDA returns an invalid or unexpected response format.

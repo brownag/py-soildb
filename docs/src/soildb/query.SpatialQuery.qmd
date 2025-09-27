@@ -1,0 +1,181 @@
+# query.SpatialQuery { #soildb.query.SpatialQuery }
+
+```python
+query.SpatialQuery()
+```
+
+Builder for spatial queries with geometry filters.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [contains_point](#soildb.query.SpatialQuery.contains_point) | Add a point containment filter. |
+| [from_](#soildb.query.SpatialQuery.from_) | Set the FROM clause. |
+| [inner_join](#soildb.query.SpatialQuery.inner_join) | Add an INNER JOIN clause. |
+| [intersects_bbox](#soildb.query.SpatialQuery.intersects_bbox) | Add a bounding box intersection filter. |
+| [intersects_geometry](#soildb.query.SpatialQuery.intersects_geometry) | Add a geometry intersection filter using WKT. |
+| [left_join](#soildb.query.SpatialQuery.left_join) | Add a LEFT JOIN clause. |
+| [limit](#soildb.query.SpatialQuery.limit) | Set the LIMIT. |
+| [order_by](#soildb.query.SpatialQuery.order_by) | Set the ORDER BY clause. |
+| [select](#soildb.query.SpatialQuery.select) | Set the SELECT clause. |
+| [to_sql](#soildb.query.SpatialQuery.to_sql) | Build the spatial SQL query string. |
+| [where](#soildb.query.SpatialQuery.where) | Add a WHERE condition. |
+
+### contains_point { #soildb.query.SpatialQuery.contains_point }
+
+```python
+query.SpatialQuery.contains_point(x, y)
+```
+
+Add a point containment filter.
+
+Args:
+    x: Longitude of the point.
+    y: Latitude of the point.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### from_ { #soildb.query.SpatialQuery.from_ }
+
+```python
+query.SpatialQuery.from_(table)
+```
+
+Set the FROM clause.
+
+Args:
+    table: Name of the table to query from.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### inner_join { #soildb.query.SpatialQuery.inner_join }
+
+```python
+query.SpatialQuery.inner_join(table, on_condition)
+```
+
+Add an INNER JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### intersects_bbox { #soildb.query.SpatialQuery.intersects_bbox }
+
+```python
+query.SpatialQuery.intersects_bbox(min_x, min_y, max_x, max_y)
+```
+
+Add a bounding box intersection filter.
+
+Args:
+    min_x: Minimum longitude (west bound).
+    min_y: Minimum latitude (south bound).
+    max_x: Maximum longitude (east bound).
+    max_y: Maximum latitude (north bound).
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### intersects_geometry { #soildb.query.SpatialQuery.intersects_geometry }
+
+```python
+query.SpatialQuery.intersects_geometry(wkt)
+```
+
+Add a geometry intersection filter using WKT.
+
+Args:
+    wkt: Well-Known Text representation of the geometry.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### left_join { #soildb.query.SpatialQuery.left_join }
+
+```python
+query.SpatialQuery.left_join(table, on_condition)
+```
+
+Add a LEFT JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### limit { #soildb.query.SpatialQuery.limit }
+
+```python
+query.SpatialQuery.limit(count)
+```
+
+Set the LIMIT.
+
+Args:
+    count: Maximum number of rows to return.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### order_by { #soildb.query.SpatialQuery.order_by }
+
+```python
+query.SpatialQuery.order_by(column, direction='ASC')
+```
+
+Set the ORDER BY clause.
+
+Args:
+    column: Column name to order by.
+    direction: Sort direction ("ASC" or "DESC").
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### select { #soildb.query.SpatialQuery.select }
+
+```python
+query.SpatialQuery.select(*columns)
+```
+
+Set the SELECT clause.
+
+Args:
+    *columns: Column names to select. Use "*" for all columns.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
+
+### to_sql { #soildb.query.SpatialQuery.to_sql }
+
+```python
+query.SpatialQuery.to_sql()
+```
+
+Build the spatial SQL query string.
+
+Returns:
+    str: The complete SQL query string with spatial filters applied.
+
+### where { #soildb.query.SpatialQuery.where }
+
+```python
+query.SpatialQuery.where(condition)
+```
+
+Add a WHERE condition.
+
+Args:
+    condition: SQL WHERE condition string.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

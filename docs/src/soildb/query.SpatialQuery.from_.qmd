@@ -1,0 +1,13 @@
+# query.SpatialQuery.from_ { #soildb.query.SpatialQuery.from_ }
+
+```python
+query.SpatialQuery.from_(table)
+```
+
+Set the FROM clause.
+
+Args:
+    table: Name of the table to query from.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

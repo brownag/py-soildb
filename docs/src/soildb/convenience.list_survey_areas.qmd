@@ -1,0 +1,13 @@
+# convenience.list_survey_areas { #soildb.convenience.list_survey_areas }
+
+```python
+convenience.list_survey_areas(client=None)
+```
+
+Get a simple list of all survey area symbols.
+
+.. deprecated::
+    Use get_sacatalog() instead. This function is maintained for backward compatibility.
+
+Returns:
+    List of survey area symbols (e.g., ['IA015', 'IA109', ...])

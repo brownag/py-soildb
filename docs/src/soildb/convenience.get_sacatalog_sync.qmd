@@ -1,0 +1,20 @@
+# convenience.get_sacatalog_sync { #soildb.convenience.get_sacatalog_sync }
+
+```python
+convenience.get_sacatalog_sync(columns=None, client=None)
+```
+
+Synchronous version of get_sacatalog().
+
+Get survey area catalog (sacatalog) data.
+
+Args:
+    columns: List of columns to return. If None, returns ['areasymbol', 'areaname', 'saversion']
+    client: Optional client instance
+
+Returns:
+    SDAResponse containing sacatalog data
+
+Note:
+    This function creates a new event loop if one doesn't exist.
+    For better performance in async applications, use get_sacatalog() instead.

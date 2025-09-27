@@ -1,0 +1,14 @@
+# spatial.sapolygon_in_bbox { #soildb.spatial.sapolygon_in_bbox }
+
+```python
+spatial.sapolygon_in_bbox(
+    xmin,
+    ymin,
+    xmax,
+    ymax,
+    return_type='tabular',
+    client=None,
+)
+```
+
+Get survey area polygons in a bounding box.

@@ -1,0 +1,14 @@
+# query.SpatialQuery.order_by { #soildb.query.SpatialQuery.order_by }
+
+```python
+query.SpatialQuery.order_by(column, direction='ASC')
+```
+
+Set the ORDER BY clause.
+
+Args:
+    column: Column name to order by.
+    direction: Sort direction ("ASC" or "DESC").
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

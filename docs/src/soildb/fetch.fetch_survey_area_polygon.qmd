@@ -1,0 +1,28 @@
+# fetch.fetch_survey_area_polygon { #soildb.fetch.fetch_survey_area_polygon }
+
+```python
+fetch.fetch_survey_area_polygon(
+    areasymbols,
+    columns=None,
+    include_geometry=True,
+    chunk_size=1000,
+    client=None,
+)
+```
+
+Fetch survey area polygon data for a list of area symbols.
+
+Performance Notes:
+- Survey area boundaries are large polygons; geometry data is substantial
+- Most use cases only need a few survey areas at a time
+- Consider tabular queries first, then fetch geometry only when needed
+
+Args:
+    areasymbols: Survey area symbol(s) (single symbol or list of symbols)
+    columns: Columns to select (default: key columns + geometry)
+    include_geometry: Whether to include polygon geometry as WKT
+    chunk_size: Chunk size for pagination (usually not needed for survey areas)
+    client: Optional SDA client
+
+Returns:
+    SDAResponse with survey area polygon data

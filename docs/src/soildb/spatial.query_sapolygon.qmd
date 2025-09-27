@@ -1,0 +1,12 @@
+# spatial.query_sapolygon { #soildb.spatial.query_sapolygon }
+
+```python
+spatial.query_sapolygon(
+    geometry,
+    return_type='tabular',
+    spatial_relation='intersects',
+    client=None,
+)
+```
+
+Query survey area polygons with a geometry.

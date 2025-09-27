@@ -1,0 +1,51 @@
+# spatial.spatial_query { #soildb.spatial.spatial_query }
+
+```python
+spatial.spatial_query(
+    geometry,
+    table='mupolygon',
+    return_type='tabular',
+    spatial_relation='intersects',
+    what=None,
+    geom_column=None,
+    client=None,
+)
+```
+
+Execute a generic spatial query against SSURGO data.
+
+This is the main spatial query function, similar to soilDB::SDA_spatialQuery() in R.
+Supports arbitrary input geometries with flexible table and return type options.
+
+Performance Notes:
+- Tabular queries use optimized UDFs when possible (faster than spatial joins)
+- Spatial queries with geometry return large result sets; use selective bounding boxes
+- Complex geometries (many vertices) may timeout; simplify when possible
+- Point queries are fastest; polygon queries scale with geometry complexity
+
+Args:
+    geometry: Input geometry as WKT string, shapely geometry, or bbox dict
+    table: Target SSURGO table name
+    return_type: Whether to return 'tabular' or 'spatial' data
+    spatial_relation: Spatial relationship to test
+    what: Custom selection of columns (defaults based on table/return_type)
+    geom_column: Custom geometry column name (defaults based on table)
+    client: Optional SDA client instance
+
+Returns:
+    SDAResponse with query results
+
+Examples:
+    # Get map unit tabular data intersecting a point
+    >>> point_wkt = "POINT(-94.6859 42.0285)"
+    >>> response = await spatial_query(point_wkt, "mupolygon", "tabular")
+    >>> df = response.to_pandas()
+
+    # Get spatial polygons within a bounding box
+    >>> bbox = {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
+    >>> response = await spatial_query(bbox, "mupolygon", "spatial")
+    >>> gdf = response.to_geodataframe()
+
+    # Get survey area info intersecting a polygon
+    >>> polygon_wkt = "POLYGON((-94.7 42.0, -94.6 42.0, -94.6 42.1, -94.7 42.1, -94.7 42.0))"
+    >>> response = await spatial_query(polygon_wkt, "sapolygon", "tabular")

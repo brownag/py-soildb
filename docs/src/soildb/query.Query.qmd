@@ -1,0 +1,164 @@
+# query.Query { #soildb.query.Query }
+
+```python
+query.Query()
+```
+
+Builder for SQL queries against Soil Data Access.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_](#soildb.query.Query.from_) | Set the FROM clause. |
+| [from_sql](#soildb.query.Query.from_sql) | Create a query from raw SQL. |
+| [inner_join](#soildb.query.Query.inner_join) | Add an INNER JOIN clause. |
+| [join](#soildb.query.Query.join) | Add a JOIN clause. |
+| [left_join](#soildb.query.Query.left_join) | Add a LEFT JOIN clause. |
+| [limit](#soildb.query.Query.limit) | Set the LIMIT (uses TOP in SQL Server). |
+| [order_by](#soildb.query.Query.order_by) | Set the ORDER BY clause. |
+| [select](#soildb.query.Query.select) | Set the SELECT clause. |
+| [to_sql](#soildb.query.Query.to_sql) | Build the SQL query string. |
+| [where](#soildb.query.Query.where) | Add a WHERE condition. |
+
+### from_ { #soildb.query.Query.from_ }
+
+```python
+query.Query.from_(table)
+```
+
+Set the FROM clause.
+
+Args:
+    table: Name of the table to query from.
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### from_sql { #soildb.query.Query.from_sql }
+
+```python
+query.Query.from_sql(sql)
+```
+
+Create a query from raw SQL.
+
+Args:
+    sql: Raw SQL query string.
+
+Returns:
+    Query: A new Query instance with the provided SQL.
+
+### inner_join { #soildb.query.Query.inner_join }
+
+```python
+query.Query.inner_join(table, on_condition)
+```
+
+Add an INNER JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### join { #soildb.query.Query.join }
+
+```python
+query.Query.join(table, on_condition, join_type='INNER')
+```
+
+Add a JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+    join_type: Type of join ("INNER", "LEFT", "RIGHT", "FULL").
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### left_join { #soildb.query.Query.left_join }
+
+```python
+query.Query.left_join(table, on_condition)
+```
+
+Add a LEFT JOIN clause.
+
+Args:
+    table: Name of the table to join.
+    on_condition: JOIN condition (ON clause).
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### limit { #soildb.query.Query.limit }
+
+```python
+query.Query.limit(count)
+```
+
+Set the LIMIT (uses TOP in SQL Server).
+
+Args:
+    count: Maximum number of rows to return.
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### order_by { #soildb.query.Query.order_by }
+
+```python
+query.Query.order_by(column, direction='ASC')
+```
+
+Set the ORDER BY clause.
+
+Args:
+    column: Column name to order by.
+    direction: Sort direction ("ASC" or "DESC").
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### select { #soildb.query.Query.select }
+
+```python
+query.Query.select(*columns)
+```
+
+Set the SELECT clause.
+
+Args:
+    *columns: Column names to select. Use "*" for all columns.
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### to_sql { #soildb.query.Query.to_sql }
+
+```python
+query.Query.to_sql()
+```
+
+Build the SQL query string.
+
+Returns:
+    str: The complete SQL query string.
+
+### where { #soildb.query.Query.where }
+
+```python
+query.Query.where(condition)
+```
+
+Add a WHERE condition.
+
+Args:
+    condition: SQL WHERE condition string.
+
+Returns:
+    Query: This Query instance for method chaining.

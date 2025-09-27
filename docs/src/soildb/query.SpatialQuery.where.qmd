@@ -1,0 +1,13 @@
+# query.SpatialQuery.where { #soildb.query.SpatialQuery.where }
+
+```python
+query.SpatialQuery.where(condition)
+```
+
+Add a WHERE condition.
+
+Args:
+    condition: SQL WHERE condition string.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

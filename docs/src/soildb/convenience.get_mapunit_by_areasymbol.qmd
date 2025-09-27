@@ -1,0 +1,14 @@
+# convenience.get_mapunit_by_areasymbol { #soildb.convenience.get_mapunit_by_areasymbol }
+
+```python
+convenience.get_mapunit_by_areasymbol(areasymbol, client=None)
+```
+
+Get map unit data by survey area symbol (legend).
+
+Args:
+    areasymbol: Survey area symbol (e.g., 'IA015') to retrieve map units for
+    client: Optional client instance
+
+Returns:
+    SDAResponse containing map unit data for the specified survey area

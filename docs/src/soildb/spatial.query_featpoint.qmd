@@ -1,0 +1,12 @@
+# spatial.query_featpoint { #soildb.spatial.query_featpoint }
+
+```python
+spatial.query_featpoint(
+    geometry,
+    return_type='tabular',
+    spatial_relation='intersects',
+    client=None,
+)
+```
+
+Query feature points with a geometry.

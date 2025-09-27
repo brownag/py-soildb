@@ -1,0 +1,13 @@
+# query.SpatialQuery.limit { #soildb.query.SpatialQuery.limit }
+
+```python
+query.SpatialQuery.limit(count)
+```
+
+Set the LIMIT.
+
+Args:
+    count: Maximum number of rows to return.
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.

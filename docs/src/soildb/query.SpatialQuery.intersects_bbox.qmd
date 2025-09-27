@@ -1,0 +1,16 @@
+# query.SpatialQuery.intersects_bbox { #soildb.query.SpatialQuery.intersects_bbox }
+
+```python
+query.SpatialQuery.intersects_bbox(min_x, min_y, max_x, max_y)
+```
+
+Add a bounding box intersection filter.
+
+Args:
+    min_x: Minimum longitude (west bound).
+    min_y: Minimum latitude (south bound).
+    max_x: Maximum longitude (east bound).
+    max_y: Maximum latitude (north bound).
+
+Returns:
+    SpatialQuery: This SpatialQuery instance for method chaining.
