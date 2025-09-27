@@ -14,7 +14,7 @@ Survey data sources.
 
 `soildb` provides Python access to:
 - **Soil Data**: USDA Soil Data Access (SDA) web service for soil survey data
-- **Weather Data**: NRCS Agricultural Water Database (AWDB) for soil and weather monitoring
+- **Weather Data**: NRCS Air and Water Database (AWDB) for soil and weather monitoring
 - **Integration**: Tools for combining soil and weather data for comprehensive analysis
 
 Query soil survey data, environmental monitoring data, export to pandas/polars
@@ -68,24 +68,24 @@ pip install soildb[all]
 
 ### Query Builder
 
-This is a basic example of building a custom query and getting the
-results:
+Build and execute custom SQL queries with the fluent interface:
 
 ``` python
 from soildb import Query
-    
+
 query = (Query()
         .select("mukey", "muname", "musym")
         .from_("mapunit")
         .inner_join("legend", "mapunit.lkey = legend.lkey")
         .where("areasymbol = 'IA109'")
         .limit(5))
-    
-# inspect query
+
+# Inspect the generated SQL
 print(query.to_sql())
 
-result = await soildb.SDAClient().execute(query)
-
+# Execute and get results
+from soildb import SDAClient
+result = SDAClient().execute.sync(query)
 df = result.to_pandas()
 print(df.head())
 ```
@@ -98,40 +98,9 @@ print(df.head())
     3  408345  Clarion loam, 9 to 14 percent slopes, moderate...  138D2
     4  408348          Harpster silt loam, 0 to 2 percent slopes   1595
 
-## Async Setup
+## Async vs Synchronous Usage
 
-You may have noticed that we need to `await` the query execution result.
-
-All soildb functions are async. Here's how to run them in different
-environments like Jupyter notebooks, VSCode, or regular Python scripts.
-
-### Basic Async Execution
-
-``` python
-import asyncio
-import soildb
-
-async def main():
-    # Your async code here
-    mapunits = await soildb.get_mapunit_by_areasymbol("IA109")
-    df = mapunits.to_pandas()
-    return df
-
-# Handle different environments
-try:
-    # Check if there's already an event loop (Jupyter, etc.)
-    loop = asyncio.get_running_loop()
-    import nest_asyncio
-    nest_asyncio.apply()
-    result = loop.run_until_complete(main())
-except RuntimeError:
-    # No existing loop, use asyncio.run()
-    result = asyncio.run(main())
-
-result
-```
-
-For comprehensive async usage, see the [Async Programming Guide](docs/async.qmd).
+All soildb functions have both async and synchronous versions. For most use cases, the synchronous `.sync()` version is simpler and easier to use.
 
 ### Synchronous Usage
 
@@ -185,10 +154,12 @@ client.close()
 
 ### Convenience Functions
 
-soildb provides several high-level functions for common tasks:
+soildb provides high-level functions for common tasks:
 
 ``` python
-mapunits = await soildb.get_mapunit_by_areasymbol("IA109")
+from soildb import get_mapunit_by_areasymbol
+
+mapunits = get_mapunit_by_areasymbol.sync("IA109")
 df = mapunits.to_pandas()
 print(f"Found {len(df)} map units")
 df.head()
@@ -221,44 +192,22 @@ df.head()
 
 If you have suggestions for new convenience functions please file a
 [feature request on
-GitHub](https://github,com/brownag/py-soildb/issues/new).
+GitHub](https://github.com/brownag/py-soildb/issues/new).
 
 ### Spatial Queries
 
-soildb also offers support for queries by location via
-`spatial_query()`. You can specify arbitrary geometry to target several
-spatial and tabular types of results.
+Query soil data by location with points, bounding boxes, or polygons:
 
 ``` python
 from soildb import spatial_query
 
-# Point query (synchronous)
+# Point query
 response = spatial_query.sync(
-    geometry="POINT (-93.6 42.0)",
-    table="mupolygon",
-    spatial_relation="intersects"
+    geometry="POINT(-93.6 42.0)",
+    table="mupolygon"
 )
 df = response.to_pandas()
 print(f"Point query found {len(df)} results")
-
-# Or async
-import asyncio
-
-async def spatial_query_example():
-    from soildb import spatial_query
-    
-    async with soildb.SDAClient() as client:
-        response = await spatial_query(
-            geometry="POINT (-93.6 42.0)",
-            table="mupolygon",
-            spatial_relation="intersects",
-            client=client
-        )
-        df = response.to_pandas()
-        print(f"Point query found {len(df)} results")
-        return df
-
-result = asyncio.run(spatial_query_example())
 ```
 
     Point query found 1 results
@@ -284,23 +233,18 @@ result = asyncio.run(spatial_query_example())
 
 ### Bulk Data Fetching
 
-soildb makes it easy to retrieve large datasets efficiently, using
-concurrent requests and built-in functions that automatically handle
-pagination.
+Retrieve large datasets efficiently with automatic pagination and chunking:
 
 ``` python
 from soildb import fetch_by_keys, get_mukey_by_areasymbol
 
-# Get mukeys for multiple areas (synchronous)
+# Get mukeys for survey areas
 areas = ["IA109", "IA113", "IA117"]
-all_mukeys = []
-for area in areas:
-    mukeys = get_mukey_by_areasymbol.sync([area])
-    all_mukeys.extend(mukeys)
+all_mukeys = get_mukey_by_areasymbol.sync(areas)
 
 print(f"Found {len(all_mukeys)} mukeys across {len(areas)} areas")
 
-# Fetch data in chunks automatically (synchronous)
+# Fetch components in chunks automatically
 response = fetch_by_keys.sync(
     all_mukeys, 
     "component", 
@@ -310,43 +254,6 @@ response = fetch_by_keys.sync(
 )
 df = response.to_pandas()
 print(f"Fetched {len(df)} component records")
-
-# Or async
-import asyncio
-
-async def bulk_fetch_example():
-    from soildb import fetch_by_keys, get_mukey_by_areasymbol
-    
-    # Get mukeys for multiple areas concurrently
-    areas = ["IA109", "IA113", "IA117"]
-    mukeys_tasks = [
-        get_mukey_by_areasymbol([area]) 
-        for area in areas
-    ]
-    
-    # Execute all mukey requests concurrently
-    mukeys_results = await asyncio.gather(*mukeys_tasks)
-    
-    # Flatten the results (each task returns a list)
-    all_mukeys = []
-    for mukeys in mukeys_results:
-        all_mukeys.extend(mukeys)
-    
-    print(f"Found {len(all_mukeys)} mukeys across {len(areas)} areas")
-    
-    # Fetch data in chunks automatically
-    response = await fetch_by_keys(
-        all_mukeys, 
-        "component", 
-        key_column="mukey", 
-        chunk_size=100,
-        columns=["mukey", "cokey", "compname", "localphase", "comppct_r"]
-    )
-    df = response.to_pandas()
-    print(f"Fetched {len(df)} component records")
-    return df
-
-result = asyncio.run(bulk_fetch_example())
 ```
 
     Found 410 mukeys across 3 areas
@@ -392,6 +299,35 @@ get all components for specific map units.
 Use the `fetch_by_keys()` function with the `"mukey"` as the
 `key_column` to achieve this with automatic pagination over chunks with
 `100` rows each (or specify your own `chunk_size`).
+
+## Async Usage
+
+For performance-critical applications, use async functions directly with concurrent requests:
+
+``` python
+import asyncio
+from soildb import fetch_by_keys, get_mukey_by_areasymbol
+
+async def concurrent_example():
+    # Get mukeys for multiple areas concurrently
+    areas = ["IA109", "IA113", "IA117"]
+    all_mukeys = await get_mukey_by_areasymbol(areas)
+    
+    # Fetch components concurrently with automatic pagination
+    response = await fetch_by_keys(
+        all_mukeys,
+        "component",
+        key_column="mukey",
+        chunk_size=100,
+        columns=["mukey", "cokey", "compname", "comppct_r"]
+    )
+    return response.to_pandas()
+
+# Run async function
+df = asyncio.run(concurrent_example())
+```
+
+For more async patterns, see the [Async Programming Guide](docs/async.qmd).
 
 # Examples
 
