@@ -96,7 +96,7 @@ async def spatial_example():
     if SPATIAL_AVAILABLE:
         # Convert to GeoDataFrame for spatial analysis
         gdf = response.to_geodataframe()
-        print(f"Total area: {gdf.geometry.to_crs("EPSG:5070").area.sum():.4f} square meters")
+        print(f"Total area: {gdf.geometry.to_crs('EPSG:5070').area.sum():.4f} square meters")
         
         # Simple plot
         fig, ax = plt.subplots(figsize=(10, 8))
