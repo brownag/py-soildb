@@ -13,4 +13,5 @@ build:
     - rm quarto-1.4.553-linux-amd64.tar.gz
     - quartodoc build --config docs/_quarto.yml
     - ./quarto-1.4.553/bin/quarto render docs/
-    - mv docs/_site _readthedocs/html
+    - mkdir -p _readthedocs/html
+    - mv docs/_site/* _readthedocs/html
