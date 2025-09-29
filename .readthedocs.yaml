@@ -4,18 +4,13 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
-  jobs:
-    post_install:
-      - pip install -r requirements-dev.txt
-      - pip install -e . 
-      - curl -LO https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.553/quarto-1.4.553-linux-amd64.deb
-      - apt-get update && apt-get install -y ./quarto-1.4.553-linux-amd64.deb
-      - quartodoc build --config docs/_quarto.yml
-      - quarto render docs/
-formats: []
-sphinx:
-  configuration: null
-mkdocs:
-  configuration: null
-output:
-  html: docs/_site
+  commands:
+    - pip install -r requirements-dev.txt
+    - pip install -e .
+    - wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.553/quarto-1.4.553-linux-amd64.tar.gz
+    - tar -xzf quarto-1.4.553-linux-amd64.tar.gz
+    - export PATH=$PWD/quarto-1.4.553/bin:$PATH
+    - rm quarto-1.4.553-linux-amd64.tar.gz
+    - quartodoc build --config docs/_quarto.yml
+    - ./quarto-1.4.553/bin/quarto render docs/
+    - mv docs/_site _readthedocs/html
