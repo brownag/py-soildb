@@ -17,6 +17,14 @@ try:
 except ImportError:
     SPATIAL_AVAILABLE = False
     print("GeoPandas not available - spatial features will be limited")
+
+# Optional: for soil profile data
+try:
+    from soilprofilecollection import SoilProfileCollection
+    SOIL_PROFILE_COLLECTION_AVAILABLE = True
+except ImportError:
+    SOIL_PROFILE_COLLECTION_AVAILABLE = False
+    print("soilprofilecollection not available - profile analysis will be limited")
 ```
 
 ## 1. Basic Point Queries
@@ -177,31 +185,50 @@ async def hierarchy_example():
     major_components = comp_df[comp_df['majcompflag'] == 'Yes']
     cokeys = major_components['cokey'].tolist()
     
-    hz_response = await soildb.fetch_chorizon_by_cokey(cokeys)
-    hz_df = hz_response.to_pandas()
+    hz_response = await soildb.fetch_chorizon_by_cokey(cokeys, columns=["chkey", "cokey", "hzdept_r", "hzdepb_r", "claytotal_r", "sandtotal_r", "silttotal_r", "om_r"])
     
-    print("Soil Survey Hierarchy Analysis")
-    print("="*40)
+    print("Soil Survey Hierarchy Analysis (DataFrame method)")
+    print("="*50)
     print(f"Map Units: {len(mapunit_df)}")
     print(f"Components (sample): {len(comp_df)}")
     print(f"Major Components: {len(major_components)}")
+    
+    hz_df = hz_response.to_pandas()
     print(f"Horizons: {len(hz_df)}")
     
-    # Analyze horizon data
+    # Analyze horizon data with pandas
     if not hz_df.empty:
-        print(f"\nHorizon Analysis:")
+        print(f"\nHorizon Analysis (pandas):")
         print(f"Average depth: {hz_df['hzdepb_r'].mean():.1f} cm")
         print(f"Deepest horizon: {hz_df['hzdepb_r'].max():.0f} cm")
         
         # Clay content analysis
         clay_data = hz_df['claytotal_r'].dropna()
         if not clay_data.empty:
-            print(f"Average clay content: {clay_data.mean():.1f}%")
+            print(f"Average clay content (unweighted): {clay_data.mean():.1f}%")
+
+    # 4. Use soilprofilecollection for richer analysis
+    if SOIL_PROFILE_COLLECTION_AVAILABLE and not hz_df.empty:
+        print("\n\nSoil Survey Hierarchy Analysis (soilprofilecollection method)")
+        print("="*60)
+        
+        # Create a SoilProfileCollection directly from the response
+        spc = hz_response.to_soilprofilecollection(site_data=major_components)
+        
+        print(f"Created SoilProfileCollection with {len(spc)} profiles.")
+        
+        # Richer analysis using built-in methods
+        print("\nHorizon Analysis (SPC):")
+        print(f"Deepest profile: {spc.depth.max():.0f} cm")
+        
+        # Get mean clay content weighted by horizon thickness for the top 100cm
+        mean_clay = spc.get_prop_value('claytotal_r', depth=100, method='weighted_mean')
+        print(f"Mean clay content to 100cm (weighted): {mean_clay.mean():.1f}%")
     
-    return mapunit_df, comp_df, hz_df
+    return mapunit_df, comp_df, hz_df, spc if SOIL_PROFILE_COLLECTION_AVAILABLE else None
 
 # Run the example
-mu_df, comp_df, hz_df = await hierarchy_example()
+mu_df, comp_df, hz_df, spc = await hierarchy_example()
 ```
 
 ## 6. Custom Queries
