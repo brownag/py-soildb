@@ -46,3 +46,18 @@ def empty_sda_response_json():
         ]
     }
     """
+
+
+@pytest.fixture
+def no_soilprofilecollection(monkeypatch):
+    """
+    Fixture to simulate that the 'soilprofilecollection' package is not installed.
+    """
+    import_orig = __import__
+
+    def import_mock(name, *args, **kwargs):
+        if name == "soilprofilecollection":
+            raise ImportError()
+        return import_orig(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", import_mock)

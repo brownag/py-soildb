@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         import pandas as pd
     except ImportError:
         pd = None  # type: ignore
+    from soilprofilecollection import SoilProfileCollection
 
     try:
         import polars as pl
@@ -418,6 +419,64 @@ class SDAResponse:
         gdf = gdf[gdf.geometry.notna() & gdf.geometry.is_valid]
 
         return gdf
+
+    def to_soilprofilecollection(
+        self,
+        site_data: "pd.DataFrame | None" = None,
+        site_id_col: str = "cokey",
+        hz_id_col: str = "chkey",
+        hz_top_col: str = "hzdept_r",
+        hz_bot_col: str = "hzdepb_r",
+    ) -> "SoilProfileCollection":
+        """
+        Converts the response data to a soilprofilecollection.SoilProfileCollection object.
+
+        This method is intended for horizon-level data, which can be joined with
+        site-level data (e.g., from the component table) to form a complete
+        soil profile collection.
+
+        Args:
+            site_data: Optional pandas DataFrame containing site-level data.
+                This will be joined with the horizon data.
+            site_id_col: The name of the site ID column, used to link site and
+                horizon data (default: "cokey").
+            hz_id_col: The name of the unique horizon ID column (default: "chkey").
+            hz_top_col: The name of the horizon top depth column (default: "hzdept_r").
+            hz_bot_col: The name of the horizon bottom depth column (default: "hzdepb_r").
+
+        Returns:
+            A SoilProfileCollection object.
+
+        Raises:
+            ImportError: If the 'soilprofilecollection' package is not installed.
+            ValueError: If required columns for creating the SoilProfileCollection
+                are missing from the data.
+        """
+        try:
+            from soilprofilecollection import SoilProfileCollection
+        except ImportError:
+            raise ImportError(
+                "The 'soilprofilecollection' package is required to use "
+                "to_soilprofilecollection(). Please install it with: "
+                "pip install soildb[soil]"
+            ) from None
+
+        horizons_df = self.to_pandas()
+
+        required_cols = [hz_id_col, site_id_col, hz_top_col, hz_bot_col]
+        missing_cols = [col for col in required_cols if col not in horizons_df.columns]
+        if missing_cols:
+            raise ValueError(
+                f"Missing required columns in horizon data: {', '.join(missing_cols)}"
+            )
+
+        return SoilProfileCollection(
+            horizons=horizons_df,
+            site=site_data,
+            idname=site_id_col,
+            hzidname=hz_id_col,
+            depthcols=(hz_top_col, hz_bot_col),
+        )
 
     def get_column_types(self) -> Dict[str, str]:
         """Extract column data types from metadata."""
