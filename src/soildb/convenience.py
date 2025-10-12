@@ -6,9 +6,10 @@ import threading
 from typing import Optional
 
 from .client import SDAClient
-from .query import Query, QueryBuilder
+from .query import Query, QueryBuilder, ColumnSets
 from .response import SDAResponse
 from .spatial import spatial_query
+from .fetch import fetch_pedons_by_bbox
 
 # Module-level client instance for shared usage
 # WARNING: The default client is not thread-safe for concurrent access.
@@ -42,13 +43,16 @@ def _get_default_client() -> SDAClient:
 
 
 async def get_mapunit_by_areasymbol(
-    areasymbol: str, client: Optional[SDAClient] = None
+    areasymbol: str,
+    columns: Optional[list[str]] = None,
+    client: Optional[SDAClient] = None
 ) -> "SDAResponse":
     """
     Get map unit data by survey area symbol (legend).
 
     Args:
         areasymbol: Survey area symbol (e.g., 'IA015') to retrieve map units for
+        columns: List of columns to return. If None, returns basic map unit columns
         client: Optional client instance
 
     Returns:
@@ -57,12 +61,12 @@ async def get_mapunit_by_areasymbol(
     if client is None:
         client = _get_default_client()
 
-    query = QueryBuilder.mapunits_by_legend(areasymbol)
+    query = QueryBuilder.mapunits_by_legend(areasymbol, columns)
     return await client.execute(query)
 
 
 async def get_mapunit_by_point(
-    longitude: float, latitude: float, client: Optional[SDAClient] = None
+    longitude: float, latitude: float, columns: Optional[list[str]] = None, client: Optional[SDAClient] = None
 ) -> "SDAResponse":
     """
     Get map unit data at a specific point location.
@@ -70,13 +74,16 @@ async def get_mapunit_by_point(
     Args:
         longitude: Longitude of the point
         latitude: Latitude of the point
+        columns: List of columns to return. If None, returns basic map unit columns
         client: Optional client instance
 
     Returns:
         SDAResponse containing map unit data at the specified point
     """
+    # Convert columns list to comma-separated string for spatial_query
+    what = ", ".join(columns) if columns else None
     wkt_point = f"POINT({longitude} {latitude})"
-    return await spatial_query(wkt_point, table="mupolygon", client=client)
+    return await spatial_query(wkt_point, table="mupolygon", what=what, client=client)
 
 
 async def get_mapunit_by_bbox(
@@ -84,6 +91,7 @@ async def get_mapunit_by_bbox(
     min_y: float,
     max_x: float,
     max_y: float,
+    columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> "SDAResponse":
     """
@@ -94,6 +102,7 @@ async def get_mapunit_by_bbox(
         min_y: Southern boundary (latitude)
         max_x: Eastern boundary (longitude)
         max_y: Northern boundary (latitude)
+        columns: List of columns to return. If None, returns basic map unit columns
         client: Optional client instance
 
     Returns:
@@ -102,7 +111,7 @@ async def get_mapunit_by_bbox(
     if client is None:
         client = _get_default_client()
 
-    query = QueryBuilder.mapunits_intersecting_bbox(min_x, min_y, max_x, max_y)
+    query = QueryBuilder.mapunits_intersecting_bbox(min_x, min_y, max_x, max_y, columns)
     return await client.execute(query)
 
 
@@ -135,11 +144,7 @@ async def get_sacatalog(
     if client is None:
         client = _get_default_client()
 
-    if columns is None:
-        columns = ["areasymbol", "areaname", "saversion"]
-
-    query = Query().select(*columns).from_("sacatalog").order_by("areasymbol")
-
+    query = QueryBuilder.available_survey_areas(columns)
     return await client.execute(query)
 
 
@@ -156,6 +161,72 @@ async def list_survey_areas(client: Optional[SDAClient] = None) -> list[str]:
     response = await get_sacatalog(columns=["areasymbol"], client=client)
     df = response.to_pandas()
     return df["areasymbol"].tolist() if not df.empty else []
+
+
+async def get_lab_pedons_by_bbox(
+    min_x: float,
+    min_y: float,
+    max_x: float,
+    max_y: float,
+    columns: Optional[list[str]] = None,
+    client: Optional[SDAClient] = None,
+) -> "SDAResponse":
+    """
+    Get laboratory-analyzed pedon data within a bounding box.
+
+    Args:
+        min_x: Western boundary (longitude)
+        min_y: Southern boundary (latitude)
+        max_x: Eastern boundary (longitude)
+        max_y: Northern boundary (latitude)
+        columns: List of columns to return. If None, returns basic pedon columns
+        client: Optional client instance
+
+    Returns:
+        SDAResponse containing lab pedon data
+    """
+    if client is None:
+        client = _get_default_client()
+
+    bbox = (min_x, min_y, max_x, max_y)
+    return await fetch_pedons_by_bbox(bbox, columns, client=client)
+
+
+async def get_lab_pedon_by_id(
+    pedon_id: str,
+    columns: Optional[list[str]] = None,
+    client: Optional[SDAClient] = None
+) -> "SDAResponse":
+    """
+    Get a single laboratory-analyzed pedon by its pedon key or user pedon ID.
+
+    Args:
+        pedon_id: Pedon key or user pedon ID
+        columns: List of columns to return. If None, returns basic pedon columns
+        client: Optional client instance
+
+    Returns:
+        SDAResponse containing lab pedon data
+    """
+    if client is None:
+        client = _get_default_client()
+
+    # First try as pedon_key
+    query = QueryBuilder.pedon_by_pedon_key(pedon_id, columns)
+    response = await client.execute(query)
+
+    if not response.is_empty():
+        return response
+
+    # If not found, try as user pedon ID
+    query = (
+        Query()
+        .select(*(columns or ColumnSets.PEDON_BASIC))
+        .from_("lab_combine_nasis_ncss")
+        .where(f"upedonid = '{pedon_id}'")
+    )
+
+    return await client.execute(query)
 
 
 # Synchronous convenience wrappers for simple operations

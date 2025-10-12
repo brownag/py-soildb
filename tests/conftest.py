@@ -2,11 +2,29 @@
 Test configuration and fixtures for soildb tests.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+import pytest_asyncio
 
 from soildb import SDAClient
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for each test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def sda_client():
+    """Create a real SDAClient for integration tests."""
+    client = SDAClient()
+    yield client
+    await client.close()
 
 
 @pytest.fixture
