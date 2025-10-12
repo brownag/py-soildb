@@ -101,7 +101,9 @@ class TestQueryBuilder:
     def test_mapunits_by_legend(self):
         query = QueryBuilder.mapunits_by_legend("IA109")
         sql = query.to_sql()
-        assert "SELECT m.mukey, m.musym" in sql
+        assert "mukey" in sql
+        assert "musym" in sql
+        assert "muname" in sql
         assert "FROM mapunit m" in sql
         assert "areasymbol = 'IA109'" in sql
 
