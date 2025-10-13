@@ -525,7 +525,10 @@ class QueryBuilder:
     ) -> Query:
         """Get list of available survey areas."""
         if columns is None:
-            columns = ColumnSets.LEGEND_BASIC
+            if table == "sacatalog":
+                columns = ["areasymbol", "areaname", "saversion"]
+            else:
+                columns = ColumnSets.LEGEND_BASIC
 
         return (
             Query()

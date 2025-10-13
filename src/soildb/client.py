@@ -42,6 +42,7 @@ class SDAClient:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self._client: Optional[httpx.AsyncClient] = None
+        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def __aenter__(self) -> "SDAClient":
         """Async context manager entry."""
@@ -54,6 +55,17 @@ class SDAClient:
 
     async def _ensure_client(self) -> None:
         """Ensure HTTP client is initialized."""
+        current_loop = asyncio.get_running_loop()
+        
+        # If we have a client but it's from a different event loop, close it and recreate
+        if self._client is not None and self._event_loop is not None and self._event_loop != current_loop:
+            try:
+                await self._client.aclose()
+            except Exception:
+                pass  # Ignore errors when closing
+            self._client = None
+            self._event_loop = None
+        
         if self._client is None:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),
@@ -62,12 +74,14 @@ class SDAClient:
                     "User-Agent": "soildb-python-client/0.1.0",
                 },
             )
+            self._event_loop = current_loop
 
     async def close(self) -> None:
         """Close the HTTP client."""
         if self._client is not None:
             await self._client.aclose()
             self._client = None
+            self._event_loop = None
 
     async def connect(self) -> bool:
         """

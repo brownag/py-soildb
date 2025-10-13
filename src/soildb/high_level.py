@@ -245,12 +245,11 @@ async def fetch_pedon_struct_by_bbox(
     max_y: float,
     fill_horizons: bool = True,
     client: Optional[SDAClient] = None,
-) -> List[Dict[str, pd.DataFrame]]:
+) -> List[PedonData]:
     """
     Fetch structured pedon data within a bounding box.
 
-    Returns a list of dictionaries, each containing 'site' and 'horizons' DataFrames
-    with all columns from the lab tables, following the official SSURGO/LDM schema.
+    Returns a list of PedonData objects with site information and laboratory-analyzed horizons.
 
     Args:
         min_x: Western boundary (longitude)
@@ -261,7 +260,7 @@ async def fetch_pedon_struct_by_bbox(
         client: Optional SDA client instance.
 
     Returns:
-        List of dicts with 'site' and 'horizons' DataFrames
+        List of PedonData objects
     """
     # Step 1: Get pedon site data
     site_response = await get_lab_pedons_by_bbox(
@@ -272,18 +271,37 @@ async def fetch_pedon_struct_by_bbox(
     if site_df.empty:
         return []
 
-    # Step 2: Create base pedon dicts
+    # Step 2: Create base PedonData objects
     pedons = []
     for _, row in site_df.iterrows():
-        site_df_single = row.to_frame().T
-        pedon_dict = {'site': site_df_single, 'horizons': pd.DataFrame()}
-        pedons.append(pedon_dict)
+        pedon = PedonData(
+            pedon_key=str(row["pedon_key"]),
+            pedon_id=str(row.get("upedonid", "")),
+            series=str(row.get("corr_name", "")),
+            latitude=float(row["latitude_decimal_degrees"])
+            if pd.notna(row.get("latitude_decimal_degrees"))
+            else None,
+            longitude=float(row["longitude_decimal_degrees"])
+            if pd.notna(row.get("longitude_decimal_degrees"))
+            else None,
+            soil_classification=str(row.get("taxonname", "")),
+            metadata={
+                "query_bbox": {
+                    "min_x": min_x,
+                    "min_y": min_y,
+                    "max_x": max_x,
+                    "max_y": max_y,
+                },
+                "query_date": datetime.now().isoformat(),
+            },
+        )
+        pedons.append(pedon)
 
     if not fill_horizons or not pedons:
         return pedons
 
     # Step 3: Fetch horizons for all pedons
-    pedon_keys = [str(p['site']['pedon_key'].iloc[0]) for p in pedons]
+    pedon_keys = [p.pedon_key for p in pedons]
     horizons_df = (await fetch_pedon_horizons(pedon_keys, client=client)).to_pandas()
 
     if not horizons_df.empty:
@@ -293,8 +311,14 @@ async def fetch_pedon_struct_by_bbox(
         horizons_by_pedon = dict(tuple(horizons_df.groupby("pedon_key")))
 
         for pedon in pedons:
-            pedon_key = str(pedon['site']['pedon_key'].iloc[0])
-            pedon['horizons'] = horizons_by_pedon.get(pedon_key, pd.DataFrame())
+            pedon_key = pedon.pedon_key
+            if pedon_key in horizons_by_pedon:
+                pedon_horizons_df = horizons_by_pedon[pedon_key]
+                horizons = []
+                for _, h_row in pedon_horizons_df.iterrows():
+                    horizon = _create_pedon_horizon_from_row(pedon_key, h_row)
+                    horizons.append(horizon)
+                pedon.horizons = horizons
 
     return pedons
 
@@ -303,12 +327,11 @@ async def fetch_pedon_struct_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
     client: Optional[SDAClient] = None,
-) -> Optional[Dict[str, pd.DataFrame]]:
+) -> Optional[PedonData]:
     """
     Fetch structured pedon data for a specific pedon.
 
-    Returns a dictionary containing 'site' and 'horizons' DataFrames
-    with all columns from the lab tables, following the official SSURGO/LDM schema.
+    Returns a PedonData object with site information and laboratory-analyzed horizons.
 
     Args:
         pedon_id: Pedon key or user pedon ID
@@ -316,7 +339,7 @@ async def fetch_pedon_struct_by_id(
         client: Optional SDA client instance.
 
     Returns:
-        Dict with 'site' and 'horizons' DataFrames or None if not found
+        PedonData object or None if not found
     """
     # Step 1: Get pedon site data
     site_response = await get_lab_pedon_by_id(pedon_id, client=client)
@@ -325,17 +348,39 @@ async def fetch_pedon_struct_by_id(
     if site_df.empty:
         return None
 
-    pedon_dict = {'site': site_df, 'horizons': pd.DataFrame()}
+    # Step 2: Create PedonData object
+    row = site_df.iloc[0]
+    pedon = PedonData(
+        pedon_key=str(row["pedon_key"]),
+        pedon_id=str(row.get("upedonid", "")),
+        series=str(row.get("corr_name", "")),
+        latitude=float(row["latitude_decimal_degrees"])
+        if pd.notna(row.get("latitude_decimal_degrees"))
+        else None,
+        longitude=float(row["longitude_decimal_degrees"])
+        if pd.notna(row.get("longitude_decimal_degrees"))
+        else None,
+        soil_classification=str(row.get("taxonname", "")),
+        metadata={
+            "query_pedon_id": pedon_id,
+            "query_date": datetime.now().isoformat(),
+        },
+    )
 
     if not fill_horizons:
-        return pedon_dict
+        return pedon
 
     # Step 3: Fetch horizons
-    pedon_key = str(site_df.iloc[0]['pedon_key'])
+    pedon_key = pedon.pedon_key
     horizons_df = (
         await fetch_pedon_horizons(pedon_key, client=client)
     ).to_pandas()
 
-    pedon_dict['horizons'] = horizons_df
+    if not horizons_df.empty:
+        horizons = []
+        for _, h_row in horizons_df.iterrows():
+            horizon = _create_pedon_horizon_from_row(pedon_key, h_row)
+            horizons.append(horizon)
+        pedon.horizons = horizons
 
-    return pedon_dict
+    return pedon
