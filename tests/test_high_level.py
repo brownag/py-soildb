@@ -55,10 +55,11 @@ async def test_fetch_pedon_struct_by_bbox(sda_client):
         )
         assert isinstance(pedons, list)
         if pedons:
-            assert isinstance(pedons[0], dict)
-            assert 'site' in pedons[0]
-            assert 'horizons' in pedons[0]
-            assert len(pedons[0]['horizons']) > 0
+            from soildb.models import PedonData
+            assert isinstance(pedons[0], PedonData)
+            assert hasattr(pedons[0], 'pedon_key')
+            assert hasattr(pedons[0], 'horizons')
+            assert len(pedons[0].horizons) > 0
             print(f"SUCCESS: fetch_pedon_struct_by_bbox returned {len(pedons)} pedons.")
         else:
             print("No pedons found in the given bbox, which is a valid result.")
@@ -76,20 +77,21 @@ async def test_fetch_pedon_struct_by_id(sda_client):
     print("Testing fetch_pedon_struct_by_id...")
     try:
         pedon = await fetch_pedon_struct_by_id(TEST_PEDON_ID, client=sda_client)
-        assert isinstance(pedon, dict)
-        assert 'site' in pedon
-        assert 'horizons' in pedon
-        assert pedon['site']['upedonid'].iloc[0] == TEST_PEDON_ID
-        assert len(pedon['horizons']) > 0
+        from soildb.models import PedonData
+        assert isinstance(pedon, PedonData)
+        assert hasattr(pedon, 'pedon_key')
+        assert hasattr(pedon, 'horizons')
+        assert pedon.pedon_id == TEST_PEDON_ID
+        assert len(pedon.horizons) > 0
         # Check if a corrected column is present
-        horizon = pedon['horizons'].iloc[0]
+        horizon = pedon.horizons[0]
         assert (
-            pd.notna(horizon.get('water_retention_15_bar'))
-            or pd.notna(horizon.get('water_retention_third_bar'))
-            or pd.notna(horizon.get('water_retention_10th_bar'))
+            horizon.water_content_fifteen_bar is not None
+            or horizon.water_content_third_bar is not None
+            or horizon.water_content_tenth_bar is not None
         )
         print(
-            f"SUCCESS: fetch_pedon_struct_by_id returned a valid pedon dict for ID {TEST_PEDON_ID}."
+            f"SUCCESS: fetch_pedon_struct_by_id returned a valid PedonData object for ID {TEST_PEDON_ID}."
         )
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")
