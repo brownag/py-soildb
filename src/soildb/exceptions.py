@@ -49,7 +49,7 @@ class SDAMaintenanceError(SoilDBError):
 
     def __str__(self) -> str:
         """Return helpful maintenance message."""
-        return "USDA Soil Data Access service is currently under maintenance. This typically occurs during off-hours (1 AM Central). Please try again in a few minutes."
+        return "USDA Soil Data Access service is currently under maintenance. This typically occurs during off-hours (each day from 12:45 AM to 1 AM Central). Please try again in a few minutes."
 
 
 class SDATimeoutError(SDAConnectionError):
