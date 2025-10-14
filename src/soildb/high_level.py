@@ -27,6 +27,16 @@ from .models import (
 )
 
 
+def _to_optional_float(value) -> Optional[float]:
+    """Converts a value to a float, returning None if it's NaN or None."""
+    return float(value) if pd.notna(value) else None
+
+
+def _to_optional_int(value) -> Optional[int]:
+    """Converts a value to an int, returning None if it's NaN or None."""
+    return int(value) if pd.notna(value) else None
+
+
 def _create_pedon_horizon_from_row(pedon_key: str, h_row) -> PedonHorizon:
     """
     Create a PedonHorizon object from a horizon data row.
@@ -46,48 +56,24 @@ def _create_pedon_horizon_from_row(pedon_key: str, h_row) -> PedonHorizon:
     return PedonHorizon(
         pedon_key=pedon_key,
         layer_key=str(h_row["layer_key"]),
-        layer_sequence=int(h_row["layer_sequence"])
-        if pd.notna(h_row.get("layer_sequence"))
-        else 0,
+        layer_sequence=_to_optional_int(h_row.get("layer_sequence")),
         horizon_name=str(h_row["hzn_desgn"]),
-        top_depth=float(h_row["hzn_top"])
-        if pd.notna(h_row.get("hzn_top"))
-        else 0.0,
-        bottom_depth=float(h_row["hzn_bot"])
-        if pd.notna(h_row.get("hzn_bot"))
-        else 0.0,
-        sand_total=float(h_row["sand_total"])
-        if pd.notna(h_row.get("sand_total"))
-        else None,
-        silt_total=float(h_row["silt_total"])
-        if pd.notna(h_row.get("silt_total"))
-        else None,
-        clay_total=float(h_row["clay_total"])
-        if pd.notna(h_row.get("clay_total"))
-        else None,
+        top_depth=_to_optional_float(h_row.get("hzn_top")),
+        bottom_depth=_to_optional_float(h_row.get("hzn_bot")),
+        sand_total=_to_optional_float(h_row.get("sand_total")),
+        silt_total=_to_optional_float(h_row.get("silt_total")),
+        clay_total=_to_optional_float(h_row.get("clay_total")),
         texture_lab=str(h_row.get("texture_lab", "")),
-        ph_h2o=float(h_row["ph_h2o"])
-        if pd.notna(h_row.get("ph_h2o"))
-        else None,
+        ph_h2o=_to_optional_float(h_row.get("ph_h2o")),
         organic_carbon=organic_carbon,
-        calcium_carbonate=float(h_row["caco3_lt_2_mm"])
-        if pd.notna(h_row.get("caco3_lt_2_mm"))
-        else None,
-        bulk_density_third_bar=float(h_row["bulk_density_third_bar"])
-        if pd.notna(h_row.get("bulk_density_third_bar"))
-        else None,
-        le_third_fifteen_lt2_mm=float(h_row["le_third_fifteen_lt2_mm"])
-        if pd.notna(h_row.get("le_third_fifteen_lt2_mm"))
-        else None,
-        water_content_tenth_bar=float(h_row["water_retention_tenth_bar"])
-        if pd.notna(h_row.get("water_retention_tenth_bar"))
-        else None,
-        water_content_third_bar=float(h_row["water_retention_third_bar"])
-        if pd.notna(h_row.get("water_retention_third_bar"))
-        else None,
-        water_content_fifteen_bar=float(h_row["water_retention_15_bar"])
-        if pd.notna(h_row.get("water_retention_15_bar"))
-        else None,
+        calcium_carbonate=_to_optional_float(h_row.get("caco3_lt_2_mm")),
+        bulk_density_third_bar=_to_optional_float(h_row.get("bulk_density_third_bar")),
+        le_third_fifteen_lt2_mm=_to_optional_float(
+            h_row.get("le_third_fifteen_lt2_mm")
+        ),
+        water_content_tenth_bar=_to_optional_float(h_row.get("water_retention_tenth_bar")),
+        water_content_third_bar=_to_optional_float(h_row.get("water_retention_third_bar")),
+        water_content_fifteen_bar=_to_optional_float(h_row.get("water_retention_15_bar")),
     )
 
 
@@ -199,41 +185,40 @@ async def fetch_mapunit_struct_by_point(
 
     if not horizons_df.empty:
         horizons_df["cokey"] = horizons_df["cokey"].astype(str)
-        horizons_by_cokey = dict(tuple(horizons_df.groupby("cokey")))
-        for component in map_unit.components:
-            if component.component_key in horizons_by_cokey:
-                comp_horizons_df = horizons_by_cokey[component.component_key]
-                for _, h_row in comp_horizons_df.iterrows():
-                    properties = []
-                    prop_map = {
-                        "clay": ("claytotal_l", "claytotal_r", "claytotal_h", "%"),
-                        "sand": ("sandtotal_l", "sandtotal_r", "sandtotal_h", "%"),
-                        "organic_matter": ("om_l", "om_r", "om_h", "%"),
-                        "ph": ("ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h", "pH"),
-                    }
-                    for name, (l, r, h, u) in prop_map.items():
-                        if r in h_row and pd.notna(h_row[r]):
-                            properties.append(
-                                HorizonProperty(
-                                    property_name=name,
-                                    low=float(h_row[l]) if pd.notna(h_row[l]) else None,
-                                    rv=float(h_row[r]),
-                                    high=float(h_row[h])
-                                    if pd.notna(h_row[h])
-                                    else None,
-                                    unit=u,
-                                )
+        comp_map = {c.component_key: c for c in map_unit.components}
+        for cokey, comp_horizons_df in horizons_df.groupby("cokey"):
+            component = comp_map.get(cokey)
+            if not component:
+                continue
+            for _, h_row in comp_horizons_df.iterrows():
+                properties = []
+                prop_map = {
+                    "clay": ("claytotal_l", "claytotal_r", "claytotal_h", "%"),
+                    "sand": ("sandtotal_l", "sandtotal_r", "sandtotal_h", "%"),
+                    "organic_matter": ("om_l", "om_r", "om_h", "%"),
+                    "ph": ("ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h", "pH"),
+                }
+                for name, (l, r, h, u) in prop_map.items():
+                    if r in h_row and pd.notna(h_row[r]):
+                        properties.append(
+                            HorizonProperty(
+                                property_name=name,
+                                low=_to_optional_float(h_row.get(l)),
+                                rv=float(h_row[r]),
+                                high=_to_optional_float(h_row.get(h)),
+                                unit=u,
                             )
-
-                    component.aggregate_horizons.append(
-                        AggregateHorizon(
-                            horizon_key=str(h_row["chkey"]),
-                            horizon_name=str(h_row["hzname"]),
-                            top_depth=float(h_row["hzdept_r"]),
-                            bottom_depth=float(h_row["hzdepb_r"]),
-                            properties=properties,
                         )
+
+                component.aggregate_horizons.append(
+                    AggregateHorizon(
+                        horizon_key=str(h_row["chkey"]),
+                        horizon_name=str(h_row["hzname"]),
+                        top_depth=float(h_row["hzdept_r"]),
+                        bottom_depth=float(h_row["hzdepb_r"]),
+                        properties=properties,
                     )
+                )
 
     return map_unit
 
@@ -278,12 +263,8 @@ async def fetch_pedon_struct_by_bbox(
             pedon_key=str(row["pedon_key"]),
             pedon_id=str(row.get("upedonid", "")),
             series=str(row.get("corr_name", "")),
-            latitude=float(row["latitude_decimal_degrees"])
-            if pd.notna(row.get("latitude_decimal_degrees"))
-            else None,
-            longitude=float(row["longitude_decimal_degrees"])
-            if pd.notna(row.get("longitude_decimal_degrees"))
-            else None,
+            latitude=_to_optional_float(row.get("latitude_decimal_degrees")),
+            longitude=_to_optional_float(row.get("longitude_decimal_degrees")),
             soil_classification=str(row.get("taxonname", "")),
             metadata={
                 "query_bbox": {
@@ -307,18 +288,16 @@ async def fetch_pedon_struct_by_bbox(
     if not horizons_df.empty:
         # Convert pedon_key to string for matching
         horizons_df["pedon_key"] = horizons_df["pedon_key"].astype(str)
-        # Group horizons by pedon_key
-        horizons_by_pedon = dict(tuple(horizons_df.groupby("pedon_key")))
+        pedon_map = {p.pedon_key: p for p in pedons}
 
-        for pedon in pedons:
-            pedon_key = pedon.pedon_key
-            if pedon_key in horizons_by_pedon:
-                pedon_horizons_df = horizons_by_pedon[pedon_key]
-                horizons = []
-                for _, h_row in pedon_horizons_df.iterrows():
-                    horizon = _create_pedon_horizon_from_row(pedon_key, h_row)
-                    horizons.append(horizon)
-                pedon.horizons = horizons
+        for pedon_key, pedon_horizons_df in horizons_df.groupby("pedon_key"):
+            pedon = pedon_map.get(pedon_key)
+            if not pedon:
+                continue
+            pedon.horizons = [
+                _create_pedon_horizon_from_row(pedon_key, h_row)
+                for _, h_row in pedon_horizons_df.iterrows()
+            ]
 
     return pedons
 
@@ -354,12 +333,8 @@ async def fetch_pedon_struct_by_id(
         pedon_key=str(row["pedon_key"]),
         pedon_id=str(row.get("upedonid", "")),
         series=str(row.get("corr_name", "")),
-        latitude=float(row["latitude_decimal_degrees"])
-        if pd.notna(row.get("latitude_decimal_degrees"))
-        else None,
-        longitude=float(row["longitude_decimal_degrees"])
-        if pd.notna(row.get("longitude_decimal_degrees"))
-        else None,
+        latitude=_to_optional_float(row.get("latitude_decimal_degrees")),
+        longitude=_to_optional_float(row.get("longitude_decimal_degrees")),
         soil_classification=str(row.get("taxonname", "")),
         metadata={
             "query_pedon_id": pedon_id,
