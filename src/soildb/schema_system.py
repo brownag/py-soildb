@@ -242,6 +242,19 @@ SCHEMAS = {
             "areaname": ColumnSchema("areaname", str, to_str, default=True, field_name="survey_area_name"),
         }
     ),
+
+    "mupolygon": TableSchema(
+        name="mupolygon",
+        base_fields={
+            'extra_fields': {},
+        },
+        columns={
+            "mukey": ColumnSchema("mukey", str, str, default=True, field_name="map_unit_key", required=True),
+            "musym": ColumnSchema("musym", Optional[str], to_optional_str, default=True, field_name="map_unit_symbol"),
+            "areasymbol": ColumnSchema("areasymbol", str, str, default=True, field_name="area_symbol"),
+            "spatialversion": ColumnSchema("spatialversion", Optional[int], to_optional_int, default=True, field_name="spatial_version"),
+        }
+    ),
 }
 
 

@@ -291,8 +291,9 @@ async def fetch_mapunit_polygon(
         mukeys = [mukeys]
 
     if columns is None:
-        # For mupolygon table, only mukey is available (geometry added separately)
-        columns = ["mukey"]
+        # Use schema-based default columns for mupolygon table
+        schema = get_schema("mupolygon")
+        columns = schema.get_default_columns()
 
     return await fetch_by_keys(
         mukeys, "mupolygon", "mukey", columns, chunk_size, include_geometry, client

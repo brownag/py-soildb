@@ -156,7 +156,7 @@ class TestSpecializedFunctions:
             [123456, 123457],
             "mupolygon",
             "mukey",
-            ["mukey"],  # Only mukey available in mupolygon table
+            ["mukey", "musym", "areasymbol", "spatialversion"],  # From mupolygon schema
             1000,
             True,  # include_geometry
             None,
