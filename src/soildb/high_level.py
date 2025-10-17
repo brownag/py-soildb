@@ -53,15 +53,25 @@ def _create_pedon_horizon_from_row(
     extra = processed.get("extra_fields", {})
     total_carbon_ncs = extra.get("total_carbon_ncs")
     organic_carbon_wb = extra.get("organic_carbon_walkley_black")
+    caco3_lt_2_mm = extra.get("caco3_lt_2_mm")
 
     if pd.notna(total_carbon_ncs):
-        processed["organic_carbon"] = float(total_carbon_ncs)  # type: ignore
+        # Calculate organic carbon from total carbon, subtracting carbonate carbon
+        organic_carbon = float(total_carbon_ncs)
+        if pd.notna(caco3_lt_2_mm):
+            # Subtract carbon from calcium carbonate (CaCO3 is 12% carbon by weight)
+            carbonate_carbon = float(caco3_lt_2_mm) * 0.12
+            organic_carbon = max(0, organic_carbon - carbonate_carbon)  # Ensure non-negative
+
+        processed["organic_carbon"] = organic_carbon
         extra.pop("total_carbon_ncs", None)
         extra.pop("organic_carbon_walkley_black", None)
+        extra.pop("caco3_lt_2_mm", None)
     elif pd.notna(organic_carbon_wb):
-        processed["organic_carbon"] = float(organic_carbon_wb)  # type: ignore
+        processed["organic_carbon"] = float(organic_carbon_wb)
         extra.pop("organic_carbon_walkley_black", None)
         extra.pop("total_carbon_ncs", None)
+        extra.pop("caco3_lt_2_mm", None)
     else:
         processed["organic_carbon"] = None
 
