@@ -293,7 +293,7 @@ async def fetch_mapunit_polygon(
     if columns is None:
         # Use schema-based default columns for mupolygon table
         schema = get_schema("mupolygon")
-        columns = schema.get_default_columns()
+        columns = schema.get_default_columns() if schema else []
 
     return await fetch_by_keys(
         mukeys, "mupolygon", "mukey", columns, chunk_size, include_geometry, client
@@ -330,7 +330,7 @@ async def fetch_component_by_mukey(
     if columns is None:
         # Use schema-based default columns for component table
         schema = get_schema("component")
-        columns = schema.get_default_columns() + ["mukey"]
+        columns = schema.get_default_columns() + ["mukey"] if schema else ["mukey"]
 
     return await fetch_by_keys(
         mukeys, "component", "mukey", columns, chunk_size, False, client
@@ -367,7 +367,7 @@ async def fetch_chorizon_by_cokey(
     if columns is None:
         # Use schema-based default columns for chorizon table
         schema = get_schema("chorizon")
-        columns = schema.get_default_columns()
+        columns = schema.get_default_columns() if schema else []
 
     return await fetch_by_keys(
         cokeys, "chorizon", "cokey", columns, chunk_size, False, client
