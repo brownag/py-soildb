@@ -50,19 +50,20 @@ def _create_pedon_horizon_from_row(
     processed = schema.process_row(h_row, requested_columns)
 
     # Handle special processing for organic_carbon (combine total_carbon_ncs and organic_carbon_walkley_black)
-    total_carbon_ncs = processed.get("total_carbon_ncs")
-    organic_carbon_wb = processed.get("organic_carbon_walkley_black")
+    extra = processed.get("extra_fields", {})
+    total_carbon_ncs = extra.get("total_carbon_ncs")
+    organic_carbon_wb = extra.get("organic_carbon_walkley_black")
 
     if pd.notna(total_carbon_ncs):
         processed["organic_carbon"] = float(total_carbon_ncs)  # type: ignore
+        extra.pop("total_carbon_ncs", None)
+        extra.pop("organic_carbon_walkley_black", None)
     elif pd.notna(organic_carbon_wb):
         processed["organic_carbon"] = float(organic_carbon_wb)  # type: ignore
+        extra.pop("organic_carbon_walkley_black", None)
+        extra.pop("total_carbon_ncs", None)
     else:
         processed["organic_carbon"] = None
-
-    # Remove the raw carbon columns from processed data
-    processed.pop("total_carbon_ncs", None)
-    processed.pop("organic_carbon_walkley_black", None)
 
     # Create the PedonHorizon object
     return PedonHorizon(  # type: ignore
