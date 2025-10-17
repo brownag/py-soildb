@@ -311,13 +311,13 @@ async def fetch_pedon_struct_by_bbox(
         pedon_map = {p.pedon_key: p for p in pedons}
 
         for pedon_key, pedon_horizons_df in horizons_df.groupby("pedon_key"):
-            pedon = pedon_map.get(pedon_key)
-            if pedon is None:
-                continue
-            pedon.horizons = [
-                _create_pedon_horizon_from_row(pedon_key, h_row)
-                for _, h_row in pedon_horizons_df.iterrows()
-            ]
+                pedon_obj = pedon_map.get(pedon_key)
+                if pedon_obj is None:
+                    continue
+                pedon_obj.horizons = [
+                    _create_pedon_horizon_from_row(pedon_key, h_row)
+                    for _, h_row in pedon_horizons_df.iterrows()
+                ]
 
     return pedons
 
