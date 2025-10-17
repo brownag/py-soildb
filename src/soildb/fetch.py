@@ -540,12 +540,12 @@ async def fetch_pedons_by_bbox(
                 "No horizon data found. Cannot create SoilProfileCollection without horizons."
             )
 
-        return site_response.to_soilprofilecollection(
+        return horizons_response.to_soilprofilecollection(
             site_data=site_df,
             site_id_col="pedon_key",
-            hz_id_col="chkey",
-            hz_top_col="hzdept_r",
-            hz_bot_col="hzdepb_r",
+            hz_id_col="layer_key",
+            hz_top_col="hzn_top",
+            hz_bot_col="hzn_bot",
         )
 
     # Fallback (shouldn't reach here due to validation above)
