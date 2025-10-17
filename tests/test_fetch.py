@@ -292,6 +292,7 @@ class TestKeyExtractionHelpers:
             [123456], "component", "mukey", "cokey", client=None
         )
 
+
 @pytest.mark.asyncio
 class TestFetchPedonsByBbox:
     """Test the fetch_pedons_by_bbox function."""
@@ -312,10 +313,16 @@ class TestFetchPedonsByBbox:
         # Create mock DataFrame with 5 pedon keys
         mock_site_df = AsyncMock()
         mock_site_df.__getitem__.return_value.unique.return_value.tolist.return_value = [
-            "1001", "1002", "1003", "1004", "1005"
+            "1001",
+            "1002",
+            "1003",
+            "1004",
+            "1005",
         ]
         site_response.to_pandas.return_value = mock_site_df
-        mock_client.execute.side_effect = [site_response]  # First call returns site data
+        mock_client.execute.side_effect = [
+            site_response
+        ]  # First call returns site data
 
         # Mock horizon responses for chunks
         # First chunk: empty
@@ -343,9 +350,9 @@ class TestFetchPedonsByBbox:
 
         # Set up the side effects: site query, then horizon chunks
         mock_client.execute.side_effect = [
-            site_response,      # Site query
+            site_response,  # Site query
             empty_chunk_response,  # First horizon chunk (empty)
-            data_chunk_response,   # Second horizon chunk (has data)
+            data_chunk_response,  # Second horizon chunk (has data)
             data_chunk_response2,  # Third horizon chunk (has data)
         ]
 
@@ -364,7 +371,12 @@ class TestFetchPedonsByBbox:
         horizons_response = result["horizons"]
         assert not horizons_response.is_empty()
         assert len(horizons_response.data) == 3  # Combined data from chunks
-        assert horizons_response.columns == ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        assert horizons_response.columns == [
+            "layer_key",
+            "hzn_top",
+            "hzn_bot",
+            "pedon_key",
+        ]
         assert horizons_response.metadata == ["meta1", "meta2"]
 
     async def test_fetch_pedons_single_chunk(self):
@@ -377,7 +389,8 @@ class TestFetchPedonsByBbox:
         site_response.is_empty.return_value = False
         mock_site_df = AsyncMock()
         mock_site_df.__getitem__.return_value.unique.return_value.tolist.return_value = [
-            "1001", "1002"
+            "1001",
+            "1002",
         ]
         site_response.to_pandas.return_value = mock_site_df
 
@@ -406,7 +419,12 @@ class TestFetchPedonsByBbox:
         reconstructed_horizons = result["horizons"]
         assert not reconstructed_horizons.is_empty()
         assert len(reconstructed_horizons.data) == 1
-        assert reconstructed_horizons.columns == ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        assert reconstructed_horizons.columns == [
+            "layer_key",
+            "hzn_top",
+            "hzn_bot",
+            "pedon_key",
+        ]
         assert reconstructed_horizons.metadata == ["meta1", "meta2"]
 
 
