@@ -146,7 +146,6 @@ class ColumnSets:
     LAB_HORIZON_PHYSICAL = LAB_HORIZON_BASIC + [
         "bulk_density_third_bar",
         "le_third_fifteen_lt2_mm",
-        "water_retention_10th_bar",
         "water_retention_third_bar",
         "water_retention_15_bar",
     ]

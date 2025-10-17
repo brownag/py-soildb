@@ -93,7 +93,6 @@ async def test_fetch_pedon_struct_by_id(sda_client):
         assert (
             horizon.water_content_fifteen_bar is not None
             or horizon.water_content_third_bar is not None
-            or horizon.water_content_tenth_bar is not None
         )
         print(
             f"SUCCESS: fetch_pedon_struct_by_id returned a valid PedonData object for ID {TEST_PEDON_ID}."
@@ -163,7 +162,7 @@ async def test_fetch_pedon_struct_by_id_with_custom_columns(sda_client):
                 "sand_total", "silt_total", "clay_total", "texture_lab",
                 "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
                 "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
-                "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar",
+                "water_retention_third_bar", "water_retention_15_bar",
                 "cec7_r", "ecec_r", "sar_r"  # Custom columns
             ],
             client=sda_client
