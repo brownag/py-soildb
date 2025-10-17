@@ -501,10 +501,15 @@ async def fetch_pedons_by_bbox(
 
     # Fetch horizons in chunks if needed
     all_horizons = []
+    sample_cols = None
+    sample_meta = None
     if len(pedon_keys) <= chunk_size:
         # Single query for small pedon lists
         horizons_response = await fetch_pedon_horizons(pedon_keys, client=client)
         if not horizons_response.is_empty():
+            # Capture columns and metadata from the response
+            sample_cols = horizons_response.columns
+            sample_meta = horizons_response.metadata
             all_horizons.extend(horizons_response.data)
     else:
         # Multiple queries for large pedon lists
@@ -515,14 +520,18 @@ async def fetch_pedons_by_bbox(
             chunk_keys = pedon_keys[i : i + chunk_size]
             chunk_response = await fetch_pedon_horizons(chunk_keys, client=client)
             if not chunk_response.is_empty():
+                # Capture columns and metadata from first non-empty chunk
+                if sample_cols is None:
+                    sample_cols = chunk_response.columns
+                    sample_meta = chunk_response.metadata
                 all_horizons.extend(chunk_response.data)
 
     # Build horizons response object from combined data
     if all_horizons:
         # Reconstruct the raw data format that SDAResponse expects
         horizons_table = []
-        horizons_table.append(horizons_response.columns)
-        horizons_table.append(horizons_response.metadata)
+        horizons_table.append(sample_cols)
+        horizons_table.append(sample_meta)
         horizons_table.extend(all_horizons)
         horizons_raw_data = {"Table": horizons_table}
         horizons_response = SDAResponse(horizons_raw_data)
