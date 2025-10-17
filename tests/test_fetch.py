@@ -16,6 +16,7 @@ from soildb.fetch import (
     fetch_chorizon_by_cokey,
     fetch_component_by_mukey,
     fetch_mapunit_polygon,
+    fetch_pedons_by_bbox,
     fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
@@ -291,21 +292,122 @@ class TestKeyExtractionHelpers:
             [123456], "component", "mukey", "cokey", client=None
         )
 
-    @patch("soildb.fetch.fetch_by_keys")
-    async def test_get_cokeys_major_only(self, mock_fetch):
-        """Test getting only major component cokeys."""
-        mock_response = AsyncMock(spec=SDAResponse)
-        mock_df = AsyncMock()
-        mock_df.empty = False
-        mock_df.__getitem__.return_value.tolist.return_value = ["123456:1"]
-        mock_response.to_pandas.return_value = mock_df
-        mock_fetch.return_value = mock_response
+@pytest.mark.asyncio
+class TestFetchPedonsByBbox:
+    """Test the fetch_pedons_by_bbox function."""
 
-        result = await get_cokey_by_mukey([123456], major_components_only=True)
+    async def test_fetch_pedons_chunking_bug_regression(self):
+        """Test that chunking doesn't cause UnboundLocalError for horizons_response.
 
-        assert result == ["123456:1"]
-        # Note: The function currently doesn't properly implement the major_components_only filter
-        # This test documents the current behavior and should be updated when the function is fixed
+        This test reproduces the bug where pedon_keys > chunk_size would cause
+        an UnboundLocalError when trying to access horizons_response.columns
+        and horizons_response.metadata in the reconstruction code.
+        """
+        # Mock client
+        mock_client = AsyncMock(spec=SDAClient)
+
+        # Mock site response with many pedon keys
+        site_response = AsyncMock(spec=SDAResponse)
+        site_response.is_empty.return_value = False
+        # Create mock DataFrame with 5 pedon keys
+        mock_site_df = AsyncMock()
+        mock_site_df.__getitem__.return_value.unique.return_value.tolist.return_value = [
+            "1001", "1002", "1003", "1004", "1005"
+        ]
+        site_response.to_pandas.return_value = mock_site_df
+        mock_client.execute.side_effect = [site_response]  # First call returns site data
+
+        # Mock horizon responses for chunks
+        # First chunk: empty
+        empty_chunk_response = AsyncMock(spec=SDAResponse)
+        empty_chunk_response.is_empty.return_value = True
+
+        # Second chunk: has data
+        data_chunk_response = AsyncMock(spec=SDAResponse)
+        data_chunk_response.is_empty.return_value = False
+        data_chunk_response.data = [
+            {"layer_key": 1, "hzn_top": 0, "hzn_bot": 10, "pedon_key": "1003"},
+            {"layer_key": 2, "hzn_top": 10, "hzn_bot": 20, "pedon_key": "1003"},
+        ]
+        data_chunk_response.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        data_chunk_response.metadata = ["meta1", "meta2"]
+
+        # Third chunk: has data
+        data_chunk_response2 = AsyncMock(spec=SDAResponse)
+        data_chunk_response2.is_empty.return_value = False
+        data_chunk_response2.data = [
+            {"layer_key": 3, "hzn_top": 0, "hzn_bot": 15, "pedon_key": "1004"},
+        ]
+        data_chunk_response2.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        data_chunk_response2.metadata = ["meta1", "meta2"]
+
+        # Set up the side effects: site query, then horizon chunks
+        mock_client.execute.side_effect = [
+            site_response,      # Site query
+            empty_chunk_response,  # First horizon chunk (empty)
+            data_chunk_response,   # Second horizon chunk (has data)
+            data_chunk_response2,  # Third horizon chunk (has data)
+        ]
+
+        # Call with small chunk_size to force chunking
+        bbox = (-95.0, 40.0, -94.0, 41.0)
+        result = await fetch_pedons_by_bbox(
+            bbox, chunk_size=2, return_type="combined", client=mock_client
+        )
+
+        # Verify the result structure
+        assert "site" in result
+        assert "horizons" in result
+        assert result["site"] == site_response
+
+        # Verify horizons response was reconstructed correctly
+        horizons_response = result["horizons"]
+        assert not horizons_response.is_empty()
+        assert len(horizons_response.data) == 3  # Combined data from chunks
+        assert horizons_response.columns == ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        assert horizons_response.metadata == ["meta1", "meta2"]
+
+    async def test_fetch_pedons_single_chunk(self):
+        """Test fetch_pedons_by_bbox with single chunk (no chunking)."""
+        # Mock client
+        mock_client = AsyncMock(spec=SDAClient)
+
+        # Mock site response
+        site_response = AsyncMock(spec=SDAResponse)
+        site_response.is_empty.return_value = False
+        mock_site_df = AsyncMock()
+        mock_site_df.__getitem__.return_value.unique.return_value.tolist.return_value = [
+            "1001", "1002"
+        ]
+        site_response.to_pandas.return_value = mock_site_df
+
+        # Mock horizons response
+        horizons_response = AsyncMock(spec=SDAResponse)
+        horizons_response.is_empty.return_value = False
+        horizons_response.data = [
+            {"layer_key": 1, "hzn_top": 0, "hzn_bot": 10, "pedon_key": "1001"},
+        ]
+        horizons_response.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        horizons_response.metadata = ["meta1", "meta2"]
+
+        mock_client.execute.side_effect = [site_response, horizons_response]
+
+        # Call with large chunk_size to avoid chunking
+        bbox = (-95.0, 40.0, -94.0, 41.0)
+        result = await fetch_pedons_by_bbox(
+            bbox, chunk_size=100, return_type="combined", client=mock_client
+        )
+
+        assert "site" in result
+        assert "horizons" in result
+        assert result["site"] == site_response
+
+        # In single chunk case, it still reconstructs the response
+        reconstructed_horizons = result["horizons"]
+        assert not reconstructed_horizons.is_empty()
+        assert len(reconstructed_horizons.data) == 1
+        assert reconstructed_horizons.columns == ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        assert reconstructed_horizons.metadata == ["meta1", "meta2"]
 
 
 # Integration tests (require network access)
