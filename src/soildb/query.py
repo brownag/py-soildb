@@ -574,7 +574,9 @@ class QueryBuilder:
             .inner_join("legend l", "m.lkey = l.lkey")
             .inner_join("component c", "m.mukey = c.mukey")
             .inner_join("chorizon h", "c.cokey = h.cokey")
-            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)} AND c.majcompflag = 'Yes'")
+            .where(
+                f"l.areasymbol = {sanitize_sql_string(areasymbol)} AND c.majcompflag = 'Yes'"
+            )
             .order_by("m.musym, c.comppct_r DESC, h.hzdept_r")
         )
 
@@ -723,8 +725,12 @@ class QueryBuilder:
             Query()
             .select(*columns)
             .from_(f"{base_table} p")
-            .where(f"p.{lat_column} >= {sanitize_sql_numeric(min_y)} AND p.{lat_column} <= {sanitize_sql_numeric(max_y)}")
-            .where(f"p.{lon_column} >= {sanitize_sql_numeric(min_x)} AND p.{lon_column} <= {sanitize_sql_numeric(max_x)}")
+            .where(
+                f"p.{lat_column} >= {sanitize_sql_numeric(min_y)} AND p.{lat_column} <= {sanitize_sql_numeric(max_y)}"
+            )
+            .where(
+                f"p.{lon_column} >= {sanitize_sql_numeric(min_x)} AND p.{lon_column} <= {sanitize_sql_numeric(max_x)}"
+            )
             .where(f"p.{lat_column} IS NOT NULL AND p.{lon_column} IS NOT NULL")
         )
 

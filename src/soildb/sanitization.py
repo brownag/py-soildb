@@ -7,17 +7,29 @@ from typing import List, Optional, Union
 
 # Known valid table names
 VALID_TABLES = {
-    'mapunit', 'component', 'chorizon', 'legend', 'mupolygon', 
-    'sapolygon', 'lab_layer', 'lab_combine_nasis_ncss', 
+    "mapunit",
+    "component",
+    "chorizon",
+    "legend",
+    "mupolygon",
+    "sapolygon",
+    "lab_layer",
+    "lab_combine_nasis_ncss",
     # ... add all valid tables
 }
 
 # Known valid column names (subset for common ones)
 VALID_COLUMNS = {
-    'mukey', 'cokey', 'chkey', 'areasymbol', 'pedon_key',
-    'latitude_decimal_degrees', 'longitude_decimal_degrees',
+    "mukey",
+    "cokey",
+    "chkey",
+    "areasymbol",
+    "pedon_key",
+    "latitude_decimal_degrees",
+    "longitude_decimal_degrees",
     # ... add commonly used columns
 }
+
 
 def sanitize_sql_string(value: str) -> str:
     """Sanitize a string value for SQL insertion."""
@@ -27,11 +39,13 @@ def sanitize_sql_string(value: str) -> str:
     escaped = value.replace("'", "''")
     return f"'{escaped}'"
 
-def validate_sql_identifier(identifier: str, pattern: str = r'^[A-Za-z0-9_]+$') -> str:
+
+def validate_sql_identifier(identifier: str, pattern: str = r"^[A-Za-z0-9_]+$") -> str:
     """Validate an identifier against a pattern."""
     if not re.match(pattern, identifier):
         raise ValueError(f"Invalid identifier: {identifier}")
     return identifier
+
 
 def sanitize_sql_numeric(value: Union[int, float, str]) -> str:
     """Sanitize a numeric value."""
@@ -42,19 +56,24 @@ def sanitize_sql_numeric(value: Union[int, float, str]) -> str:
     except (ValueError, TypeError):
         raise ValueError(f"Invalid numeric value: {value}")
 
+
 def validate_wkt_geometry(wkt: str) -> str:
     """Basic WKT validation."""
     # Simple regex check for common WKT patterns
-    wkt_pattern = r'^(POINT|POLYGON|MULTIPOLYGON|LINESTRING|MULTILINESTRING)\s*\('
+    wkt_pattern = r"^(POINT|POLYGON|MULTIPOLYGON|LINESTRING|MULTILINESTRING)\s*\("
     if not re.match(wkt_pattern, wkt.upper()):
         raise ValueError(f"Invalid WKT geometry: {wkt}")
     return wkt
+
 
 def sanitize_sql_string_list(values: List[str]) -> List[str]:
     """Sanitize a list of string values."""
     return [sanitize_sql_string(v) for v in values]
 
-def validate_sql_object_name(name: str, allowed_names: Optional[List[str]] = None) -> str:
+
+def validate_sql_object_name(
+    name: str, allowed_names: Optional[List[str]] = None
+) -> str:
     """Validate table or column name."""
     if allowed_names and name not in allowed_names:
         raise ValueError(f"Invalid object name: {name}")
