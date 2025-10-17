@@ -229,14 +229,25 @@ async def fetch_mapunit_struct_by_point(
                     "ph": ("ph1to1h2o_r", "ph1to1h2o_l", "ph1to1h2o_h", "pH"),
                 }
 
+                extra = processed.get("extra_fields", {})
                 for name, (rv_key, low_key, high_key, unit) in prop_data.items():
-                    if rv_key in processed and processed[rv_key] is not None:
+                    # Try to get from processed, else from extra
+                    rv = processed.get(rv_key)
+                    if rv is None:
+                        rv = extra.get(rv_key)
+                    if rv is not None:
+                        low = processed.get(low_key)
+                        if low is None:
+                            low = extra.get(low_key)
+                        high = processed.get(high_key)
+                        if high is None:
+                            high = extra.get(high_key)
                         properties.append(
                             HorizonProperty(
                                 property_name=name,
-                                low=processed.get(low_key),
-                                rv=processed[rv_key],
-                                high=processed.get(high_key),
+                                low=low,
+                                rv=rv,
+                                high=high,
                                 unit=unit,
                             )
                         )
