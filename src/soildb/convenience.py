@@ -8,6 +8,7 @@ from .client import SDAClient
 from .fetch import fetch_pedons_by_bbox
 from .query import ColumnSets, Query, QueryBuilder
 from .response import SDAResponse
+from .sanitization import sanitize_sql_string
 from .spatial import spatial_query
 
 
@@ -203,7 +204,7 @@ async def get_lab_pedon_by_id(
         Query()
         .select(*(columns or ColumnSets.PEDON_BASIC))
         .from_("lab_combine_nasis_ncss")
-        .where(f"upedonid = '{pedon_id}'")
+        .where(f"upedonid = {sanitize_sql_string(pedon_id)}")
     )
 
     return await client.execute(query)
