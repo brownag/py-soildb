@@ -13,7 +13,7 @@ from .client import SDAClient
 from .exceptions import SoilDBError
 from .query import Query, QueryBuilder
 from .response import SDAResponse
-from .sanitization import sanitize_sql_string_list, sanitize_sql_numeric
+from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
 from .schema_system import get_schema
 
 # Common SSURGO tables and their typical key columns

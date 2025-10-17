@@ -24,7 +24,7 @@ from .models import (
     PedonData,
     SoilMapUnit,
 )
-from .schema_system import get_schema, PedonHorizon  # type: ignore
+from .schema_system import PedonHorizon, get_schema  # type: ignore
 
 
 def _create_pedon_horizon_from_row(
