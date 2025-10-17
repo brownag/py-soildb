@@ -64,6 +64,9 @@ class TableSchema:
                     result[schema.field_name] = processed_value
                 else:
                     extra_fields[col_name] = processed_value
+            elif col_name in row.index and col_name not in self.columns:
+                # Pass through unknown-but-requested columns into extra_fields
+                extra_fields[col_name] = row[col_name]
 
         result["extra_fields"] = extra_fields
         return result
