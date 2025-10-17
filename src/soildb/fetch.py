@@ -13,6 +13,7 @@ from .client import SDAClient
 from .exceptions import SoilDBError
 from .query import Query, QueryBuilder
 from .response import SDAResponse
+from .schema_system import get_schema
 
 # Common SSURGO tables and their typical key columns
 TABLE_KEY_MAPPING = {
@@ -116,9 +117,7 @@ async def fetch_by_keys(
     keys_list = cast(List[Union[str, int]], keys)
 
     if client is None:
-        from .convenience import _get_default_client
-
-        client = _get_default_client()
+        raise TypeError("client parameter is required")
 
     # Auto-detect key column if not provided
     if key_column is None:
@@ -278,7 +277,7 @@ async def fetch_mapunit_polygon(
 
     Args:
         mukeys: Map unit key(s) (single key or list of keys)
-        columns: Columns to select (default: key columns + geometry)
+        columns: Columns to select (default: key columns from schema + geometry)
         include_geometry: Whether to include polygon geometry as WKT
         chunk_size: Chunk size for pagination (recommended: 500-1000 for geometry)
         client: Optional SDA client
@@ -291,7 +290,9 @@ async def fetch_mapunit_polygon(
         mukeys = [mukeys]
 
     if columns is None:
-        columns = "mukey, musym, nationalmusym, muareaacres"
+        # Use schema-based default columns for mapunit table
+        schema = get_schema("mapunit")
+        columns = schema.get_default_columns()
 
     return await fetch_by_keys(
         mukeys, "mupolygon", "mukey", columns, chunk_size, include_geometry, client
@@ -314,7 +315,7 @@ async def fetch_component_by_mukey(
 
     Args:
         mukeys: Map unit key(s) (single key or list of keys)
-        columns: Columns to select (default: key component columns)
+        columns: Columns to select (default: key component columns from schema)
         chunk_size: Chunk size for pagination (recommended: 500-1000)
         client: Optional SDA client
 
@@ -326,9 +327,9 @@ async def fetch_component_by_mukey(
         mukeys = [mukeys]
 
     if columns is None:
-        columns = (
-            "mukey, cokey, compname, comppct_r, majcompflag, localphase, drainagecl"
-        )
+        # Use schema-based default columns for component table
+        schema = get_schema("component")
+        columns = schema.get_default_columns()
 
     return await fetch_by_keys(
         mukeys, "component", "mukey", columns, chunk_size, False, client
@@ -351,7 +352,7 @@ async def fetch_chorizon_by_cokey(
 
     Args:
         cokeys: Component key(s) (single key or list of keys)
-        columns: Columns to select (default: key chorizon columns)
+        columns: Columns to select (default: key chorizon columns from schema)
         chunk_size: Chunk size for pagination (recommended: 200-500)
         client: Optional SDA client
 
@@ -363,11 +364,9 @@ async def fetch_chorizon_by_cokey(
         cokeys = [cokeys]
 
     if columns is None:
-        columns = (
-            "cokey, chkey, hzname, hzdept_r, hzdepb_r, "
-            "sandtotal_r, silttotal_r, claytotal_r, om_r, ph1to1h2o_r, "
-            "awc_r, ksat_r, dbthirdbar_r"
-        )
+        # Use schema-based default columns for chorizon table
+        schema = get_schema("chorizon")
+        columns = schema.get_default_columns()
 
     return await fetch_by_keys(
         cokeys, "chorizon", "cokey", columns, chunk_size, False, client
@@ -452,11 +451,9 @@ async def fetch_pedons_by_bbox(
     min_lon, min_lat, max_lon, max_lat = bbox
 
     if client is None:
-        from .convenience import _get_default_client
+        raise TypeError("client parameter is required")
 
-        client = _get_default_client()
-
-    # Get pedon site data
+    # Fetch site data
     query = QueryBuilder.pedons_intersecting_bbox(
         min_lon, min_lat, max_lon, max_lat, columns
     )
@@ -508,9 +505,7 @@ async def fetch_pedon_horizons(
         pedon_keys = [pedon_keys]
 
     if client is None:
-        from .convenience import _get_default_client
-
-        client = _get_default_client()
+        raise TypeError("client parameter is required")
 
     query = QueryBuilder.pedon_horizons_by_pedon_keys(pedon_keys)
     return await client.execute(query)
@@ -527,9 +522,7 @@ async def get_mukey_by_areasymbol(
     before fetching detailed data.
     """
     if client is None:
-        from .convenience import _get_default_client
-
-        client = _get_default_client()
+        raise TypeError("client parameter is required")
 
     # Use the existing get_mapunits_by_legend pattern but for multiple areas
     key_strings = [f"'{area}'" for area in areasymbols]

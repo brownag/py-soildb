@@ -71,18 +71,19 @@ class TestFetchByKeys:
 
     async def test_empty_keys_error(self):
         """Test that empty keys list raises error."""
+        mock_client = AsyncMock(spec=SDAClient)
         with pytest.raises(
             FetchError, match="No data was returned from the fetch operation"
         ):
-            await fetch_by_keys([], "mapunit")
+            await fetch_by_keys([], "mapunit", client=mock_client)
 
     async def test_unknown_table_error(self):
         """Test that unknown table without key_column raises error."""
+        mock_client = AsyncMock(spec=SDAClient)
         with pytest.raises(FetchError, match="Unknown table"):
-            await fetch_by_keys([1, 2, 3], "unknown_table")
+            await fetch_by_keys([1, 2, 3], "unknown_table", client=mock_client)
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_single_chunk(self, mock_get_client):
+    async def test_single_chunk(self):
         """Test fetch with keys that fit in single chunk."""
         # Mock client and response
         mock_client = AsyncMock(spec=SDAClient)
@@ -90,15 +91,13 @@ class TestFetchByKeys:
         mock_response.data = [{"mukey": 123456, "muname": "Test Unit"}]
 
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        result = await fetch_by_keys([123456], "mapunit")
+        result = await fetch_by_keys([123456], "mapunit", client=mock_client)
 
         assert result == mock_response
         mock_client.execute.assert_called_once()
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_multiple_chunks(self, mock_get_client):
+    async def test_multiple_chunks(self):
         """Test fetch with keys requiring multiple chunks."""
         # Mock client and responses
         mock_client = AsyncMock(spec=SDAClient)
@@ -108,39 +107,34 @@ class TestFetchByKeys:
         mock_response2.data = [{"mukey": 2, "muname": "Unit 2"}]
 
         mock_client.execute.side_effect = [mock_response1, mock_response2]
-        mock_get_client.return_value = mock_client
 
         #  use chunk_size=1 to force multiple chunks
-        result = await fetch_by_keys([1, 2], "mapunit", chunk_size=1)
+        result = await fetch_by_keys([1, 2], "mapunit", chunk_size=1, client=mock_client)
 
         assert len(result.data) == 2
         assert result.data[0]["mukey"] == 1
         assert result.data[1]["mukey"] == 2
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_custom_columns(self, mock_get_client):
+    async def test_custom_columns(self):
         """Test fetch with custom column selection."""
         mock_client = AsyncMock(spec=SDAClient)
         mock_response = AsyncMock(spec=SDAResponse)
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        await fetch_by_keys([123456], "mapunit", columns=["mukey", "muname"])
+        await fetch_by_keys([123456], "mapunit", columns=["mukey", "muname"], client=mock_client)
 
         # Check that query was built with correct columns
         # The Query object should have the specified columns
         # (This is a simplified check - in real implementation we'd check the SQL)
         assert mock_client.execute.called
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_include_geometry(self, mock_get_client):
+    async def test_include_geometry(self):
         """Test fetch with geometry inclusion."""
         mock_client = AsyncMock(spec=SDAClient)
         mock_response = AsyncMock(spec=SDAResponse)
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        await fetch_by_keys([123456], "mupolygon", include_geometry=True)
+        await fetch_by_keys([123456], "mupolygon", include_geometry=True, client=mock_client)
 
         assert mock_client.execute.called
 
@@ -157,11 +151,12 @@ class TestSpecializedFunctions:
 
         result = await fetch_mapunit_polygon([123456, 123457])
 
+        # Columns now come from schema as a list
         mock_fetch.assert_called_once_with(
             [123456, 123457],
             "mupolygon",
             "mukey",
-            "mukey, musym, nationalmusym, muareaacres",
+            ["mukey", "muname", "musym", "lkey", "areaname"],  # From mapunit schema
             1000,
             True,  # include_geometry
             None,
@@ -176,11 +171,12 @@ class TestSpecializedFunctions:
 
         result = await fetch_component_by_mukey([123456])
 
+        # Columns now come from schema as a list
         mock_fetch.assert_called_once_with(
             [123456],
             "component",
             "mukey",
-            "mukey, cokey, compname, comppct_r, majcompflag, localphase, drainagecl",
+            ["cokey", "compname", "comppct_r", "majcompflag", "taxclname", "drainagecl", "localphase", "hydricrating", "compkind"],  # From component schema
             1000,
             False,  # include_geometry
             None,
@@ -195,15 +191,12 @@ class TestSpecializedFunctions:
 
         result = await fetch_chorizon_by_cokey(["123456:1", "123456:2"])
 
+        # Columns now come from schema as a list
         mock_fetch.assert_called_once_with(
             ["123456:1", "123456:2"],
             "chorizon",
             "cokey",
-            (
-                "cokey, chkey, hzname, hzdept_r, hzdepb_r, "
-                "sandtotal_r, silttotal_r, claytotal_r, om_r, ph1to1h2o_r, "
-                "awc_r, ksat_r, dbthirdbar_r"
-            ),
+            ["chkey", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r", "sandtotal_r", "om_r", "ph1to1h2o_r"],  # From chorizon schema
             1000,
             False,
             None,
@@ -234,8 +227,7 @@ class TestSpecializedFunctions:
 class TestKeyExtractionHelpers:
     """Test helper functions for extracting keys."""
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_get_mukey_by_areasymbol(self, mock_get_client):
+    async def test_get_mukey_by_areasymbol(self):
         """Test getting mukeys from area symbols."""
         mock_client = AsyncMock(spec=SDAClient)
         mock_response = AsyncMock(spec=SDAResponse)
@@ -247,9 +239,8 @@ class TestKeyExtractionHelpers:
         mock_response.to_pandas.return_value = mock_df
 
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        result = await get_mukey_by_areasymbol(["CA630", "CA632"])
+        result = await get_mukey_by_areasymbol(["CA630", "CA632"], client=mock_client)
 
         assert result == [123456, 123457]
         mock_client.execute.assert_called_once()

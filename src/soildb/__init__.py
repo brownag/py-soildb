@@ -20,9 +20,6 @@ from .convenience import (
     get_mapunit_by_bbox,
     get_mapunit_by_point,
     get_sacatalog,
-    get_sacatalog_sync,
-    list_survey_areas,  # Backward compatibility
-    list_survey_areas_sync,  # Backward compatibility
 )
 from .exceptions import (
     SDAConnectionError,
@@ -89,9 +86,6 @@ __all__ = [
     "get_lab_pedons_by_bbox",
     "get_lab_pedon_by_id",
     "get_sacatalog",
-    "get_sacatalog_sync",
-    "list_survey_areas",  # Backward compatibility
-    "list_survey_areas_sync",  # Backward compatibility
     # High-level functions
     "fetch_mapunit_struct_by_point",
     "fetch_pedon_struct_by_bbox",

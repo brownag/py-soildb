@@ -337,10 +337,8 @@ async def spatial_query(
         >>> polygon_wkt = "POLYGON((-94.7 42.0, -94.6 42.0, -94.6 42.1, -94.7 42.1, -94.7 42.0))"
         >>> response = await spatial_query(polygon_wkt, "sapolygon", "tabular")
     """
-    from .convenience import _get_default_client
-
     if client is None:
-        client = _get_default_client()
+        raise TypeError("client parameter is required")
 
     builder = SpatialQueryBuilder(client)
     query = builder.query(
