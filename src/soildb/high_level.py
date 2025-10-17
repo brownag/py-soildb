@@ -22,19 +22,9 @@ from .models import (
     HorizonProperty,
     MapUnitComponent,
     PedonData,
-    PedonHorizon,
     SoilMapUnit,
 )
-
-
-def _to_optional_float(value: Any) -> Optional[float]:
-    """Converts a value to a float, returning None if it's NaN or None."""
-    return float(value) if pd.notna(value) else None
-
-
-def _to_optional_int(value: Any) -> Optional[int]:
-    """Converts a value to an int, returning None if it's NaN or None."""
-    return int(value) if pd.notna(value) else None
+from .schema_system import get_schema, PedonHorizon
 
 
 def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any, requested_columns: Optional[List[str]] = None) -> PedonHorizon:
@@ -49,65 +39,35 @@ def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any, requested_columns
         h_row: The data row containing horizon information
         requested_columns: List of columns that were requested (for tracking extra columns)
     """
-    # Define the default columns that are handled by the dataclass fields
-    default_columns = {
-        "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
-        "sand_total", "silt_total", "clay_total", "texture_lab",
-        "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
-        "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
-        "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar"
-    }
+    # Get the pedon horizon schema
+    schema = get_schema("pedon_horizon")
+    if not schema:
+        raise ValueError("Pedon horizon schema not found")
 
-    total_carbon_ncs = h_row.get("total_carbon_ncs")
-    organic_carbon_wb = h_row.get("organic_carbon_walkley_black")
+    # Process the row using the schema
+    processed = schema.process_row(h_row, requested_columns)
+
+    # Handle special processing for organic_carbon (combine total_carbon_ncs and organic_carbon_walkley_black)
+    total_carbon_ncs = processed.get("total_carbon_ncs")
+    organic_carbon_wb = processed.get("organic_carbon_walkley_black")
 
     if pd.notna(total_carbon_ncs):
-        organic_carbon = float(total_carbon_ncs)
+        processed["organic_carbon"] = float(total_carbon_ncs)
     elif pd.notna(organic_carbon_wb):
-        organic_carbon = float(organic_carbon_wb)
+        processed["organic_carbon"] = float(organic_carbon_wb)
     else:
-        organic_carbon = None
+        processed["organic_carbon"] = None
 
-    # Extract extra fields - any columns not in the default set
-    extra_fields = {}
-    if requested_columns:
-        for col in requested_columns:
-            if col not in default_columns and col in h_row.index:
-                value = h_row.get(col)
-                if pd.notna(value):
-                    extra_fields[col] = value
+    # Remove the raw carbon columns from processed data
+    processed.pop("total_carbon_ncs", None)
+    processed.pop("organic_carbon_walkley_black", None)
 
+    # Create the PedonHorizon object
     return PedonHorizon(
         pedon_key=pedon_key,
-        layer_key=str(h_row["layer_key"]),
-        layer_sequence=_to_optional_int(h_row.get("layer_sequence")),
-        horizon_name=str(h_row["hzn_desgn"]),
-        top_depth=_to_optional_float(h_row.get("hzn_top")),
-        bottom_depth=_to_optional_float(h_row.get("hzn_bot")),
-        sand_total=_to_optional_float(h_row.get("sand_total")),
-        silt_total=_to_optional_float(h_row.get("silt_total")),
-        clay_total=_to_optional_float(h_row.get("clay_total")),
-        texture_lab=str(h_row.get("texture_lab", "")),
-        ph_h2o=_to_optional_float(h_row.get("ph_h2o")),
-        organic_carbon=organic_carbon,
-        calcium_carbonate=_to_optional_float(h_row.get("caco3_lt_2_mm")),
-        bulk_density_third_bar=_to_optional_float(h_row.get("bulk_density_third_bar")),
-        le_third_fifteen_lt2_mm=_to_optional_float(
-            h_row.get("le_third_fifteen_lt2_mm")
-        ),
-        water_content_tenth_bar=_to_optional_float(
-            h_row.get("water_retention_tenth_bar")
-        ),
-        water_content_third_bar=_to_optional_float(
-            h_row.get("water_retention_third_bar")
-        ),
-        water_content_fifteen_bar=_to_optional_float(
-            h_row.get("water_retention_15_bar")
-        ),
-        extra_fields=extra_fields,
+        **{k: v for k, v in processed.items() if k not in ["extra_fields", "pedon_key"]},
+        extra_fields=processed.get("extra_fields", {})
     )
-
-
 async def fetch_mapunit_struct_by_point(
     latitude: float,
     longitude: float,
@@ -160,18 +120,12 @@ async def fetch_mapunit_struct_by_point(
             "component_columns": component_columns,
             "horizon_columns": horizon_columns,
         }
+        # Get default columns from schemas
+        comp_schema = get_schema("component")
+        hz_schema = get_schema("chorizon")
         metadata["default_columns"] = {
-            "component_columns": [
-                "mukey", "cokey", "compname", "comppct_r", "majcompflag",
-                "localphase", "drainagecl", "taxclname", "hydricrating", "compkind"
-            ],
-            "horizon_columns": [
-                "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
-                "claytotal_l", "claytotal_r", "claytotal_h",
-                "sandtotal_l", "sandtotal_r", "sandtotal_h",
-                "om_l", "om_r", "om_h",
-                "ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h"
-            ],
+            "component_columns": comp_schema.get_default_columns() if comp_schema else [],
+            "horizon_columns": hz_schema.get_default_columns() if hz_schema else [],
         }
     
     map_unit = SoilMapUnit(
@@ -187,18 +141,11 @@ async def fetch_mapunit_struct_by_point(
         return map_unit
 
     # Step 3: Fetch component data for this map unit
-    comp_columns = component_columns or [
-        "mukey",
-        "cokey",
-        "compname",
-        "comppct_r",
-        "majcompflag",
-        "localphase",
-        "drainagecl",
-        "taxclname",
-        "hydricrating",
-        "compkind",
-    ]
+    comp_schema = get_schema("component")
+    if not comp_schema:
+        raise ValueError("Component schema not found")
+    
+    comp_columns = component_columns or comp_schema.get_default_columns()
     comp_response = await fetch_component_by_mukey(
         mukey,
         columns=comp_columns,
@@ -213,31 +160,21 @@ async def fetch_mapunit_struct_by_point(
     # Step 4: Create MapUnitComponent objects
     components = []
     for _, row in comp_df.iterrows():
-        # Extract extra fields for components
-        extra_fields = {}
-        default_comp_columns = {
-            "mukey", "cokey", "compname", "comppct_r", "majcompflag",
-            "localphase", "drainagecl", "taxclname", "hydricrating", "compkind"
-        }
-        if component_columns:
-            for col in component_columns:
-                if col not in default_comp_columns and col in row.index:
-                    value = row.get(col)
-                    if pd.notna(value):
-                        extra_fields[col] = value
+        # Process row using schema
+        processed = comp_schema.process_row(row, component_columns)
 
         components.append(
             MapUnitComponent(
-                component_key=str(row["cokey"]),
-                component_name=str(row["compname"]),
-                component_percentage=float(row.get("comppct_r", 0)),
-                is_major_component=row.get("majcompflag", "No").lower() == "yes",
-                taxonomic_class=str(row.get("taxclname", "")),
-                drainage_class=str(row.get("drainagecl", "")),
-                local_phase=str(row.get("localphase", "")),
-                hydric_rating=str(row.get("hydricrating", "")),
-                component_kind=str(row.get("compkind", "")),
-                extra_fields=extra_fields,
+                component_key=processed["component_key"],
+                component_name=processed["component_name"],
+                component_percentage=processed["component_percentage"],
+                is_major_component=processed["is_major_component"],
+                taxonomic_class=processed.get("taxonomic_class"),
+                drainage_class=processed.get("drainage_class"),
+                local_phase=processed.get("local_phase"),
+                hydric_rating=processed.get("hydric_rating"),
+                component_kind=processed.get("component_kind"),
+                extra_fields=processed.get("extra_fields", {}),
             )
         )
     map_unit.components = components
@@ -247,25 +184,11 @@ async def fetch_mapunit_struct_by_point(
 
     # Step 4: Fetch and attach aggregate horizons for all components in one call
     all_cokeys: List[Union[str, int]] = [c.component_key for c in components]
-    hz_columns = horizon_columns or [
-        "cokey",
-        "chkey",
-        "hzname",
-        "hzdept_r",
-        "hzdepb_r",
-        "claytotal_l",
-        "claytotal_r",
-        "claytotal_h",
-        "sandtotal_l",
-        "sandtotal_r",
-        "sandtotal_h",
-        "om_l",
-        "om_r",
-        "om_h",
-        "ph1to1h2o_l",
-        "ph1to1h2o_r",
-        "ph1to1h2o_h",
-    ]
+    hz_schema = get_schema("chorizon")
+    if not hz_schema:
+        raise ValueError("Chorizon schema not found")
+    
+    hz_columns = horizon_columns or hz_schema.get_default_columns()
     # Ensure cokey is always included for grouping
     if "cokey" not in hz_columns:
         hz_columns.insert(0, "cokey")
@@ -286,49 +209,38 @@ async def fetch_mapunit_struct_by_point(
             if not component:
                 continue
             for _, h_row in comp_horizons_df.iterrows():
+                # Process horizon row using schema
+                processed = hz_schema.process_row(h_row, horizon_columns)
+                
                 properties = []
-                prop_map = {
-                    "clay": ("claytotal_l", "claytotal_r", "claytotal_h", "%"),
-                    "sand": ("sandtotal_l", "sandtotal_r", "sandtotal_h", "%"),
-                    "organic_matter": ("om_l", "om_r", "om_h", "%"),
-                    "ph": ("ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h", "pH"),
+                # Extract properties from processed data
+                prop_data = {
+                    "clay": ("claytotal_r", "claytotal_l", "claytotal_h", "%"),
+                    "sand": ("sandtotal_r", "sandtotal_l", "sandtotal_h", "%"),
+                    "organic_matter": ("om_r", "om_l", "om_h", "%"),
+                    "ph": ("ph1to1h2o_r", "ph1to1h2o_l", "ph1to1h2o_h", "pH"),
                 }
-                for name, (low, r, h, u) in prop_map.items():
-                    if r in h_row and pd.notna(h_row[r]):
+                
+                for name, (rv_key, low_key, high_key, unit) in prop_data.items():
+                    if rv_key in processed and processed[rv_key] is not None:
                         properties.append(
                             HorizonProperty(
                                 property_name=name,
-                                low=_to_optional_float(h_row.get(low)),
-                                rv=float(h_row[r]),
-                                high=_to_optional_float(h_row.get(h)),
-                                unit=u,
+                                low=processed.get(low_key),
+                                rv=processed[rv_key],
+                                high=processed.get(high_key),
+                                unit=unit,
                             )
                         )
 
-                # Extract extra fields for horizons
-                extra_fields = {}
-                default_hz_columns = {
-                    "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
-                    "claytotal_l", "claytotal_r", "claytotal_h",
-                    "sandtotal_l", "sandtotal_r", "sandtotal_h",
-                    "om_l", "om_r", "om_h",
-                    "ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h"
-                }
-                if horizon_columns:
-                    for col in horizon_columns:
-                        if col not in default_hz_columns and col in h_row.index:
-                            value = h_row.get(col)
-                            if pd.notna(value):
-                                extra_fields[col] = value
-
                 component.aggregate_horizons.append(
                     AggregateHorizon(
-                        horizon_key=str(h_row["chkey"]),
-                        horizon_name=str(h_row["hzname"]),
-                        top_depth=float(h_row["hzdept_r"]),
-                        bottom_depth=float(h_row["hzdepb_r"]),
+                        horizon_key=processed["horizon_key"],
+                        horizon_name=processed["horizon_name"],
+                        top_depth=processed["top_depth"],
+                        bottom_depth=processed["bottom_depth"],
                         properties=properties,
-                        extra_fields=extra_fields,
+                        extra_fields=processed.get("extra_fields", {}),
                     )
                 )
 
@@ -373,7 +285,14 @@ async def fetch_pedon_struct_by_bbox(
 
     # Step 2: Create base PedonData objects
     pedons = []
+    pedon_schema = get_schema("pedon")
+    if not pedon_schema:
+        raise ValueError("Pedon schema not found")
+    
     for _, row in site_df.iterrows():
+        # Process row using schema
+        processed = pedon_schema.process_row(row)
+        
         # Track column information
         metadata = {
             "query_bbox": {
@@ -390,24 +309,22 @@ async def fetch_pedon_struct_by_bbox(
             metadata["requested_columns"] = {
                 "horizon_columns": horizon_columns,
             }
+            hz_schema = get_schema("pedon_horizon")
             metadata["default_columns"] = {
-                "horizon_columns": [
-                    "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
-                    "sand_total", "silt_total", "clay_total", "texture_lab",
-                    "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
-                    "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
-                    "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar"
-                ],
+                "horizon_columns": hz_schema.get_default_columns() if hz_schema else [],
             }
         
+        # Merge metadata into extra_fields
+        processed["extra_fields"].update(metadata)
+        
         pedon = PedonData(
-            pedon_key=str(row["pedon_key"]),
-            pedon_id=str(row.get("upedonid", "")),
-            series=str(row.get("corr_name", "")),
-            latitude=_to_optional_float(row.get("latitude_decimal_degrees")),
-            longitude=_to_optional_float(row.get("longitude_decimal_degrees")),
-            soil_classification=str(row.get("taxonname", "")),
-            extra_fields=metadata,
+            pedon_key=processed["pedon_key"],
+            pedon_id=processed["pedon_id"],
+            series=processed.get("series"),
+            latitude=processed.get("latitude"),
+            longitude=processed.get("longitude"),
+            soil_classification=processed.get("soil_classification"),
+            extra_fields=processed.get("extra_fields", {}),
         )
         pedons.append(pedon)
 
@@ -465,6 +382,11 @@ async def fetch_pedon_struct_by_id(
 
     # Step 2: Create PedonData object
     row = site_df.iloc[0]
+    pedon_schema = get_schema("pedon")
+    if not pedon_schema:
+        raise ValueError("Pedon schema not found")
+    
+    processed = pedon_schema.process_row(row)
     
     # Track column information
     metadata = {
@@ -477,24 +399,22 @@ async def fetch_pedon_struct_by_id(
         metadata["requested_columns"] = {
             "horizon_columns": horizon_columns,
         }
+        hz_schema = get_schema("pedon_horizon")
         metadata["default_columns"] = {
-            "horizon_columns": [
-                "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
-                "sand_total", "silt_total", "clay_total", "texture_lab",
-                "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
-                "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
-                "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar"
-            ],
+            "horizon_columns": hz_schema.get_default_columns() if hz_schema else [],
         }
     
+    # Merge metadata into extra_fields
+    processed["extra_fields"].update(metadata)
+    
     pedon = PedonData(
-        pedon_key=str(row["pedon_key"]),
-        pedon_id=str(row.get("upedonid", "")),
-        series=str(row.get("corr_name", "")),
-        latitude=_to_optional_float(row.get("latitude_decimal_degrees")),
-        longitude=_to_optional_float(row.get("longitude_decimal_degrees")),
-        soil_classification=str(row.get("taxonname", "")),
-        extra_fields=metadata,
+        pedon_key=processed["pedon_key"],
+        pedon_id=processed["pedon_id"],
+        series=processed.get("series"),
+        latitude=processed.get("latitude"),
+        longitude=processed.get("longitude"),
+        soil_classification=processed.get("soil_classification"),
+        extra_fields=processed.get("extra_fields", {}),
     )
 
     if not fill_horizons:
