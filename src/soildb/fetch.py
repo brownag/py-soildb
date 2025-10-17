@@ -7,7 +7,7 @@ Handles thousands of keys efficiently with concurrent processing.
 
 import asyncio
 import math
-from typing import List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 
 from .client import SDAClient
 from .exceptions import SoilDBError
@@ -419,35 +419,65 @@ async def fetch_survey_area_polygon(
 async def fetch_pedons_by_bbox(
     bbox: Tuple[float, float, float, float],
     columns: Optional[List[str]] = None,
-    include_horizons: bool = True,
     chunk_size: int = 1000,
+    return_type: Literal["sitedata", "combined", "soilprofilecollection"] = "sitedata",
     client: Optional[SDAClient] = None,
-) -> SDAResponse:
+) -> Union[SDAResponse, Dict[str, Any], "Any"]:
     """
-    Fetch pedon data within a geographic bounding box.
+    Fetch pedon site data within a geographic bounding box with flexible return types.
 
     Similar to fetchLDM() in R soilDB, this function retrieves laboratory-analyzed
-    soil profiles (pedons) within a specified geographic area.
+    soil profiles (pedons) within a specified geographic area. The return type
+    can be customized to return site data only, combined site and horizon data,
+    or a SoilProfileCollection object.
 
     Args:
         bbox: Bounding box as (min_lon, min_lat, max_lon, max_lat)
-        columns: List of columns to return. If None, returns basic pedon columns
-        include_horizons: Whether to include horizon data (default: True)
-        chunk_size: Number of pedons to process per query (for pagination)
+        columns: List of columns to return for site data. If None, returns basic pedon columns
+        chunk_size: Number of pedons to process per query (for pagination when fetching horizons)
+        return_type: Type of return value (default: "sitedata")
+            - "sitedata": Returns only site data as SDAResponse
+            - "combined": Returns dict with keys "site" (SDAResponse) and "horizons" (SDAResponse)
+            - "soilprofilecollection": Returns a SoilProfileCollection object with site and horizon data
         client: Optional SDA client instance
 
     Returns:
-        SDAResponse containing pedon data
+        Depending on return_type:
+        - "sitedata": SDAResponse containing pedon site data only
+        - "combined": Dict with keys "site" (SDAResponse) and "horizons" (SDAResponse)
+        - "soilprofilecollection": SoilProfileCollection object
+
+    Raises:
+        TypeError: If client parameter is required but not provided
+        ImportError: If soilprofilecollection is requested but not installed
+        ValueError: If return_type is invalid
 
     Examples:
-        # Fetch pedons in California's Central Valley
+        # Fetch pedons in California's Central Valley - site data only (default)
         >>> bbox = (-122.0, 36.0, -118.0, 38.0)
         >>> response = await fetch_pedons_by_bbox(bbox)
         >>> df = response.to_pandas()
 
-        # Fetch only site data without horizons
-        >>> response = await fetch_pedons_by_bbox(bbox, include_horizons=False)
+        # Fetch site and horizon data separately
+        >>> result = await fetch_pedons_by_bbox(bbox, return_type="combined")
+        >>> site_df = result["site"].to_pandas()
+        >>> horizons_df = result["horizons"].to_pandas()
+
+        # Fetch complete pedon profiles as SoilProfileCollection
+        >>> spc = await fetch_pedons_by_bbox(bbox, return_type="soilprofilecollection")
+        >>> # spc is now a soilprofilecollection.SoilProfileCollection object
+
+        # Get horizon data for returned pedons (manual approach)
+        >>> site_response = await fetch_pedons_by_bbox(bbox)
+        >>> pedon_keys = site_response.to_pandas()["pedon_key"].unique().tolist()
+        >>> horizons = await fetch_pedon_horizons(pedon_keys, client=client)
     """
+    if return_type not in ["sitedata", "combined", "soilprofilecollection"]:
+        raise ValueError(
+            f"Invalid return_type: {return_type!r}. Must be one of: "
+            "'sitedata', 'combined', 'soilprofilecollection'"
+        )
+
     min_lon, min_lat, max_lon, max_lat = bbox
 
     if client is None:
@@ -457,34 +487,68 @@ async def fetch_pedons_by_bbox(
     query = QueryBuilder.pedons_intersecting_bbox(
         min_lon, min_lat, max_lon, max_lat, columns
     )
-    response = await client.execute(query)
+    site_response = await client.execute(query)
 
-    if not include_horizons or response.is_empty():
-        return response
+    # If only site data is requested or response is empty, return early
+    if return_type == "sitedata" or site_response.is_empty():
+        return site_response
 
+    # For "combined" or "soilprofilecollection", we need horizon data
     # Get pedon keys for horizon fetching
-    df = response.to_pandas()
-    pedon_keys = df["pedon_key"].unique().tolist()
+    site_df = site_response.to_pandas()
+    pedon_keys = site_df["pedon_key"].unique().tolist()
 
     # Fetch horizons in chunks if needed
+    all_horizons = []
     if len(pedon_keys) <= chunk_size:
-        # Note: In a full implementation, we'd combine site and horizon data
-        # For now, return site data - horizons would be fetched separately
-        return response
+        # Single query for small pedon lists
+        horizons_response = await fetch_pedon_horizons(pedon_keys, client=client)
+        if not horizons_response.is_empty():
+            all_horizons.extend(horizons_response.data)
     else:
-        # Handle large result sets with chunking
+        # Multiple queries for large pedon lists
         print(
             f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}"
         )
-        all_horizons = []
         for i in range(0, len(pedon_keys), chunk_size):
             chunk_keys = pedon_keys[i : i + chunk_size]
             chunk_response = await fetch_pedon_horizons(chunk_keys, client=client)
             if not chunk_response.is_empty():
                 all_horizons.extend(chunk_response.data)
 
-        # Combine responses (simplified - would need proper SDAResponse combination)
-        return response
+    # Build horizons response object from combined data
+    if all_horizons:
+        # Reconstruct the raw data format that SDAResponse expects
+        horizons_table = []
+        horizons_table.append(horizons_response.columns)
+        horizons_table.append(horizons_response.metadata)
+        horizons_table.extend(all_horizons)
+        horizons_raw_data = {"Table": horizons_table}
+        horizons_response = SDAResponse(horizons_raw_data)
+    else:
+        # Empty horizons response
+        horizons_response = SDAResponse({})
+
+    if return_type == "combined":
+        return {"site": site_response, "horizons": horizons_response}
+
+    elif return_type == "soilprofilecollection":
+        # Convert to SoilProfileCollection
+        if horizons_response.is_empty():
+            raise ValueError(
+                "No horizon data found. Cannot create SoilProfileCollection without horizons."
+            )
+
+        return site_response.to_soilprofilecollection(
+            site_data=site_df,
+            site_id_col="pedon_key",
+            hz_id_col="chkey",
+            hz_top_col="hzdept_r",
+            hz_bot_col="hzdepb_r",
+        )
+
+    # Fallback (shouldn't reach here due to validation above)
+    return site_response
 
 
 async def fetch_pedon_horizons(
