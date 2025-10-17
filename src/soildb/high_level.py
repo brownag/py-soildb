@@ -37,12 +37,27 @@ def _to_optional_int(value: Any) -> Optional[int]:
     return int(value) if pd.notna(value) else None
 
 
-def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any) -> PedonHorizon:
+def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any, requested_columns: Optional[List[str]] = None) -> PedonHorizon:
     """
     Create a PedonHorizon object from a horizon data row.
 
     This consolidates the column extraction logic used in pedon fetching functions.
+    Now supports preserving extra columns beyond the default set.
+
+    Args:
+        pedon_key: The pedon key for this horizon
+        h_row: The data row containing horizon information
+        requested_columns: List of columns that were requested (for tracking extra columns)
     """
+    # Define the default columns that are handled by the dataclass fields
+    default_columns = {
+        "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
+        "sand_total", "silt_total", "clay_total", "texture_lab",
+        "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
+        "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
+        "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar"
+    }
+
     total_carbon_ncs = h_row.get("total_carbon_ncs")
     organic_carbon_wb = h_row.get("organic_carbon_walkley_black")
 
@@ -52,6 +67,15 @@ def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any) -> PedonHorizon:
         organic_carbon = float(organic_carbon_wb)
     else:
         organic_carbon = None
+
+    # Extract extra fields - any columns not in the default set
+    extra_fields = {}
+    if requested_columns:
+        for col in requested_columns:
+            if col not in default_columns and col in h_row.index:
+                value = h_row.get(col)
+                if pd.notna(value):
+                    extra_fields[col] = value
 
     return PedonHorizon(
         pedon_key=pedon_key,
@@ -80,6 +104,7 @@ def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any) -> PedonHorizon:
         water_content_fifteen_bar=_to_optional_float(
             h_row.get("water_retention_15_bar")
         ),
+        extra_fields=extra_fields,
     )
 
 
@@ -88,6 +113,8 @@ async def fetch_mapunit_struct_by_point(
     longitude: float,
     fill_components: bool = True,
     fill_horizons: bool = True,
+    component_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[List[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> SoilMapUnit:
     """
@@ -101,6 +128,10 @@ async def fetch_mapunit_struct_by_point(
         longitude: Longitude in decimal degrees.
         fill_components: If True, fetch component data for the map unit.
         fill_horizons: If True, fetch aggregate horizon data for each component.
+        component_columns: List of component columns to fetch. If None, uses default columns.
+                          Extra columns beyond defaults will be stored in component extra_fields.
+        horizon_columns: List of horizon columns to fetch. If None, uses default columns.
+                        Extra columns beyond defaults will be stored in horizon extra_fields.
         client: Optional SDA client instance.
 
     Returns:
@@ -116,36 +147,61 @@ async def fetch_mapunit_struct_by_point(
     # Step 2: Create the base SoilMapUnit object
     first_row = mu_df.iloc[0]
     mukey = str(first_row["mukey"])
+    
+    # Track column information
+    metadata = {
+        "query_location": {"latitude": latitude, "longitude": longitude},
+        "query_date": datetime.now().isoformat(),
+    }
+    
+    # Add column tracking if custom columns were requested
+    if component_columns or horizon_columns:
+        metadata["requested_columns"] = {
+            "component_columns": component_columns,
+            "horizon_columns": horizon_columns,
+        }
+        metadata["default_columns"] = {
+            "component_columns": [
+                "mukey", "cokey", "compname", "comppct_r", "majcompflag",
+                "localphase", "drainagecl", "taxclname", "hydricrating", "compkind"
+            ],
+            "horizon_columns": [
+                "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
+                "claytotal_l", "claytotal_r", "claytotal_h",
+                "sandtotal_l", "sandtotal_r", "sandtotal_h",
+                "om_l", "om_r", "om_h",
+                "ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h"
+            ],
+        }
+    
     map_unit = SoilMapUnit(
         map_unit_key=mukey,
         map_unit_name=str(first_row["muname"]),
         map_unit_symbol=str(first_row.get("musym", "")),
         survey_area_symbol=str(first_row.get("lkey", "")),
         survey_area_name=str(first_row.get("areaname", "")),
-        metadata={
-            "query_location": {"latitude": latitude, "longitude": longitude},
-            "query_date": datetime.now().isoformat(),
-        },
+        extra_fields=metadata,
     )
 
     if not fill_components:
         return map_unit
 
     # Step 3: Fetch component data for this map unit
+    comp_columns = component_columns or [
+        "mukey",
+        "cokey",
+        "compname",
+        "comppct_r",
+        "majcompflag",
+        "localphase",
+        "drainagecl",
+        "taxclname",
+        "hydricrating",
+        "compkind",
+    ]
     comp_response = await fetch_component_by_mukey(
         mukey,
-        columns=[
-            "mukey",
-            "cokey",
-            "compname",
-            "comppct_r",
-            "majcompflag",
-            "localphase",
-            "drainagecl",
-            "taxclname",
-            "hydricrating",
-            "compkind",
-        ],
+        columns=comp_columns,
         client=client,
     )
     comp_df = comp_response.to_pandas()
@@ -157,6 +213,19 @@ async def fetch_mapunit_struct_by_point(
     # Step 4: Create MapUnitComponent objects
     components = []
     for _, row in comp_df.iterrows():
+        # Extract extra fields for components
+        extra_fields = {}
+        default_comp_columns = {
+            "mukey", "cokey", "compname", "comppct_r", "majcompflag",
+            "localphase", "drainagecl", "taxclname", "hydricrating", "compkind"
+        }
+        if component_columns:
+            for col in component_columns:
+                if col not in default_comp_columns and col in row.index:
+                    value = row.get(col)
+                    if pd.notna(value):
+                        extra_fields[col] = value
+
         components.append(
             MapUnitComponent(
                 component_key=str(row["cokey"]),
@@ -168,6 +237,7 @@ async def fetch_mapunit_struct_by_point(
                 local_phase=str(row.get("localphase", "")),
                 hydric_rating=str(row.get("hydricrating", "")),
                 component_kind=str(row.get("compkind", "")),
+                extra_fields=extra_fields,
             )
         )
     map_unit.components = components
@@ -177,28 +247,33 @@ async def fetch_mapunit_struct_by_point(
 
     # Step 4: Fetch and attach aggregate horizons for all components in one call
     all_cokeys: List[Union[str, int]] = [c.component_key for c in components]
+    hz_columns = horizon_columns or [
+        "cokey",
+        "chkey",
+        "hzname",
+        "hzdept_r",
+        "hzdepb_r",
+        "claytotal_l",
+        "claytotal_r",
+        "claytotal_h",
+        "sandtotal_l",
+        "sandtotal_r",
+        "sandtotal_h",
+        "om_l",
+        "om_r",
+        "om_h",
+        "ph1to1h2o_l",
+        "ph1to1h2o_r",
+        "ph1to1h2o_h",
+    ]
+    # Ensure cokey is always included for grouping
+    if "cokey" not in hz_columns:
+        hz_columns.insert(0, "cokey")
+    
     horizons_df = (
         await fetch_chorizon_by_cokey(
             all_cokeys,
-            columns=[
-                "cokey",
-                "chkey",
-                "hzname",
-                "hzdept_r",
-                "hzdepb_r",
-                "claytotal_l",
-                "claytotal_r",
-                "claytotal_h",
-                "sandtotal_l",
-                "sandtotal_r",
-                "sandtotal_h",
-                "om_l",
-                "om_r",
-                "om_h",
-                "ph1to1h2o_l",
-                "ph1to1h2o_r",
-                "ph1to1h2o_h",
-            ],
+            columns=hz_columns,
             client=client,
         )
     ).to_pandas()
@@ -230,6 +305,22 @@ async def fetch_mapunit_struct_by_point(
                             )
                         )
 
+                # Extract extra fields for horizons
+                extra_fields = {}
+                default_hz_columns = {
+                    "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
+                    "claytotal_l", "claytotal_r", "claytotal_h",
+                    "sandtotal_l", "sandtotal_r", "sandtotal_h",
+                    "om_l", "om_r", "om_h",
+                    "ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h"
+                }
+                if horizon_columns:
+                    for col in horizon_columns:
+                        if col not in default_hz_columns and col in h_row.index:
+                            value = h_row.get(col)
+                            if pd.notna(value):
+                                extra_fields[col] = value
+
                 component.aggregate_horizons.append(
                     AggregateHorizon(
                         horizon_key=str(h_row["chkey"]),
@@ -237,6 +328,7 @@ async def fetch_mapunit_struct_by_point(
                         top_depth=float(h_row["hzdept_r"]),
                         bottom_depth=float(h_row["hzdepb_r"]),
                         properties=properties,
+                        extra_fields=extra_fields,
                     )
                 )
 
@@ -249,6 +341,7 @@ async def fetch_pedon_struct_by_bbox(
     max_x: float,
     max_y: float,
     fill_horizons: bool = True,
+    horizon_columns: Optional[List[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> List[PedonData]:
     """
@@ -262,6 +355,8 @@ async def fetch_pedon_struct_by_bbox(
         max_x: Eastern boundary (longitude)
         max_y: Northern boundary (latitude)
         fill_horizons: If True, fetch horizon data for each pedon
+        horizon_columns: List of horizon columns to fetch. If None, uses default columns.
+                        Extra columns beyond defaults will be stored in horizon extra_fields.
         client: Optional SDA client instance.
 
     Returns:
@@ -279,6 +374,32 @@ async def fetch_pedon_struct_by_bbox(
     # Step 2: Create base PedonData objects
     pedons = []
     for _, row in site_df.iterrows():
+        # Track column information
+        metadata = {
+            "query_bbox": {
+                "min_x": min_x,
+                "min_y": min_y,
+                "max_x": max_x,
+                "max_y": max_y,
+            },
+            "query_date": datetime.now().isoformat(),
+        }
+        
+        # Add column tracking if custom columns were requested
+        if horizon_columns:
+            metadata["requested_columns"] = {
+                "horizon_columns": horizon_columns,
+            }
+            metadata["default_columns"] = {
+                "horizon_columns": [
+                    "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
+                    "sand_total", "silt_total", "clay_total", "texture_lab",
+                    "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
+                    "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
+                    "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar"
+                ],
+            }
+        
         pedon = PedonData(
             pedon_key=str(row["pedon_key"]),
             pedon_id=str(row.get("upedonid", "")),
@@ -286,15 +407,7 @@ async def fetch_pedon_struct_by_bbox(
             latitude=_to_optional_float(row.get("latitude_decimal_degrees")),
             longitude=_to_optional_float(row.get("longitude_decimal_degrees")),
             soil_classification=str(row.get("taxonname", "")),
-            metadata={
-                "query_bbox": {
-                    "min_x": min_x,
-                    "min_y": min_y,
-                    "max_x": max_x,
-                    "max_y": max_y,
-                },
-                "query_date": datetime.now().isoformat(),
-            },
+            extra_fields=metadata,
         )
         pedons.append(pedon)
 
@@ -315,7 +428,7 @@ async def fetch_pedon_struct_by_bbox(
                 if pedon_obj is None:
                     continue
                 pedon_obj.horizons = [
-                    _create_pedon_horizon_from_row(pedon_key, h_row)
+                    _create_pedon_horizon_from_row(pedon_key, h_row, horizon_columns)
                     for _, h_row in pedon_horizons_df.iterrows()
                 ]
 
@@ -325,6 +438,7 @@ async def fetch_pedon_struct_by_bbox(
 async def fetch_pedon_struct_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
+    horizon_columns: Optional[List[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> Optional[PedonData]:
     """
@@ -335,6 +449,8 @@ async def fetch_pedon_struct_by_id(
     Args:
         pedon_id: Pedon key or user pedon ID
         fill_horizons: If True, fetch horizon data for the pedon
+        horizon_columns: List of horizon columns to fetch. If None, uses default columns.
+                        Extra columns beyond defaults will be stored in horizon extra_fields.
         client: Optional SDA client instance.
 
     Returns:
@@ -349,6 +465,28 @@ async def fetch_pedon_struct_by_id(
 
     # Step 2: Create PedonData object
     row = site_df.iloc[0]
+    
+    # Track column information
+    metadata = {
+        "query_pedon_id": pedon_id,
+        "query_date": datetime.now().isoformat(),
+    }
+    
+    # Add column tracking if custom columns were requested
+    if horizon_columns:
+        metadata["requested_columns"] = {
+            "horizon_columns": horizon_columns,
+        }
+        metadata["default_columns"] = {
+            "horizon_columns": [
+                "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
+                "sand_total", "silt_total", "clay_total", "texture_lab",
+                "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
+                "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
+                "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar"
+            ],
+        }
+    
     pedon = PedonData(
         pedon_key=str(row["pedon_key"]),
         pedon_id=str(row.get("upedonid", "")),
@@ -356,10 +494,7 @@ async def fetch_pedon_struct_by_id(
         latitude=_to_optional_float(row.get("latitude_decimal_degrees")),
         longitude=_to_optional_float(row.get("longitude_decimal_degrees")),
         soil_classification=str(row.get("taxonname", "")),
-        metadata={
-            "query_pedon_id": pedon_id,
-            "query_date": datetime.now().isoformat(),
-        },
+        extra_fields=metadata,
     )
 
     if not fill_horizons:
@@ -372,7 +507,7 @@ async def fetch_pedon_struct_by_id(
     if not horizons_df.empty:
         horizons = []
         for _, h_row in horizons_df.iterrows():
-            horizon = _create_pedon_horizon_from_row(pedon_key, h_row)
+            horizon = _create_pedon_horizon_from_row(pedon_key, h_row, horizon_columns)
             horizons.append(horizon)
         pedon.horizons = horizons
 

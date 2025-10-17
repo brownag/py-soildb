@@ -104,3 +104,93 @@ async def test_fetch_pedon_struct_by_id(sda_client):
         pytest.skip("SDA is under maintenance.")
     except Exception as e:
         pytest.fail(f"An unexpected error occurred: {e}")
+
+
+@pytest.mark.asyncio
+async def test_fetch_mapunit_struct_by_point_with_custom_columns(sda_client):
+    """Test fetching a structured SoilMapUnit by point with custom columns."""
+    print("Testing fetch_mapunit_struct_by_point with custom columns...")
+    try:
+        # Test with custom component and horizon columns (using known valid columns)
+        map_unit = await fetch_mapunit_struct_by_point(
+            TEST_LAT, TEST_LON, 
+            component_columns=["cokey", "compname", "comppct_r", "majcompflag", "localphase", "drainagecl", "taxclname"],
+            horizon_columns=["chkey", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r", "sandtotal_r", "om_r", "ph1to1h2o_r"],
+            client=sda_client
+        )
+        assert isinstance(map_unit, SoilMapUnit)
+        assert map_unit.map_unit_key is not None
+        assert len(map_unit.components) > 0
+        
+        # Check that extra fields are populated for components
+        component = map_unit.components[0]
+        assert hasattr(component, "extra_fields")
+        # localphase, drainagecl, taxclname should be in extra_fields since they're not in default set
+        extra_keys = list(component.extra_fields.keys())
+        print(f"Component extra fields: {extra_keys}")
+        
+        # Check horizons
+        if component.aggregate_horizons:
+            horizon = component.aggregate_horizons[0]
+            assert hasattr(horizon, "extra_fields")
+            # om_r, ph1to1h2o_r should be in extra_fields since they're not in default set
+            extra_keys = list(horizon.extra_fields.keys())
+            print(f"Horizon extra fields: {extra_keys}")
+        
+        # Check metadata tracking
+        assert "requested_columns" in map_unit.extra_fields
+        assert "default_columns" in map_unit.extra_fields
+        
+        print("SUCCESS: fetch_mapunit_struct_by_point with custom columns worked.")
+    except soildb.SDAConnectionError as e:
+        pytest.fail(f"SDA Connection Error: {e}")
+    except soildb.SDAMaintenanceError:
+        pytest.skip("SDA is under maintenance.")
+    except Exception as e:
+        pytest.fail(f"An unexpected error occurred: {e}")
+
+
+@pytest.mark.asyncio
+async def test_fetch_pedon_struct_by_id_with_custom_columns(sda_client):
+    """Test fetching structured pedon data by ID with custom horizon columns."""
+    print("Testing fetch_pedon_struct_by_id with custom columns...")
+    try:
+        # Test with custom horizon columns
+        pedon = await fetch_pedon_struct_by_id(
+            TEST_PEDON_ID, 
+            horizon_columns=[
+                "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
+                "sand_total", "silt_total", "clay_total", "texture_lab",
+                "ph_h2o", "total_carbon_ncs", "organic_carbon_walkley_black", "caco3_lt_2_mm",
+                "bulk_density_third_bar", "le_third_fifteen_lt2_mm",
+                "water_retention_tenth_bar", "water_retention_third_bar", "water_retention_15_bar",
+                "cec7_r", "ecec_r", "sar_r"  # Custom columns
+            ],
+            client=sda_client
+        )
+        from soildb.models import PedonData
+
+        assert isinstance(pedon, PedonData)
+        assert hasattr(pedon, "pedon_key")
+        assert hasattr(pedon, "horizons")
+        assert pedon.pedon_id == TEST_PEDON_ID
+        assert len(pedon.horizons) > 0
+        
+        # Check that extra fields are populated for horizons
+        horizon = pedon.horizons[0]
+        assert hasattr(horizon, "extra_fields")
+        # cec7_r, ecec_r, sar_r should be in extra_fields if they exist
+        if "cec7_r" in horizon.extra_fields or "ecec_r" in horizon.extra_fields or "sar_r" in horizon.extra_fields:
+            print("SUCCESS: Custom horizon columns found in extra_fields.")
+        
+        # Check metadata tracking
+        assert "requested_columns" in pedon.extra_fields
+        assert "default_columns" in pedon.extra_fields
+        
+        print("SUCCESS: fetch_pedon_struct_by_id with custom columns worked.")
+    except soildb.SDAConnectionError as e:
+        pytest.fail(f"SDA Connection Error: {e}")
+    except soildb.SDAMaintenanceError:
+        pytest.skip("SDA is under maintenance.")
+    except Exception as e:
+        pytest.fail(f"An unexpected error occurred: {e}")
