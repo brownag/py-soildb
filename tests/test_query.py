@@ -125,17 +125,21 @@ class TestQueryBuilder:
         query = QueryBuilder.pedons_intersecting_bbox(-94.0, 42.0, -93.0, 43.0)
         sql = query.to_sql()
         assert "FROM lab_combine_nasis_ncss p" in sql
-        assert "p.latitude_decimal_degrees >= 42.0 AND p.latitude_decimal_degrees <= 43.0" in sql
-        assert "p.longitude_decimal_degrees >= -94.0 AND p.longitude_decimal_degrees <= -93.0" in sql
+        assert (
+            "p.latitude_decimal_degrees >= 42.0 AND p.latitude_decimal_degrees <= 43.0"
+            in sql
+        )
+        assert (
+            "p.longitude_decimal_degrees >= -94.0 AND p.longitude_decimal_degrees <= -93.0"
+            in sql
+        )
         assert "pedon_key" in sql
         assert "upedonid" in sql
 
     def test_pedons_intersecting_bbox_custom_columns(self):
         """Test pedons_intersecting_bbox with custom column names."""
         query = QueryBuilder.pedons_intersecting_bbox(
-            -94.0, 42.0, -93.0, 43.0,
-            lon_column="custom_lon",
-            lat_column="custom_lat"
+            -94.0, 42.0, -93.0, 43.0, lon_column="custom_lon", lat_column="custom_lat"
         )
         sql = query.to_sql()
         assert "p.custom_lat >= 42.0 AND p.custom_lat <= 43.0" in sql
@@ -145,8 +149,7 @@ class TestQueryBuilder:
     def test_pedons_intersecting_bbox_custom_table(self):
         """Test pedons_intersecting_bbox with custom base table."""
         query = QueryBuilder.pedons_intersecting_bbox(
-            -94.0, 42.0, -93.0, 43.0,
-            base_table="custom_pedon_table"
+            -94.0, 42.0, -93.0, 43.0, base_table="custom_pedon_table"
         )
         sql = query.to_sql()
         assert "FROM custom_pedon_table p" in sql
@@ -154,22 +157,32 @@ class TestQueryBuilder:
     def test_pedons_intersecting_bbox_related_tables(self):
         """Test pedons_intersecting_bbox with related tables."""
         query = QueryBuilder.pedons_intersecting_bbox(
-            -94.0, 42.0, -93.0, 43.0,
-            related_tables=["lab_physical_properties", "lab_chemical_properties"]
+            -94.0,
+            42.0,
+            -93.0,
+            43.0,
+            related_tables=["lab_physical_properties", "lab_chemical_properties"],
         )
         sql = query.to_sql()
-        assert "LEFT JOIN lab_physical_properties t0 ON p.pedon_key = t0.pedon_key" in sql
-        assert "LEFT JOIN lab_chemical_properties t1 ON p.pedon_key = t1.pedon_key" in sql
+        assert (
+            "LEFT JOIN lab_physical_properties t0 ON p.pedon_key = t0.pedon_key" in sql
+        )
+        assert (
+            "LEFT JOIN lab_chemical_properties t1 ON p.pedon_key = t1.pedon_key" in sql
+        )
 
     def test_pedons_intersecting_bbox_custom_columns_and_tables(self):
         """Test pedons_intersecting_bbox with all custom parameters."""
         query = QueryBuilder.pedons_intersecting_bbox(
-            -94.0, 42.0, -93.0, 43.0,
+            -94.0,
+            42.0,
+            -93.0,
+            43.0,
             columns=["custom_col1", "custom_col2"],
             base_table="custom_table",
             related_tables=["related_table1"],
             lon_column="lon_col",
-            lat_column="lat_col"
+            lat_column="lat_col",
         )
         sql = query.to_sql()
         assert "SELECT custom_col1, custom_col2" in sql
@@ -189,7 +202,9 @@ class TestQueryBuilder:
 
     def test_pedon_by_pedon_key_custom_table(self):
         """Test pedon_by_pedon_key with custom base table."""
-        query = QueryBuilder.pedon_by_pedon_key("12345", base_table="custom_pedon_table")
+        query = QueryBuilder.pedon_by_pedon_key(
+            "12345", base_table="custom_pedon_table"
+        )
         sql = query.to_sql()
         assert "FROM custom_pedon_table p" in sql
 
@@ -197,11 +212,15 @@ class TestQueryBuilder:
         """Test pedon_by_pedon_key with related tables."""
         query = QueryBuilder.pedon_by_pedon_key(
             "12345",
-            related_tables=["lab_physical_properties", "lab_chemical_properties"]
+            related_tables=["lab_physical_properties", "lab_chemical_properties"],
         )
         sql = query.to_sql()
-        assert "LEFT JOIN lab_physical_properties t0 ON p.pedon_key = t0.pedon_key" in sql
-        assert "LEFT JOIN lab_chemical_properties t1 ON p.pedon_key = t1.pedon_key" in sql
+        assert (
+            "LEFT JOIN lab_physical_properties t0 ON p.pedon_key = t0.pedon_key" in sql
+        )
+        assert (
+            "LEFT JOIN lab_chemical_properties t1 ON p.pedon_key = t1.pedon_key" in sql
+        )
 
     def test_pedon_by_pedon_key_custom_columns_and_tables(self):
         """Test pedon_by_pedon_key with all custom parameters."""
@@ -209,7 +228,7 @@ class TestQueryBuilder:
             "12345",
             columns=["custom_col1", "custom_col2"],
             base_table="custom_table",
-            related_tables=["related_table1", "related_table2"]
+            related_tables=["related_table1", "related_table2"],
         )
         sql = query.to_sql()
         assert "SELECT custom_col1, custom_col2" in sql
@@ -229,8 +248,7 @@ class TestQueryBuilder:
     def test_pedon_horizons_by_pedon_keys_custom_table(self):
         """Test pedon_horizons_by_pedon_keys with custom base table."""
         query = QueryBuilder.pedon_horizons_by_pedon_keys(
-            ["12345"],
-            base_table="custom_horizon_table"
+            ["12345"], base_table="custom_horizon_table"
         )
         sql = query.to_sql()
         assert "FROM custom_horizon_table l" in sql
@@ -239,18 +257,23 @@ class TestQueryBuilder:
         """Test pedon_horizons_by_pedon_keys with lab-related tables."""
         query = QueryBuilder.pedon_horizons_by_pedon_keys(
             ["12345"],
-            related_tables=["lab_physical_properties", "lab_chemical_properties"]
+            related_tables=["lab_physical_properties", "lab_chemical_properties"],
         )
         sql = query.to_sql()
         # Lab tables should join on labsampnum
-        assert "LEFT JOIN lab_physical_properties t0 ON l.labsampnum = t0.labsampnum" in sql
-        assert "LEFT JOIN lab_chemical_properties t1 ON l.labsampnum = t1.labsampnum" in sql
+        assert (
+            "LEFT JOIN lab_physical_properties t0 ON l.labsampnum = t0.labsampnum"
+            in sql
+        )
+        assert (
+            "LEFT JOIN lab_chemical_properties t1 ON l.labsampnum = t1.labsampnum"
+            in sql
+        )
 
     def test_pedon_horizons_by_pedon_keys_related_tables_non_lab(self):
         """Test pedon_horizons_by_pedon_keys with non-lab related tables."""
         query = QueryBuilder.pedon_horizons_by_pedon_keys(
-            ["12345"],
-            related_tables=["custom_table"]
+            ["12345"], related_tables=["custom_table"]
         )
         sql = query.to_sql()
         # Non-lab tables should join on pedon_key
@@ -262,10 +285,13 @@ class TestQueryBuilder:
             ["12345"],
             columns=["custom_col1", "custom_col2"],
             base_table="custom_horizon_table",
-            related_tables=["lab_physical_properties", "custom_table"]
+            related_tables=["lab_physical_properties", "custom_table"],
         )
         sql = query.to_sql()
         assert "SELECT custom_col1, custom_col2" in sql
         assert "FROM custom_horizon_table l" in sql
-        assert "LEFT JOIN lab_physical_properties t0 ON l.labsampnum = t0.labsampnum" in sql
+        assert (
+            "LEFT JOIN lab_physical_properties t0 ON l.labsampnum = t0.labsampnum"
+            in sql
+        )
         assert "LEFT JOIN custom_table t1 ON l.pedon_key = t1.pedon_key" in sql

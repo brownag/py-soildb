@@ -4,7 +4,7 @@ data objects from soildb.models.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, List, Optional, Union
 
 import pandas as pd
 
@@ -27,17 +27,17 @@ from .models import (
 )
 
 
-def _to_optional_float(value) -> Optional[float]:
+def _to_optional_float(value: Any) -> Optional[float]:
     """Converts a value to a float, returning None if it's NaN or None."""
     return float(value) if pd.notna(value) else None
 
 
-def _to_optional_int(value) -> Optional[int]:
+def _to_optional_int(value: Any) -> Optional[int]:
     """Converts a value to an int, returning None if it's NaN or None."""
     return int(value) if pd.notna(value) else None
 
 
-def _create_pedon_horizon_from_row(pedon_key: str, h_row) -> PedonHorizon:
+def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any) -> PedonHorizon:
     """
     Create a PedonHorizon object from a horizon data row.
 
@@ -71,9 +71,15 @@ def _create_pedon_horizon_from_row(pedon_key: str, h_row) -> PedonHorizon:
         le_third_fifteen_lt2_mm=_to_optional_float(
             h_row.get("le_third_fifteen_lt2_mm")
         ),
-        water_content_tenth_bar=_to_optional_float(h_row.get("water_retention_tenth_bar")),
-        water_content_third_bar=_to_optional_float(h_row.get("water_retention_third_bar")),
-        water_content_fifteen_bar=_to_optional_float(h_row.get("water_retention_15_bar")),
+        water_content_tenth_bar=_to_optional_float(
+            h_row.get("water_retention_tenth_bar")
+        ),
+        water_content_third_bar=_to_optional_float(
+            h_row.get("water_retention_third_bar")
+        ),
+        water_content_fifteen_bar=_to_optional_float(
+            h_row.get("water_retention_15_bar")
+        ),
     )
 
 
@@ -170,18 +176,32 @@ async def fetch_mapunit_struct_by_point(
         return map_unit
 
     # Step 4: Fetch and attach aggregate horizons for all components in one call
-    all_cokeys = [c.component_key for c in components]
-    horizons_df = (await fetch_chorizon_by_cokey(
-        all_cokeys,
-        columns=[
-            "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
-            "claytotal_l", "claytotal_r", "claytotal_h",
-            "sandtotal_l", "sandtotal_r", "sandtotal_h",
-            "om_l", "om_r", "om_h",
-            "ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h"
-        ],
-        client=client
-    )).to_pandas()
+    all_cokeys: List[Union[str, int]] = [c.component_key for c in components]
+    horizons_df = (
+        await fetch_chorizon_by_cokey(
+            all_cokeys,
+            columns=[
+                "cokey",
+                "chkey",
+                "hzname",
+                "hzdept_r",
+                "hzdepb_r",
+                "claytotal_l",
+                "claytotal_r",
+                "claytotal_h",
+                "sandtotal_l",
+                "sandtotal_r",
+                "sandtotal_h",
+                "om_l",
+                "om_r",
+                "om_h",
+                "ph1to1h2o_l",
+                "ph1to1h2o_r",
+                "ph1to1h2o_h",
+            ],
+            client=client,
+        )
+    ).to_pandas()
 
     if not horizons_df.empty:
         horizons_df["cokey"] = horizons_df["cokey"].astype(str)
@@ -198,12 +218,12 @@ async def fetch_mapunit_struct_by_point(
                     "organic_matter": ("om_l", "om_r", "om_h", "%"),
                     "ph": ("ph1to1h2o_l", "ph1to1h2o_r", "ph1to1h2o_h", "pH"),
                 }
-                for name, (l, r, h, u) in prop_map.items():
+                for name, (low, r, h, u) in prop_map.items():
                     if r in h_row and pd.notna(h_row[r]):
                         properties.append(
                             HorizonProperty(
                                 property_name=name,
-                                low=_to_optional_float(h_row.get(l)),
+                                low=_to_optional_float(h_row.get(low)),
                                 rv=float(h_row[r]),
                                 high=_to_optional_float(h_row.get(h)),
                                 unit=u,
@@ -292,7 +312,7 @@ async def fetch_pedon_struct_by_bbox(
 
         for pedon_key, pedon_horizons_df in horizons_df.groupby("pedon_key"):
             pedon = pedon_map.get(pedon_key)
-            if not pedon:
+            if pedon is None:
                 continue
             pedon.horizons = [
                 _create_pedon_horizon_from_row(pedon_key, h_row)
@@ -347,9 +367,7 @@ async def fetch_pedon_struct_by_id(
 
     # Step 3: Fetch horizons
     pedon_key = pedon.pedon_key
-    horizons_df = (
-        await fetch_pedon_horizons(pedon_key, client=client)
-    ).to_pandas()
+    horizons_df = (await fetch_pedon_horizons(pedon_key, client=client)).to_pandas()
 
     if not horizons_df.empty:
         horizons = []

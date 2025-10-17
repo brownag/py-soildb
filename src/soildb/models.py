@@ -5,18 +5,19 @@ These dataclasses provide structured, object-oriented representations for
 common soil science data entities like Map Units, Components, and Horizons.
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class HorizonProperty:
     """Represents a soil property for a single horizon with low, rv, and high values."""
+
     property_name: str
     rv: Optional[float] = None
     low: Optional[float] = None
     high: Optional[float] = None
-    unit: str = ''
+    unit: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -25,21 +26,26 @@ class HorizonProperty:
 @dataclass
 class AggregateHorizon:
     """Represents an aggregate 'component horizon' with statistical summaries."""
+
     horizon_key: str  # chkey
     horizon_name: str
     top_depth: float
     bottom_depth: float
     properties: List[HorizonProperty] = field(default_factory=list)
+    # --- ADDED ---
+    # Dictionary for arbitrary user-defined properties.
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
-        d['properties'] = [p.to_dict() for p in self.properties]
+        d["properties"] = [p.to_dict() for p in self.properties]
         return d
 
 
 @dataclass
 class MapUnitComponent:
     """Represents a single component of a soil map unit."""
+
     component_key: str  # cokey
     component_name: str
     component_percentage: float
@@ -50,10 +56,13 @@ class MapUnitComponent:
     hydric_rating: Optional[str] = None
     component_kind: Optional[str] = None
     aggregate_horizons: List[AggregateHorizon] = field(default_factory=list)
+    # --- ADDED ---
+    # Dictionary for arbitrary user-defined properties.
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
-        d['aggregate_horizons'] = [h.to_dict() for h in self.aggregate_horizons]
+        d["aggregate_horizons"] = [h.to_dict() for h in self.aggregate_horizons]
         return d
 
 
@@ -63,6 +72,7 @@ class SoilMapUnit:
     A complete, structured representation of a soil map unit, including its
     components and their aggregate horizons.
     """
+
     map_unit_key: str  # mukey
     map_unit_name: str
     map_unit_symbol: Optional[str] = None
@@ -74,7 +84,7 @@ class SoilMapUnit:
     def to_dict(self) -> Dict[str, Any]:
         """Converts the entire nested structure to a dictionary."""
         d = asdict(self)
-        d['components'] = [c.to_dict() for c in self.components]
+        d["components"] = [c.to_dict() for c in self.components]
         return d
 
     def get_major_components(self) -> List[MapUnitComponent]:
@@ -85,12 +95,13 @@ class SoilMapUnit:
 @dataclass
 class PedonHorizon:
     """Represents a single horizon from a pedon with laboratory data."""
+
     pedon_key: str  # Foreign key to pedon
     layer_key: str  # Unique layer identifier
-    layer_sequence: int  # Horizon sequence number
     horizon_name: str  # Horizon designation
-    top_depth: float
-    bottom_depth: float
+    layer_sequence: Optional[int] = None  # Horizon sequence number
+    top_depth: Optional[float] = None
+    bottom_depth: Optional[float] = None
     # Physical properties
     sand_total: Optional[float] = None
     silt_total: Optional[float] = None
@@ -106,6 +117,9 @@ class PedonHorizon:
     water_content_tenth_bar: Optional[float] = None
     water_content_third_bar: Optional[float] = None
     water_content_fifteen_bar: Optional[float] = None
+    # --- ADDED ---
+    # Dictionary for arbitrary user-defined properties.
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -116,6 +130,7 @@ class PedonData:
     """
     A complete pedon with site information and laboratory-analyzed horizons.
     """
+
     pedon_key: str  # Primary key
     pedon_id: str  # User pedon ID
     series: Optional[str] = None  # Soil series name
@@ -132,13 +147,17 @@ class PedonData:
     def to_dict(self) -> Dict[str, Any]:
         """Converts the pedon to a dictionary."""
         d = asdict(self)
-        d['horizons'] = [h.to_dict() for h in self.horizons]
+        d["horizons"] = [h.to_dict() for h in self.horizons]
         return d
 
     def get_horizon_by_depth(self, depth: float) -> Optional[PedonHorizon]:
         """Get the horizon that contains the specified depth."""
         for horizon in self.horizons:
-            if horizon.top_depth <= depth < horizon.bottom_depth:
+            if (
+                horizon.top_depth is not None
+                and horizon.bottom_depth is not None
+                and horizon.top_depth <= depth < horizon.bottom_depth
+            ):
                 return horizon
         return None
 
@@ -146,4 +165,7 @@ class PedonData:
         """Get the total depth of the pedon profile."""
         if not self.horizons:
             return 0.0
-        return max(h.bottom_depth for h in self.horizons)
+        valid_depths = [
+            h.bottom_depth for h in self.horizons if h.bottom_depth is not None
+        ]
+        return max(valid_depths) if valid_depths else 0.0

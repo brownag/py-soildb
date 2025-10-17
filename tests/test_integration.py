@@ -72,10 +72,13 @@ async def test_flexible_query_parameters():
         # Test pedons_intersecting_bbox with custom column names
         print(" Testing pedons_intersecting_bbox with custom columns...")
         query = soildb.QueryBuilder.pedons_intersecting_bbox(
-            -94.0, 42.0, -93.0, 43.0,
+            -94.0,
+            42.0,
+            -93.0,
+            43.0,
             columns=["pedon_key", "upedonid"],
             lon_column="longitude_decimal_degrees",
-            lat_column="latitude_decimal_degrees"
+            lat_column="latitude_decimal_degrees",
         )
         response = await client.execute(query)
         print(f"  Custom columns query: {len(response)} results")
@@ -83,10 +86,11 @@ async def test_flexible_query_parameters():
         # Test pedon_by_pedon_key with related tables (if we have data)
         if not response.is_empty():
             sample_pedon_key = response.to_dict()[0]["pedon_key"]
-            print(f" Testing pedon_by_pedon_key with related tables for key: {sample_pedon_key}")
+            print(
+                f" Testing pedon_by_pedon_key with related tables for key: {sample_pedon_key}"
+            )
             query = soildb.QueryBuilder.pedon_by_pedon_key(
-                sample_pedon_key,
-                related_tables=["lab_physical_properties"]
+                sample_pedon_key, related_tables=["lab_physical_properties"]
             )
             response = await client.execute(query)
             print(f"  Related tables query: {len(response)} results")

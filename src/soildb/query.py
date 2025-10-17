@@ -3,7 +3,7 @@ SQL query building classes for SDA queries.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 
 # Standard column sets for common query patterns
@@ -12,42 +12,152 @@ class ColumnSets:
 
     # Map unit columns
     MAPUNIT_BASIC = ["mukey", "musym", "muname", "mukind", "muacres"]
-    MAPUNIT_DETAILED = MAPUNIT_BASIC + ["mustatus", "muhelcl", "muwathelcl", "muwndhelcl", "interpfocus", "invesintens"]
-    MAPUNIT_SPATIAL = ["mukey", "musym", "muname", "mupolygongeo.STAsText() as geometry"]
+    MAPUNIT_DETAILED = MAPUNIT_BASIC + [
+        "mustatus",
+        "muhelcl",
+        "muwathelcl",
+        "muwndhelcl",
+        "interpfocus",
+        "invesintens",
+    ]
+    MAPUNIT_SPATIAL = [
+        "mukey",
+        "musym",
+        "muname",
+        "mupolygongeo.STAsText() as geometry",
+    ]
 
     # Component columns
     COMPONENT_BASIC = ["cokey", "compname", "comppct_r", "majcompflag"]
     COMPONENT_DETAILED = COMPONENT_BASIC + [
-        "compkind", "localphase", "drainagecl", "geomdesc", "taxclname",
-        "taxorder", "taxsuborder", "taxgrtgroup", "taxsubgrp", "taxpartsize",
-        "taxpartsizemod", "taxceactcl", "taxreaction", "taxtempcl", "taxmoistscl",
-        "tempregime", "taxminalogy", "taxother"
+        "compkind",
+        "localphase",
+        "drainagecl",
+        "geomdesc",
+        "taxclname",
+        "taxorder",
+        "taxsuborder",
+        "taxgrtgroup",
+        "taxsubgrp",
+        "taxpartsize",
+        "taxpartsizemod",
+        "taxceactcl",
+        "taxreaction",
+        "taxtempcl",
+        "taxmoistscl",
+        "tempregime",
+        "taxminalogy",
+        "taxother",
     ]
 
     # Horizon columns
     CHORIZON_BASIC = ["chkey", "hzname", "hzdept_r", "hzdepb_r"]
-    CHORIZON_TEXTURE = CHORIZON_BASIC + ["sandtotal_r", "silttotal_r", "claytotal_r", "texture"]
-    CHORIZON_CHEMICAL = CHORIZON_BASIC + ["ph1to1h2o_r", "om_r", "caco3_r", "gypsum_r", "sar_r", "cec7_r", "ecec_r"]
-    CHORIZON_PHYSICAL = CHORIZON_BASIC + ["dbthirdbar_r", "dbovendry_r", "ksat_r", "awc_r", "wfifteenbar_r", "wthirdbar_r", "wtenthbar_r"]
-    CHORIZON_DETAILED = CHORIZON_BASIC + CHORIZON_TEXTURE[4:] + CHORIZON_CHEMICAL[4:] + CHORIZON_PHYSICAL[4:]
+    CHORIZON_TEXTURE = CHORIZON_BASIC + [
+        "sandtotal_r",
+        "silttotal_r",
+        "claytotal_r",
+        "texture",
+    ]
+    CHORIZON_CHEMICAL = CHORIZON_BASIC + [
+        "ph1to1h2o_r",
+        "om_r",
+        "caco3_r",
+        "gypsum_r",
+        "sar_r",
+        "cec7_r",
+        "ecec_r",
+    ]
+    CHORIZON_PHYSICAL = CHORIZON_BASIC + [
+        "dbthirdbar_r",
+        "dbovendry_r",
+        "ksat_r",
+        "awc_r",
+        "wfifteenbar_r",
+        "wthirdbar_r",
+        "wtenthbar_r",
+    ]
+    CHORIZON_DETAILED = (
+        CHORIZON_BASIC
+        + CHORIZON_TEXTURE[4:]
+        + CHORIZON_CHEMICAL[4:]
+        + CHORIZON_PHYSICAL[4:]
+    )
 
     # Legend/Survey Area columns
     LEGEND_BASIC = ["lkey", "areasymbol", "areaname", "saversion"]
-    LEGEND_DETAILED = LEGEND_BASIC + ["mlraoffice", "projectscale", "cordate", "saverest"]
+    LEGEND_DETAILED = LEGEND_BASIC + [
+        "mlraoffice",
+        "projectscale",
+        "cordate",
+        "saverest",
+    ]
 
     # Pedon/Site columns
-    PEDON_BASIC = ["pedon_key", "upedonid", "latitude_decimal_degrees", "longitude_decimal_degrees"]
-    PEDON_SITE = PEDON_BASIC + ["samp_name", "corr_name", "site_key", "usiteid", "site_obsdate"]
-    PEDON_DETAILED = PEDON_SITE + ["descname", "taxonname", "taxclname", "pedlabsampnum", "pedoniid"]
+    PEDON_BASIC = [
+        "pedon_key",
+        "upedonid",
+        "latitude_decimal_degrees",
+        "longitude_decimal_degrees",
+    ]
+    PEDON_SITE = PEDON_BASIC + [
+        "samp_name",
+        "corr_name",
+        "site_key",
+        "usiteid",
+        "site_obsdate",
+    ]
+    PEDON_DETAILED = PEDON_SITE + [
+        "descname",
+        "taxonname",
+        "taxclname",
+        "pedlabsampnum",
+        "pedoniid",
+    ]
 
     # Lab horizon columns
-    LAB_HORIZON_BASIC = ["layer_key", "layer_sequence", "hzn_top", "hzn_bot", "hzn_desgn"]
-    LAB_HORIZON_TEXTURE = LAB_HORIZON_BASIC + ["sand_total", "silt_total", "clay_total", "texture_lab"]
-    LAB_HORIZON_CHEMICAL = LAB_HORIZON_BASIC + ["ph_h2o", "organic_carbon_walkley_black", "total_carbon_ncs", "caco3_lt_2_mm"]
-    LAB_HORIZON_PHYSICAL = LAB_HORIZON_BASIC + ["bulk_density_third_bar", "le_third_fifteen_lt2_mm", "water_retention_10th_bar", "water_retention_third_bar", "water_retention_15_bar"]
-    LAB_HORIZON_CALCULATIONS = ["estimated_om", "estimated_c_tot", "estimated_n_tot", "estimated_sand", "estimated_silt", "estimated_clay"]
+    LAB_HORIZON_BASIC = [
+        "layer_key",
+        "layer_sequence",
+        "hzn_top",
+        "hzn_bot",
+        "hzn_desgn",
+    ]
+    LAB_HORIZON_TEXTURE = LAB_HORIZON_BASIC + [
+        "sand_total",
+        "silt_total",
+        "clay_total",
+        "texture_lab",
+    ]
+    LAB_HORIZON_CHEMICAL = LAB_HORIZON_BASIC + [
+        "ph_h2o",
+        "organic_carbon_walkley_black",
+        "total_carbon_ncs",
+        "caco3_lt_2_mm",
+    ]
+    LAB_HORIZON_PHYSICAL = LAB_HORIZON_BASIC + [
+        "bulk_density_third_bar",
+        "le_third_fifteen_lt2_mm",
+        "water_retention_10th_bar",
+        "water_retention_third_bar",
+        "water_retention_15_bar",
+    ]
+    LAB_HORIZON_CALCULATIONS = [
+        "estimated_om",
+        "estimated_c_tot",
+        "estimated_n_tot",
+        "estimated_sand",
+        "estimated_silt",
+        "estimated_clay",
+    ]
     LAB_HORIZON_ROSETTA = ["theta_r", "theta_s", "alpha", "npar", "ksat", "ksat_class"]
-    LAB_HORIZON_DETAILED = LAB_HORIZON_BASIC + LAB_HORIZON_TEXTURE[5:] + LAB_HORIZON_CHEMICAL[5:] + LAB_HORIZON_PHYSICAL[5:] + LAB_HORIZON_CALCULATIONS + LAB_HORIZON_ROSETTA
+    LAB_HORIZON_DETAILED = (
+        LAB_HORIZON_BASIC
+        + LAB_HORIZON_TEXTURE[5:]
+        + LAB_HORIZON_CHEMICAL[5:]
+        + LAB_HORIZON_PHYSICAL[5:]
+        + LAB_HORIZON_CALCULATIONS
+        + LAB_HORIZON_ROSETTA
+    )
 
 
 class BaseQuery(ABC):
@@ -396,8 +506,7 @@ class QueryBuilder:
 
     @staticmethod
     def mapunits_by_legend(
-        areasymbol: str,
-        columns: Optional[List[str]] = None
+        areasymbol: str, columns: Optional[List[str]] = None
     ) -> Query:
         """Get map units for a survey area by legend/area symbol."""
         if columns is None:
@@ -414,12 +523,16 @@ class QueryBuilder:
 
     @staticmethod
     def components_by_legend(
-        areasymbol: str,
-        columns: Optional[List[str]] = None
+        areasymbol: str, columns: Optional[List[str]] = None
     ) -> Query:
         """Get components for a survey area."""
         if columns is None:
-            columns = ColumnSets.COMPONENT_BASIC + ["m.mukey", "m.musym", "m.muname", "l.areasymbol"]
+            columns = ColumnSets.COMPONENT_BASIC + [
+                "m.mukey",
+                "m.musym",
+                "m.muname",
+                "l.areasymbol",
+            ]
 
         return (
             Query()
@@ -433,15 +546,18 @@ class QueryBuilder:
 
     @staticmethod
     def component_horizons_by_legend(
-        areasymbol: str,
-        columns: Optional[List[str]] = None
+        areasymbol: str, columns: Optional[List[str]] = None
     ) -> Query:
         """Get component and horizon data for a survey area."""
         if columns is None:
-            columns = (
-                ["m.mukey", "m.musym", "m.muname", "c.cokey", "c.compname", "c.comppct_r"] +
-                ColumnSets.CHORIZON_TEXTURE
-            )
+            columns = [
+                "m.mukey",
+                "m.musym",
+                "m.muname",
+                "c.cokey",
+                "c.compname",
+                "c.comppct_r",
+            ] + ColumnSets.CHORIZON_TEXTURE
 
         return (
             Query()
@@ -456,16 +572,17 @@ class QueryBuilder:
 
     @staticmethod
     def components_at_point(
-        longitude: float,
-        latitude: float,
-        columns: Optional[List[str]] = None
+        longitude: float, latitude: float, columns: Optional[List[str]] = None
     ) -> SpatialQuery:
         """Get soil component data at a specific point."""
         if columns is None:
-            columns = (
-                ["m.mukey", "m.musym", "m.muname", "c.compname", "c.comppct_r"] +
-                ColumnSets.CHORIZON_TEXTURE
-            )
+            columns = [
+                "m.mukey",
+                "m.musym",
+                "m.muname",
+                "c.compname",
+                "c.comppct_r",
+            ] + ColumnSets.CHORIZON_TEXTURE
 
         return (
             SpatialQuery()
@@ -481,8 +598,7 @@ class QueryBuilder:
 
     @staticmethod
     def spatial_by_legend(
-        areasymbol: str,
-        columns: Optional[List[str]] = None
+        areasymbol: str, columns: Optional[List[str]] = None
     ) -> SpatialQuery:
         """Get spatial data for map units on a legend/area symbol."""
         if columns is None:
@@ -504,11 +620,16 @@ class QueryBuilder:
         min_y: float,
         max_x: float,
         max_y: float,
-        columns: Optional[List[str]] = None
+        columns: Optional[List[str]] = None,
     ) -> SpatialQuery:
         """Get map units that intersect with a bounding box."""
         if columns is None:
-            columns = ["m.mukey", "m.musym", "m.muname", "mupolygongeo.STAsText() as geometry"]
+            columns = [
+                "m.mukey",
+                "m.musym",
+                "m.muname",
+                "mupolygongeo.STAsText() as geometry",
+            ]
 
         return (
             SpatialQuery()
@@ -520,8 +641,7 @@ class QueryBuilder:
 
     @staticmethod
     def available_survey_areas(
-        columns: Optional[List[str]] = None,
-        table: str = "sacatalog"
+        columns: Optional[List[str]] = None, table: str = "sacatalog"
     ) -> Query:
         """Get list of available survey areas."""
         if columns is None:
@@ -530,27 +650,17 @@ class QueryBuilder:
             else:
                 columns = ColumnSets.LEGEND_BASIC
 
-        return (
-            Query()
-            .select(*columns)
-            .from_(table)
-            .order_by("areasymbol")
-        )
+        return Query().select(*columns).from_(table).order_by("areasymbol")
 
     @staticmethod
     def survey_area_boundaries(
-        columns: Optional[List[str]] = None,
-        table: str = "sapolygon"
+        columns: Optional[List[str]] = None, table: str = "sapolygon"
     ) -> SpatialQuery:
         """Get survey area boundary polygons."""
         if columns is None:
             columns = ["areasymbol", "areaname", "sapolygongeo.STAsText() as geometry"]
 
-        return (
-            SpatialQuery()
-            .select(*columns)
-            .from_(table)
-        )
+        return SpatialQuery().select(*columns).from_(table)
 
     @staticmethod
     def from_sql(query: str) -> Query:
@@ -575,13 +685,13 @@ class QueryBuilder:
         base_table: str = "lab_combine_nasis_ncss",
         related_tables: Optional[List[str]] = None,
         lon_column: str = "longitude_decimal_degrees",
-        lat_column: str = "latitude_decimal_degrees"
+        lat_column: str = "latitude_decimal_degrees",
     ) -> Query:
         """Get pedons that intersect with a bounding box with flexible table joining.
 
         Args:
             min_x: Minimum longitude
-            min_y: Minimum latitude  
+            min_y: Minimum latitude
             max_x: Maximum longitude
             max_y: Maximum latitude
             columns: Columns to select (defaults to basic pedon columns)
@@ -610,7 +720,9 @@ class QueryBuilder:
             for i, table in enumerate(related_tables):
                 alias = f"t{i}"
                 # Most pedon-related tables join on pedon_key
-                query = query.left_join(f"{table} {alias}", f"p.pedon_key = {alias}.pedon_key")
+                query = query.left_join(
+                    f"{table} {alias}", f"p.pedon_key = {alias}.pedon_key"
+                )
 
         return query
 
@@ -619,7 +731,7 @@ class QueryBuilder:
         pedon_keys: List[str],
         columns: Optional[List[str]] = None,
         base_table: str = "lab_layer",
-        related_tables: Optional[List[str]] = None
+        related_tables: Optional[List[str]] = None,
     ) -> Query:
         """Get horizon data for specified pedon keys with flexible table joining.
 
@@ -637,10 +749,17 @@ class QueryBuilder:
 
         if columns is None:
             columns = (
-                ["l.pedon_key", "l.layer_key", "l.layer_sequence", "l.hzn_top", "l.hzn_bot", "l.hzn_desgn"] +
-                ColumnSets.LAB_HORIZON_TEXTURE[5:] +
-                ColumnSets.LAB_HORIZON_CHEMICAL[5:] +
-                ColumnSets.LAB_HORIZON_PHYSICAL[5:]
+                [
+                    "l.pedon_key",
+                    "l.layer_key",
+                    "l.layer_sequence",
+                    "l.hzn_top",
+                    "l.hzn_bot",
+                    "l.hzn_desgn",
+                ]
+                + ColumnSets.LAB_HORIZON_TEXTURE[5:]
+                + ColumnSets.LAB_HORIZON_CHEMICAL[5:]
+                + ColumnSets.LAB_HORIZON_PHYSICAL[5:]
             )
 
         # Build IN clause for pedon keys
@@ -656,19 +775,29 @@ class QueryBuilder:
 
         # Add joins for related tables
         # Most lab tables join on labsampnum
-        lab_join_tables = {"lab_physical_properties", "lab_chemical_properties", 
-                          "lab_calculations_including_estimates_and_default_values", 
-                          "lab_rosetta_key", "lab_mir", "lab_mineralogy_glass_count",
-                          "lab_major_and_trace_elements_and_oxides", "lab_xray_and_thermal"}
+        lab_join_tables = {
+            "lab_physical_properties",
+            "lab_chemical_properties",
+            "lab_calculations_including_estimates_and_default_values",
+            "lab_rosetta_key",
+            "lab_mir",
+            "lab_mineralogy_glass_count",
+            "lab_major_and_trace_elements_and_oxides",
+            "lab_xray_and_thermal",
+        }
 
         for i, table in enumerate(related_tables):
             alias = f"t{i}"
             if table in lab_join_tables:
                 # Lab tables typically join on labsampnum
-                query = query.left_join(f"{table} {alias}", f"l.labsampnum = {alias}.labsampnum")
+                query = query.left_join(
+                    f"{table} {alias}", f"l.labsampnum = {alias}.labsampnum"
+                )
             else:
                 # For other tables, try pedon_key join (could be extended for other join keys)
-                query = query.left_join(f"{table} {alias}", f"l.pedon_key = {alias}.pedon_key")
+                query = query.left_join(
+                    f"{table} {alias}", f"l.pedon_key = {alias}.pedon_key"
+                )
 
         return query.order_by("l.pedon_key, l.layer_sequence")
 
@@ -677,7 +806,7 @@ class QueryBuilder:
         pedon_key: str,
         columns: Optional[List[str]] = None,
         base_table: str = "lab_combine_nasis_ncss",
-        related_tables: Optional[List[str]] = None
+        related_tables: Optional[List[str]] = None,
     ) -> Query:
         """Get a single pedon by its pedon key with flexible table joining.
 
@@ -705,6 +834,8 @@ class QueryBuilder:
             for i, table in enumerate(related_tables):
                 alias = f"t{i}"
                 # Most pedon-related tables join on pedon_key
-                query = query.left_join(f"{table} {alias}", f"p.pedon_key = {alias}.pedon_key")
+                query = query.left_join(
+                    f"{table} {alias}", f"p.pedon_key = {alias}.pedon_key"
+                )
 
         return query

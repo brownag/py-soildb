@@ -6,10 +6,10 @@ import threading
 from typing import Optional
 
 from .client import SDAClient
-from .query import Query, QueryBuilder, ColumnSets
+from .fetch import fetch_pedons_by_bbox
+from .query import ColumnSets, Query, QueryBuilder
 from .response import SDAResponse
 from .spatial import spatial_query
-from .fetch import fetch_pedons_by_bbox
 
 # Module-level client instance for shared usage
 # WARNING: The default client is not thread-safe for concurrent access.
@@ -45,7 +45,7 @@ def _get_default_client() -> SDAClient:
 async def get_mapunit_by_areasymbol(
     areasymbol: str,
     columns: Optional[list[str]] = None,
-    client: Optional[SDAClient] = None
+    client: Optional[SDAClient] = None,
 ) -> "SDAResponse":
     """
     Get map unit data by survey area symbol (legend).
@@ -66,7 +66,10 @@ async def get_mapunit_by_areasymbol(
 
 
 async def get_mapunit_by_point(
-    longitude: float, latitude: float, columns: Optional[list[str]] = None, client: Optional[SDAClient] = None
+    longitude: float,
+    latitude: float,
+    columns: Optional[list[str]] = None,
+    client: Optional[SDAClient] = None,
 ) -> "SDAResponse":
     """
     Get map unit data at a specific point location.
@@ -195,7 +198,7 @@ async def get_lab_pedons_by_bbox(
 async def get_lab_pedon_by_id(
     pedon_id: str,
     columns: Optional[list[str]] = None,
-    client: Optional[SDAClient] = None
+    client: Optional[SDAClient] = None,
 ) -> "SDAResponse":
     """
     Get a single laboratory-analyzed pedon by its pedon key or user pedon ID.
