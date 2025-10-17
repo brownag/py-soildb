@@ -61,7 +61,9 @@ def _create_pedon_horizon_from_row(
         if pd.notna(caco3_lt_2_mm):
             # Subtract carbon from calcium carbonate (CaCO3 is 12% carbon by weight)
             carbonate_carbon = float(caco3_lt_2_mm) * 0.12
-            organic_carbon = max(0, organic_carbon - carbonate_carbon)  # Ensure non-negative
+            organic_carbon = max(
+                0, organic_carbon - carbonate_carbon
+            )  # Ensure non-negative
 
         processed["organic_carbon"] = organic_carbon
         extra.pop("total_carbon_ncs", None)
