@@ -56,16 +56,20 @@ class SDAClient:
     async def _ensure_client(self) -> None:
         """Ensure HTTP client is initialized."""
         current_loop = asyncio.get_running_loop()
-        
+
         # If we have a client but it's from a different event loop, close it and recreate
-        if self._client is not None and self._event_loop is not None and self._event_loop != current_loop:
+        if (
+            self._client is not None
+            and self._event_loop is not None
+            and self._event_loop != current_loop
+        ):
             try:
                 await self._client.aclose()
             except Exception:
                 pass  # Ignore errors when closing
             self._client = None
             self._event_loop = None
-        
+
         if self._client is None:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),

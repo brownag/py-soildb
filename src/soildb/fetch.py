@@ -453,10 +453,13 @@ async def fetch_pedons_by_bbox(
 
     if client is None:
         from .convenience import _get_default_client
+
         client = _get_default_client()
 
     # Get pedon site data
-    query = QueryBuilder.pedons_intersecting_bbox(min_lon, min_lat, max_lon, max_lat, columns)
+    query = QueryBuilder.pedons_intersecting_bbox(
+        min_lon, min_lat, max_lon, max_lat, columns
+    )
     response = await client.execute(query)
 
     if not include_horizons or response.is_empty():
@@ -464,20 +467,21 @@ async def fetch_pedons_by_bbox(
 
     # Get pedon keys for horizon fetching
     df = response.to_pandas()
-    pedon_keys = df['pedon_key'].unique().tolist()
+    pedon_keys = df["pedon_key"].unique().tolist()
 
     # Fetch horizons in chunks if needed
     if len(pedon_keys) <= chunk_size:
-        horizons_response = await fetch_pedon_horizons(pedon_keys, client=client)
         # Note: In a full implementation, we'd combine site and horizon data
         # For now, return site data - horizons would be fetched separately
         return response
     else:
         # Handle large result sets with chunking
-        print(f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}")
+        print(
+            f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}"
+        )
         all_horizons = []
         for i in range(0, len(pedon_keys), chunk_size):
-            chunk_keys = pedon_keys[i:i + chunk_size]
+            chunk_keys = pedon_keys[i : i + chunk_size]
             chunk_response = await fetch_pedon_horizons(chunk_keys, client=client)
             if not chunk_response.is_empty():
                 all_horizons.extend(chunk_response.data)
@@ -505,6 +509,7 @@ async def fetch_pedon_horizons(
 
     if client is None:
         from .convenience import _get_default_client
+
         client = _get_default_client()
 
     query = QueryBuilder.pedon_horizons_by_pedon_keys(pedon_keys)
