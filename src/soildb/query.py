@@ -6,12 +6,10 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from .sanitization import (
-    sanitize_sql_string,
     sanitize_sql_numeric,
+    sanitize_sql_string,
     sanitize_sql_string_list,
     validate_sql_object_name,
-    VALID_COLUMNS,
-    VALID_TABLES,
 )
 
 

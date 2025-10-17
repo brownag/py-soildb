@@ -5,8 +5,9 @@ This module provides a completely automatic system for mapping database columns
 to dataclass fields with minimal hardcoded logic.
 """
 
-from dataclasses import dataclass, field, make_dataclass, asdict
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from dataclasses import asdict, dataclass, field, make_dataclass
+from typing import Any, Callable, Dict, List, Optional, Type
+
 import pandas as pd
 
 
