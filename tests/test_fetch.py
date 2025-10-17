@@ -109,7 +109,9 @@ class TestFetchByKeys:
         mock_client.execute.side_effect = [mock_response1, mock_response2]
 
         #  use chunk_size=1 to force multiple chunks
-        result = await fetch_by_keys([1, 2], "mapunit", chunk_size=1, client=mock_client)
+        result = await fetch_by_keys(
+            [1, 2], "mapunit", chunk_size=1, client=mock_client
+        )
 
         assert len(result.data) == 2
         assert result.data[0]["mukey"] == 1
@@ -121,7 +123,9 @@ class TestFetchByKeys:
         mock_response = AsyncMock(spec=SDAResponse)
         mock_client.execute.return_value = mock_response
 
-        await fetch_by_keys([123456], "mapunit", columns=["mukey", "muname"], client=mock_client)
+        await fetch_by_keys(
+            [123456], "mapunit", columns=["mukey", "muname"], client=mock_client
+        )
 
         # Check that query was built with correct columns
         # The Query object should have the specified columns
@@ -134,7 +138,9 @@ class TestFetchByKeys:
         mock_response = AsyncMock(spec=SDAResponse)
         mock_client.execute.return_value = mock_response
 
-        await fetch_by_keys([123456], "mupolygon", include_geometry=True, client=mock_client)
+        await fetch_by_keys(
+            [123456], "mupolygon", include_geometry=True, client=mock_client
+        )
 
         assert mock_client.execute.called
 
@@ -176,7 +182,18 @@ class TestSpecializedFunctions:
             [123456],
             "component",
             "mukey",
-            ["cokey", "compname", "comppct_r", "majcompflag", "taxclname", "drainagecl", "localphase", "hydricrating", "compkind", "mukey"],  # From component schema + mukey
+            [
+                "cokey",
+                "compname",
+                "comppct_r",
+                "majcompflag",
+                "taxclname",
+                "drainagecl",
+                "localphase",
+                "hydricrating",
+                "compkind",
+                "mukey",
+            ],  # From component schema + mukey
             1000,
             False,  # include_geometry
             None,
@@ -196,7 +213,16 @@ class TestSpecializedFunctions:
             ["123456:1", "123456:2"],
             "chorizon",
             "cokey",
-            ["chkey", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r", "sandtotal_r", "om_r", "ph1to1h2o_r"],  # From chorizon schema
+            [
+                "chkey",
+                "hzname",
+                "hzdept_r",
+                "hzdepb_r",
+                "claytotal_r",
+                "sandtotal_r",
+                "om_r",
+                "ph1to1h2o_r",
+            ],  # From chorizon schema
             1000,
             False,
             None,

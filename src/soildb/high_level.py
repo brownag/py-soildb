@@ -27,7 +27,9 @@ from .models import (
 from .schema_system import get_schema, PedonHorizon  # type: ignore
 
 
-def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any, requested_columns: Optional[List[str]] = None) -> Any:
+def _create_pedon_horizon_from_row(
+    pedon_key: str, h_row: Any, requested_columns: Optional[List[str]] = None
+) -> Any:
     """
     Create a PedonHorizon object from a horizon data row.
 
@@ -65,9 +67,13 @@ def _create_pedon_horizon_from_row(pedon_key: str, h_row: Any, requested_columns
     # Create the PedonHorizon object
     return PedonHorizon(  # type: ignore
         pedon_key=pedon_key,
-        **{k: v for k, v in processed.items() if k not in ["extra_fields", "pedon_key"]},
-        extra_fields=processed.get("extra_fields", {})
+        **{
+            k: v for k, v in processed.items() if k not in ["extra_fields", "pedon_key"]
+        },
+        extra_fields=processed.get("extra_fields", {}),
     )
+
+
 async def fetch_mapunit_struct_by_point(
     latitude: float,
     longitude: float,
@@ -107,13 +113,13 @@ async def fetch_mapunit_struct_by_point(
     # Step 2: Create the base SoilMapUnit object
     first_row = mu_df.iloc[0]
     mukey = str(first_row["mukey"])
-    
+
     # Track column information
     metadata = {
         "query_location": {"latitude": latitude, "longitude": longitude},
         "query_date": datetime.now().isoformat(),
     }
-    
+
     # Add column tracking if custom columns were requested
     if component_columns or horizon_columns:
         metadata["requested_columns"] = {
@@ -124,10 +130,12 @@ async def fetch_mapunit_struct_by_point(
         comp_schema = get_schema("component")
         hz_schema = get_schema("chorizon")
         metadata["default_columns"] = {
-            "component_columns": comp_schema.get_default_columns() if comp_schema else [],
+            "component_columns": comp_schema.get_default_columns()
+            if comp_schema
+            else [],
             "horizon_columns": hz_schema.get_default_columns() if hz_schema else [],
         }
-    
+
     map_unit = SoilMapUnit(  # type: ignore
         map_unit_key=mukey,
         map_unit_name=str(first_row["muname"]),
@@ -144,7 +152,7 @@ async def fetch_mapunit_struct_by_point(
     comp_schema = get_schema("component")
     if not comp_schema:
         raise ValueError("Component schema not found")
-    
+
     comp_columns = component_columns or comp_schema.get_default_columns()
     comp_response = await fetch_component_by_mukey(
         mukey,
@@ -187,12 +195,12 @@ async def fetch_mapunit_struct_by_point(
     hz_schema = get_schema("chorizon")
     if not hz_schema:
         raise ValueError("Chorizon schema not found")
-    
+
     hz_columns = horizon_columns or hz_schema.get_default_columns()
     # Ensure cokey is always included for grouping
     if "cokey" not in hz_columns:
         hz_columns.insert(0, "cokey")
-    
+
     horizons_df = (
         await fetch_chorizon_by_cokey(
             all_cokeys,
@@ -211,7 +219,7 @@ async def fetch_mapunit_struct_by_point(
             for _, h_row in comp_horizons_df.iterrows():
                 # Process horizon row using schema
                 processed = hz_schema.process_row(h_row, horizon_columns)
-                
+
                 properties = []
                 # Extract properties from processed data
                 prop_data = {
@@ -220,7 +228,7 @@ async def fetch_mapunit_struct_by_point(
                     "organic_matter": ("om_r", "om_l", "om_h", "%"),
                     "ph": ("ph1to1h2o_r", "ph1to1h2o_l", "ph1to1h2o_h", "pH"),
                 }
-                
+
                 for name, (rv_key, low_key, high_key, unit) in prop_data.items():
                     if rv_key in processed and processed[rv_key] is not None:
                         properties.append(
@@ -288,11 +296,11 @@ async def fetch_pedon_struct_by_bbox(
     pedon_schema = get_schema("pedon")
     if not pedon_schema:
         raise ValueError("Pedon schema not found")
-    
+
     for _, row in site_df.iterrows():
         # Process row using schema
         processed = pedon_schema.process_row(row)
-        
+
         # Track column information
         metadata = {
             "query_bbox": {
@@ -303,7 +311,7 @@ async def fetch_pedon_struct_by_bbox(
             },
             "query_date": datetime.now().isoformat(),
         }
-        
+
         # Add column tracking if custom columns were requested
         if horizon_columns:
             metadata["requested_columns"] = {
@@ -313,10 +321,10 @@ async def fetch_pedon_struct_by_bbox(
             metadata["default_columns"] = {
                 "horizon_columns": hz_schema.get_default_columns() if hz_schema else [],
             }
-        
+
         # Merge metadata into extra_fields
         processed["extra_fields"].update(metadata)
-        
+
         pedon = PedonData(
             pedon_key=processed["pedon_key"],
             pedon_id=processed["pedon_id"],
@@ -341,13 +349,13 @@ async def fetch_pedon_struct_by_bbox(
         pedon_map = {p.pedon_key: p for p in pedons}
 
         for pedon_key, pedon_horizons_df in horizons_df.groupby("pedon_key"):
-                pedon_obj = pedon_map.get(pedon_key)
-                if pedon_obj is None:
-                    continue
-                pedon_obj.horizons = [
-                    _create_pedon_horizon_from_row(pedon_key, h_row, horizon_columns)
-                    for _, h_row in pedon_horizons_df.iterrows()
-                ]
+            pedon_obj = pedon_map.get(pedon_key)
+            if pedon_obj is None:
+                continue
+            pedon_obj.horizons = [
+                _create_pedon_horizon_from_row(pedon_key, h_row, horizon_columns)
+                for _, h_row in pedon_horizons_df.iterrows()
+            ]
 
     return pedons
 
@@ -385,15 +393,15 @@ async def fetch_pedon_struct_by_id(
     pedon_schema = get_schema("pedon")
     if not pedon_schema:
         raise ValueError("Pedon schema not found")
-    
+
     processed = pedon_schema.process_row(row)
-    
+
     # Track column information
     metadata = {
         "query_pedon_id": pedon_id,
         "query_date": datetime.now().isoformat(),
     }
-    
+
     # Add column tracking if custom columns were requested
     if horizon_columns:
         metadata["requested_columns"] = {  # type: ignore
@@ -403,10 +411,10 @@ async def fetch_pedon_struct_by_id(
         metadata["default_columns"] = {  # type: ignore
             "horizon_columns": hz_schema.get_default_columns() if hz_schema else [],
         }
-    
+
     # Merge metadata into extra_fields
     processed["extra_fields"].update(metadata)
-    
+
     pedon = PedonData(
         pedon_key=processed["pedon_key"],
         pedon_id=processed["pedon_id"],
