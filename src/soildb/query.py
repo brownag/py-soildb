@@ -5,6 +5,15 @@ SQL query building classes for SDA queries.
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
+from .sanitization import (
+    sanitize_sql_string,
+    sanitize_sql_numeric,
+    sanitize_sql_string_list,
+    validate_sql_object_name,
+    VALID_COLUMNS,
+    VALID_TABLES,
+)
+
 
 # Standard column sets for common query patterns
 class ColumnSets:
@@ -517,7 +526,7 @@ class QueryBuilder:
             .select(*columns)
             .from_("mapunit m")
             .inner_join("legend l", "m.lkey = l.lkey")
-            .where(f"l.areasymbol = '{areasymbol}'")
+            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)}")
             .order_by("m.musym")
         )
 
@@ -540,7 +549,7 @@ class QueryBuilder:
             .from_("component c")
             .inner_join("mapunit m", "c.mukey = m.mukey")
             .inner_join("legend l", "m.lkey = l.lkey")
-            .where(f"l.areasymbol = '{areasymbol}'")
+            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)}")
             .order_by("m.musym, c.comppct_r DESC")
         )
 
@@ -566,7 +575,7 @@ class QueryBuilder:
             .inner_join("legend l", "m.lkey = l.lkey")
             .inner_join("component c", "m.mukey = c.mukey")
             .inner_join("chorizon h", "c.cokey = h.cokey")
-            .where(f"l.areasymbol = '{areasymbol}' AND c.majcompflag = 'Yes'")
+            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)} AND c.majcompflag = 'Yes'")
             .order_by("m.musym, c.comppct_r DESC, h.hzdept_r")
         )
 
@@ -611,7 +620,7 @@ class QueryBuilder:
             SpatialQuery()
             .select(*columns)
             .from_("mupolygon")
-            .where(f"areasymbol = '{areasymbol}'")
+            .where(f"areasymbol = {sanitize_sql_string(areasymbol)}")
         )
 
     @staticmethod
@@ -706,12 +715,17 @@ class QueryBuilder:
         if columns is None:
             columns = ColumnSets.PEDON_BASIC + ["corr_name", "samp_name"]
 
+        # Validate column and table names
+        validate_sql_object_name(lon_column)
+        validate_sql_object_name(lat_column)
+        validate_sql_object_name(base_table)
+
         query = (
             Query()
             .select(*columns)
             .from_(f"{base_table} p")
-            .where(f"p.{lat_column} >= {min_y} AND p.{lat_column} <= {max_y}")
-            .where(f"p.{lon_column} >= {min_x} AND p.{lon_column} <= {max_x}")
+            .where(f"p.{lat_column} >= {sanitize_sql_numeric(min_y)} AND p.{lat_column} <= {sanitize_sql_numeric(max_y)}")
+            .where(f"p.{lon_column} >= {sanitize_sql_numeric(min_x)} AND p.{lon_column} <= {sanitize_sql_numeric(max_x)}")
             .where(f"p.{lat_column} IS NOT NULL AND p.{lon_column} IS NOT NULL")
         )
 
@@ -762,8 +776,11 @@ class QueryBuilder:
                 + ColumnSets.LAB_HORIZON_PHYSICAL[5:]
             )
 
+        # Validate table name
+        validate_sql_object_name(base_table)
+
         # Build IN clause for pedon keys
-        keys_str = ", ".join(f"'{key}'" for key in pedon_keys)
+        keys_str = ", ".join(sanitize_sql_string_list(pedon_keys))
 
         query = (
             Query()
@@ -822,11 +839,14 @@ class QueryBuilder:
         if columns is None:
             columns = ColumnSets.PEDON_BASIC
 
+        # Validate table name
+        validate_sql_object_name(base_table)
+
         query = (
             Query()
             .select(*columns)
             .from_(f"{base_table} p")
-            .where(f"p.pedon_key = '{pedon_key}'")
+            .where(f"p.pedon_key = {sanitize_sql_string(pedon_key)}")
         )
 
         # Add joins for related tables

@@ -156,7 +156,7 @@ class TestSpecializedFunctions:
             [123456, 123457],
             "mupolygon",
             "mukey",
-            ["mukey", "muname", "musym", "lkey", "areaname"],  # From mapunit schema
+            ["mukey"],  # Only mukey available in mupolygon table
             1000,
             True,  # include_geometry
             None,
@@ -176,7 +176,7 @@ class TestSpecializedFunctions:
             [123456],
             "component",
             "mukey",
-            ["cokey", "compname", "comppct_r", "majcompflag", "taxclname", "drainagecl", "localphase", "hydricrating", "compkind"],  # From component schema
+            ["cokey", "compname", "comppct_r", "majcompflag", "taxclname", "drainagecl", "localphase", "hydricrating", "compkind", "mukey"],  # From component schema + mukey
             1000,
             False,  # include_geometry
             None,
@@ -293,13 +293,14 @@ class TestFetchIntegration:
         # Use known good mukeys from California
         mukeys = [461994, 461995]  # CA630 mukeys
 
-        response = await fetch_by_keys(mukeys, "mapunit")
-        df = response.to_pandas()
+        async with SDAClient() as client:
+            response = await fetch_by_keys(mukeys, "mapunit", client=client)
+            df = response.to_pandas()
 
-        assert not df.empty
-        assert len(df) <= len(mukeys)  # Some keys might not exist
-        assert "mukey" in df.columns
-        assert "muname" in df.columns
+            assert not df.empty
+            assert len(df) <= len(mukeys)  # Some keys might not exist
+            assert "mukey" in df.columns
+            assert "muname" in df.columns
 
     async def test_fetch_real_component_data(self):
         """Test fetching real component data."""

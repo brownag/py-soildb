@@ -13,6 +13,7 @@ from .client import SDAClient
 from .exceptions import SoilDBError
 from .query import Query, QueryBuilder
 from .response import SDAResponse
+from .sanitization import sanitize_sql_string_list, sanitize_sql_numeric
 from .schema_system import get_schema
 
 # Common SSURGO tables and their typical key columns
@@ -290,9 +291,8 @@ async def fetch_mapunit_polygon(
         mukeys = [mukeys]
 
     if columns is None:
-        # Use schema-based default columns for mapunit table
-        schema = get_schema("mapunit")
-        columns = schema.get_default_columns()
+        # For mupolygon table, only mukey is available (geometry added separately)
+        columns = ["mukey"]
 
     return await fetch_by_keys(
         mukeys, "mupolygon", "mukey", columns, chunk_size, include_geometry, client
@@ -329,7 +329,7 @@ async def fetch_component_by_mukey(
     if columns is None:
         # Use schema-based default columns for component table
         schema = get_schema("component")
-        columns = schema.get_default_columns()
+        columns = schema.get_default_columns() + ["mukey"]
 
     return await fetch_by_keys(
         mukeys, "component", "mukey", columns, chunk_size, False, client
@@ -589,7 +589,7 @@ async def get_mukey_by_areasymbol(
         raise TypeError("client parameter is required")
 
     # Use the existing get_mapunits_by_legend pattern but for multiple areas
-    key_strings = [f"'{area}'" for area in areasymbols]
+    key_strings = sanitize_sql_string_list(areasymbols)
     where_clause = f"l.areasymbol IN ({', '.join(key_strings)})"
 
     query = (
@@ -629,7 +629,8 @@ async def get_cokey_by_mukey(
     # At this point mukeys is guaranteed to be a list
     mukeys_list: List[Union[str, int]] = mukeys
 
-    where_clause = f"mukey IN ({', '.join(str(k) for k in mukeys)})"
+    sanitized_keys = [sanitize_sql_numeric(k) for k in mukeys_list]
+    where_clause = f"mukey IN ({', '.join(sanitized_keys)})"
     if major_components_only:
         where_clause += " AND majcompflag = 'Yes'"
 
