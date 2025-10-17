@@ -11,21 +11,44 @@ from typing import Any, Dict, List, Optional
 
 @dataclass
 class HorizonProperty:
-    """Represents a soil property for a single horizon with low, rv, and high values."""
+    """Represents a soil property for a single horizon with low, rv, and high values.
+
+    This dataclass includes an extra_fields dictionary to store arbitrary user-defined
+    properties beyond the standard property fields.
+    """
 
     property_name: str
     rv: Optional[float] = None
     low: Optional[float] = None
     high: Optional[float] = None
     unit: str = ""
+    # --- ADDED ---
+    # Dictionary for arbitrary user-defined properties.
+    extra_fields: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+    def get_extra_field(self, key: str) -> Any:
+        """Get an extra field value by key."""
+        return self.extra_fields.get(key)
+
+    def has_extra_field(self, key: str) -> bool:
+        """Check if an extra field exists."""
+        return key in self.extra_fields
+
+    def list_extra_fields(self) -> List[str]:
+        """List all extra field keys."""
+        return list(self.extra_fields.keys())
+
 
 @dataclass
 class AggregateHorizon:
-    """Represents an aggregate 'component horizon' with statistical summaries."""
+    """Represents an aggregate 'component horizon' with statistical summaries.
+
+    This dataclass includes an extra_fields dictionary to store arbitrary user-defined
+    properties beyond the standard horizon fields.
+    """
 
     horizon_key: str  # chkey
     horizon_name: str
@@ -34,17 +57,33 @@ class AggregateHorizon:
     properties: List[HorizonProperty] = field(default_factory=list)
     # --- ADDED ---
     # Dictionary for arbitrary user-defined properties.
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    extra_fields: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["properties"] = [p.to_dict() for p in self.properties]
         return d
 
+    def get_extra_field(self, key: str) -> Any:
+        """Get an extra field value by key."""
+        return self.extra_fields.get(key)
+
+    def has_extra_field(self, key: str) -> bool:
+        """Check if an extra field exists."""
+        return key in self.extra_fields
+
+    def list_extra_fields(self) -> List[str]:
+        """List all extra field keys."""
+        return list(self.extra_fields.keys())
+
 
 @dataclass
 class MapUnitComponent:
-    """Represents a single component of a soil map unit."""
+    """Represents a single component of a soil map unit.
+
+    This dataclass includes an extra_fields dictionary to store arbitrary user-defined
+    properties beyond the standard component fields.
+    """
 
     component_key: str  # cokey
     component_name: str
@@ -58,12 +97,24 @@ class MapUnitComponent:
     aggregate_horizons: List[AggregateHorizon] = field(default_factory=list)
     # --- ADDED ---
     # Dictionary for arbitrary user-defined properties.
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    extra_fields: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["aggregate_horizons"] = [h.to_dict() for h in self.aggregate_horizons]
         return d
+
+    def get_extra_field(self, key: str) -> Any:
+        """Get an extra field value by key."""
+        return self.extra_fields.get(key)
+
+    def has_extra_field(self, key: str) -> bool:
+        """Check if an extra field exists."""
+        return key in self.extra_fields
+
+    def list_extra_fields(self) -> List[str]:
+        """List all extra field keys."""
+        return list(self.extra_fields.keys())
 
 
 @dataclass
@@ -71,6 +122,9 @@ class SoilMapUnit:
     """
     A complete, structured representation of a soil map unit, including its
     components and their aggregate horizons.
+
+    This dataclass includes an extra_fields dictionary to store arbitrary user-defined
+    properties beyond the standard map unit fields.
     """
 
     map_unit_key: str  # mukey
@@ -79,7 +133,9 @@ class SoilMapUnit:
     survey_area_symbol: Optional[str] = None
     survey_area_name: Optional[str] = None
     components: List[MapUnitComponent] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    # --- ADDED ---
+    # Dictionary for arbitrary user-defined properties.
+    extra_fields: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the entire nested structure to a dictionary."""
@@ -91,10 +147,26 @@ class SoilMapUnit:
         """Returns only the major components of the map unit."""
         return [c for c in self.components if c.is_major_component]
 
+    def get_extra_field(self, key: str) -> Any:
+        """Get an extra field value by key."""
+        return self.extra_fields.get(key)
+
+    def has_extra_field(self, key: str) -> bool:
+        """Check if an extra field exists."""
+        return key in self.extra_fields
+
+    def list_extra_fields(self) -> List[str]:
+        """List all extra field keys."""
+        return list(self.extra_fields.keys())
+
 
 @dataclass
 class PedonHorizon:
-    """Represents a single horizon from a pedon with laboratory data."""
+    """Represents a single horizon from a pedon with laboratory data.
+
+    This dataclass includes an extra_fields dictionary to store arbitrary user-defined
+    properties beyond the standard horizon fields.
+    """
 
     pedon_key: str  # Foreign key to pedon
     layer_key: str  # Unique layer identifier
@@ -119,16 +191,31 @@ class PedonHorizon:
     water_content_fifteen_bar: Optional[float] = None
     # --- ADDED ---
     # Dictionary for arbitrary user-defined properties.
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    extra_fields: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+    def get_extra_field(self, key: str) -> Any:
+        """Get an extra field value by key."""
+        return self.extra_fields.get(key)
+
+    def has_extra_field(self, key: str) -> bool:
+        """Check if an extra field exists."""
+        return key in self.extra_fields
+
+    def list_extra_fields(self) -> List[str]:
+        """List all extra field keys."""
+        return list(self.extra_fields.keys())
 
 
 @dataclass
 class PedonData:
     """
     A complete pedon with site information and laboratory-analyzed horizons.
+
+    This dataclass includes an extra_fields dictionary to store arbitrary user-defined
+    properties beyond the standard pedon fields.
     """
 
     pedon_key: str  # Primary key
@@ -141,8 +228,9 @@ class PedonData:
     soil_classification: Optional[str] = None  # Full soil classification
     # Horizons
     horizons: List[PedonHorizon] = field(default_factory=list)
-    # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    # --- ADDED ---
+    # Dictionary for arbitrary user-defined properties.
+    extra_fields: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the pedon to a dictionary."""
@@ -169,3 +257,15 @@ class PedonData:
             h.bottom_depth for h in self.horizons if h.bottom_depth is not None
         ]
         return max(valid_depths) if valid_depths else 0.0
+
+    def get_extra_field(self, key: str) -> Any:
+        """Get an extra field value by key."""
+        return self.extra_fields.get(key)
+
+    def has_extra_field(self, key: str) -> bool:
+        """Check if an extra field exists."""
+        return key in self.extra_fields
+
+    def list_extra_fields(self) -> List[str]:
+        """List all extra field keys."""
+        return list(self.extra_fields.keys())
