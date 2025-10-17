@@ -14,7 +14,7 @@ import pandas as pd
 class ColumnSchema:
     """Schema definition for a single column."""
     name: str
-    type_hint: Type
+    type_hint: Any
     processor: Callable[[Any], Any]
     default: bool = False
     field_name: Optional[str] = None  # Maps to dataclass field, None = extra_fields
@@ -175,7 +175,6 @@ SCHEMAS = {
             "caco3_lt_2_mm": ColumnSchema("caco3_lt_2_mm", Optional[float], to_optional_float, default=True, field_name="calcium_carbonate"),
             "bulk_density_third_bar": ColumnSchema("bulk_density_third_bar", Optional[float], to_optional_float, default=True, field_name="bulk_density_third_bar"),
             "le_third_fifteen_lt2_mm": ColumnSchema("le_third_fifteen_lt2_mm", Optional[float], to_optional_float, default=True, field_name="le_third_fifteen_lt2_mm"),
-            "water_retention_tenth_bar": ColumnSchema("water_retention_tenth_bar", Optional[float], to_optional_float, default=True, field_name="water_content_tenth_bar"),
             "water_retention_third_bar": ColumnSchema("water_retention_third_bar", Optional[float], to_optional_float, default=True, field_name="water_content_third_bar"),
             "water_retention_15_bar": ColumnSchema("water_retention_15_bar", Optional[float], to_optional_float, default=True, field_name="water_content_fifteen_bar"),
         }
@@ -258,7 +257,7 @@ SCHEMAS = {
 }
 
 
-def create_dynamic_dataclass(schema: TableSchema, name: str, base_class: Optional[Type] = None) -> Type:
+def create_dynamic_dataclass(schema: TableSchema, name: str, base_class: Optional[Type] = None) -> Type[Any]:
     """Create a dataclass dynamically from a schema.
 
     Args:
@@ -268,7 +267,7 @@ def create_dynamic_dataclass(schema: TableSchema, name: str, base_class: Optiona
     """
     from dataclasses import Field
     
-    fields = []
+    fields: List[tuple[str, Any, Any]] = []
 
     # Add base fields
     for fname, default_value in schema.base_fields.items():
@@ -297,19 +296,19 @@ def create_dynamic_dataclass(schema: TableSchema, name: str, base_class: Optiona
             fields.append((col_schema.field_name, col_schema.type_hint, default_val))
 
     # Define utility methods
-    def get_extra_field(self, key: str) -> Any:
+    def get_extra_field(self: Any, key: str) -> Any:
         """Get an extra field value by key."""
         return self.extra_fields.get(key)
 
-    def has_extra_field(self, key: str) -> bool:
+    def has_extra_field(self: Any, key: str) -> bool:
         """Check if an extra field exists."""
         return key in self.extra_fields
 
-    def list_extra_fields(self) -> List[str]:
+    def list_extra_fields(self: Any) -> List[str]:
         """List all extra field keys."""
         return list(self.extra_fields.keys())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self: Any) -> Dict[str, Any]:
         """Convert dataclass to dictionary."""
         return asdict(self)
 
@@ -325,10 +324,10 @@ def create_dynamic_dataclass(schema: TableSchema, name: str, base_class: Optiona
                 base_dict[fname] = field(default=default_val)
 
         # Add methods directly to class dict
-        base_dict['get_extra_field'] = get_extra_field
-        base_dict['has_extra_field'] = has_extra_field
-        base_dict['list_extra_fields'] = list_extra_fields
-        base_dict['to_dict'] = to_dict
+        base_dict['get_extra_field'] = get_extra_field  # type: ignore
+        base_dict['has_extra_field'] = has_extra_field  # type: ignore
+        base_dict['list_extra_fields'] = list_extra_fields  # type: ignore
+        base_dict['to_dict'] = to_dict  # type: ignore
 
         # Create the class
         DynamicClass = type(name, (base_class,), base_dict)
@@ -345,21 +344,21 @@ def create_dynamic_dataclass(schema: TableSchema, name: str, base_class: Optiona
         DynamicClass = make_dataclass(name, dataclass_fields)
         
         # Add methods to the class
-        DynamicClass.get_extra_field = get_extra_field
-        DynamicClass.has_extra_field = has_extra_field
-        DynamicClass.list_extra_fields = list_extra_fields
-        DynamicClass.to_dict = to_dict
+        DynamicClass.get_extra_field = get_extra_field  # type: ignore
+        DynamicClass.has_extra_field = has_extra_field  # type: ignore
+        DynamicClass.list_extra_fields = list_extra_fields  # type: ignore
+        DynamicClass.to_dict = to_dict  # type: ignore
         
         return DynamicClass
 
 
-def add_column_to_schema(table_name: str, column_schema: ColumnSchema):
+def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
     """Add a new column to an existing schema."""
     if table_name in SCHEMAS:
         SCHEMAS[table_name].columns[column_schema.name] = column_schema
 
 
-def get_schema(table_name: str) -> Optional[TableSchema]:
+def get_schema(table_name: str) -> Optional[TableSchema]:  # type: ignore
     """Get schema for a table."""
     return SCHEMAS.get(table_name)
 

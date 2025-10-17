@@ -3,7 +3,7 @@ SQL input sanitization utilities for safe query building.
 """
 
 import re
-from typing import List, Union
+from typing import List, Optional, Union
 
 # Known valid table names
 VALID_TABLES = {
@@ -54,7 +54,7 @@ def sanitize_sql_string_list(values: List[str]) -> List[str]:
     """Sanitize a list of string values."""
     return [sanitize_sql_string(v) for v in values]
 
-def validate_sql_object_name(name: str, allowed_names: List[str] = None) -> str:
+def validate_sql_object_name(name: str, allowed_names: Optional[List[str]] = None) -> str:
     """Validate table or column name."""
     if allowed_names and name not in allowed_names:
         raise ValueError(f"Invalid object name: {name}")

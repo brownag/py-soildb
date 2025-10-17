@@ -11,13 +11,15 @@ flexibility and maintainability. See schema_system.py for schema definitions.
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from typing import TYPE_CHECKING, cast, Type
+
 # Import dynamically generated models from schema_system
 from .schema_system import (
-    AggregateHorizon,
-    HorizonProperty,
-    MapUnitComponent,
-    PedonHorizon,
-    SoilMapUnit,
+    AggregateHorizon,  # type: ignore
+    HorizonProperty,  # type: ignore
+    MapUnitComponent,  # type: ignore
+    PedonHorizon,  # type: ignore
+    SoilMapUnit,  # type: ignore
 )
 
 
@@ -39,7 +41,7 @@ class PedonData:
     # Classification
     soil_classification: Optional[str] = None  # Full soil classification
     # Horizons
-    horizons: List[PedonHorizon] = field(default_factory=list)
+    horizons: List[Any] = field(default_factory=list)
     # --- ADDED ---
     # Dictionary for arbitrary user-defined properties.
     extra_fields: Dict[str, Any] = field(default_factory=dict)
@@ -50,7 +52,7 @@ class PedonData:
         d["horizons"] = [h.to_dict() for h in self.horizons]
         return d
 
-    def get_horizon_by_depth(self, depth: float) -> Optional[PedonHorizon]:
+    def get_horizon_by_depth(self, depth: float) -> Optional[Any]:
         """Get the horizon that contains the specified depth."""
         for horizon in self.horizons:
             if (

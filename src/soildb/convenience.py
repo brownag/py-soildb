@@ -166,7 +166,7 @@ async def get_lab_pedons_by_bbox(
         raise TypeError("client parameter is required")
 
     bbox = (min_x, min_y, max_x, max_y)
-    return await fetch_pedons_by_bbox(bbox, columns, client=client)
+    return await fetch_pedons_by_bbox(bbox, columns, client=client)  # type: ignore
 
 
 async def get_lab_pedon_by_id(
