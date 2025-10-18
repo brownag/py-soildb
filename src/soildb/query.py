@@ -652,6 +652,8 @@ class QueryBuilder:
         columns: Optional[List[str]] = None, table: str = "sacatalog"
     ) -> Query:
         """Get list of available survey areas."""
+        validate_sql_object_name(table)
+
         if columns is None:
             if table == "sacatalog":
                 columns = ["areasymbol", "areaname", "saversion"]
@@ -665,6 +667,8 @@ class QueryBuilder:
         columns: Optional[List[str]] = None, table: str = "sapolygon"
     ) -> SpatialQuery:
         """Get survey area boundary polygons."""
+        validate_sql_object_name(table)
+
         if columns is None:
             columns = ["areasymbol", "areaname", "sapolygongeo.STAsText() as geometry"]
 
@@ -735,6 +739,8 @@ class QueryBuilder:
         # Add joins for related tables
         if related_tables:
             for i, table in enumerate(related_tables):
+                # Validate table name to prevent SQL injection
+                validate_sql_object_name(table)
                 alias = f"t{i}"
                 # Most pedon-related tables join on pedon_key
                 query = query.left_join(
@@ -807,6 +813,8 @@ class QueryBuilder:
         }
 
         for i, table in enumerate(related_tables):
+            # Validate table name to prevent SQL injection
+            validate_sql_object_name(table)
             alias = f"t{i}"
             if table in lab_join_tables:
                 # Lab tables typically join on labsampnum
@@ -855,6 +863,8 @@ class QueryBuilder:
         # Add joins for related tables
         if related_tables:
             for i, table in enumerate(related_tables):
+                # Validate table name to prevent SQL injection
+                validate_sql_object_name(table)
                 alias = f"t{i}"
                 # Most pedon-related tables join on pedon_key
                 query = query.left_join(
