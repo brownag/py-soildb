@@ -160,7 +160,9 @@ async def fetch_by_keys(
         )
     else:
         # Multiple queries for large key lists
-        logger.debug(f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}")
+        logger.debug(
+            f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}"
+        )
 
         # Create chunks
         chunks = [
