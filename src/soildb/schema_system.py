@@ -704,7 +704,13 @@ def create_dynamic_dataclass(
                 # Handle field() objects
                 base_dict[fname] = default_val
             else:
-                base_dict[fname] = field(default=default_val)
+                # Use default_factory for mutable defaults to avoid shared state
+                if isinstance(default_val, list):
+                    base_dict[fname] = field(default_factory=list)
+                elif isinstance(default_val, dict):
+                    base_dict[fname] = field(default_factory=dict)
+                else:
+                    base_dict[fname] = field(default=default_val)
 
         # Add methods directly to class dict
         base_dict["get_extra_field"] = get_extra_field  # type: ignore
