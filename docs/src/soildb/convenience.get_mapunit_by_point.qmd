@@ -1,7 +1,7 @@
 # convenience.get_mapunit_by_point { #soildb.convenience.get_mapunit_by_point }
 
 ```python
-convenience.get_mapunit_by_point(longitude, latitude, client=None)
+convenience.get_mapunit_by_point(longitude, latitude, columns=None, client=None)
 ```
 
 Get map unit data at a specific point location.
@@ -9,7 +9,11 @@ Get map unit data at a specific point location.
 Args:
     longitude: Longitude of the point
     latitude: Latitude of the point
-    client: Optional client instance
+    columns: List of columns to return. If None, returns basic map unit columns
+    client: SDA client instance (required)
 
 Returns:
     SDAResponse containing map unit data at the specified point
+
+Raises:
+    TypeError: If client is not provided

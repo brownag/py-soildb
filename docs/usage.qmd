@@ -5,6 +5,7 @@ This document shows common soildb usage patterns without extensive explanation.
 ## Basic Queries
 
 ```{python}
+#| eval: false
 import asyncio
 import soildb
 
@@ -20,6 +21,7 @@ df = response.to_pandas()
 ## Spatial Queries
 
 ```{python}
+#| eval: false
 # Bounding box
 bbox = {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}
 response = await soildb.spatial_query(bbox, "mupolygon", spatial_relation="intersects")
@@ -38,6 +40,7 @@ gdf = response.to_geodataframe()  # Requires GeoPandas
 ## Bulk Data
 
 ```{python}
+#| eval: false
 # Get many mukeys
 mukeys = await soildb.get_mukey_by_areasymbol(["IA015", "IA109"])
 
@@ -58,6 +61,9 @@ df = response.to_pandas()
 ## Custom Queries
 
 ```{python}
+#| eval: false
+import soildb
+
 # Build SQL
 query = (soildb.Query()
     .select("mukey", "muname")
@@ -74,6 +80,7 @@ async with soildb.SDAClient() as client:
 ## Error Handling
 
 ```{python}
+#| eval: false
 try:
     response = await soildb.get_mapunit_by_point(-93.6, 42.0)
 except soildb.SDAConnectionError:
@@ -85,6 +92,7 @@ except soildb.SDAQueryError as e:
 ## Structured Data Objects
 
 ```{python}
+#| eval: false
 # Fetch structured objects with default columns
 map_unit = await soildb.fetch_mapunit_struct_by_point(38.5, -121.5)
 pedon = await soildb.fetch_pedon_struct_by_id("S1999NY061001")
@@ -103,6 +111,7 @@ for horizon in pedon.horizons:
 ## Flexible Column Support
 
 ```{python}
+#| eval: false
 # Fetch with additional custom columns
 map_unit = await soildb.fetch_mapunit_struct_by_point(
     38.5, -121.5,
@@ -138,6 +147,7 @@ if "cec7_r" in horizon.extra_fields:
 ## DataFrame Export
 
 ```{python}
+#| eval: false
 # Pandas (default)
 df = response.to_pandas()
 

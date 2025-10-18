@@ -32,6 +32,7 @@ except ImportError:
 Get soil information at a specific location.
 
 ```{python}
+#| eval: false
 async def point_example():
     # Coordinates for Ames, Iowa
     lon, lat = -93.63, 42.03
@@ -52,6 +53,7 @@ print(mu_df[['mukey', 'musym', 'muname']].head())
 Get map units for an entire survey area.
 
 ```{python}
+#| eval: false
 async def survey_area_example():
     # Boone County, Iowa
     areasymbol = "IA015"
@@ -80,6 +82,7 @@ mapunits_df = await survey_area_example()
 Query soil data using geographic areas.
 
 ```{python}
+#| eval: false
 async def spatial_example():
     # Bounding box around Ames, Iowa
     bbox = {
@@ -123,6 +126,7 @@ spatial_df = await spatial_example()
 Efficiently fetch large amounts of data using pagination.
 
 ```{python}
+#| eval: false
 async def bulk_fetch_example():
     # Get mukeys for multiple survey areas
     areasymbols = ["IA015", "IA109", "IA113"]  # Boone, Polk, Story counties
@@ -166,6 +170,7 @@ mapunit_bulk_df, components_bulk_df = await bulk_fetch_example()
 Work with the soil survey hierarchy: Map Unit, Component, and Component Horizon.
 
 ```{python}
+#| eval: false
 async def hierarchy_example():
     # Start with a survey area
     areasymbol = "IA015"
@@ -236,6 +241,7 @@ mu_df, comp_df, hz_df, spc = await hierarchy_example()
 Build custom SQL queries for specific needs.
 
 ```{python}
+#| eval: false
 async def custom_query_example():
     # Build a custom query for high clay soils
     query = (soildb.Query()
@@ -275,6 +281,7 @@ high_clay_df = await custom_query_example()
 Handle common errors gracefully.
 
 ```{python}
+#| eval: false
 async def error_handling_example():
     try:
         # This will work
@@ -301,6 +308,7 @@ await error_handling_example()
 Export data in various formats for different workflows.
 
 ```{python}
+#| eval: false
 async def data_format_example():
     # Get some sample data
     response = await soildb.get_mapunit_by_areasymbol("IA015")

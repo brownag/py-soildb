@@ -19,7 +19,7 @@ Performance Notes:
 
 Args:
     mukeys: Map unit key(s) (single key or list of keys)
-    columns: Columns to select (default: key columns + geometry)
+    columns: Columns to select (default: key columns from schema + geometry)
     include_geometry: Whether to include polygon geometry as WKT
     chunk_size: Chunk size for pagination (recommended: 500-1000 for geometry)
     client: Optional SDA client

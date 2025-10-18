@@ -17,13 +17,16 @@ Factory class for common SDA query patterns.
 | [from_sql](#soildb.query.QueryBuilder.from_sql) | Create a query from a raw SQL string. |
 | [mapunits_by_legend](#soildb.query.QueryBuilder.mapunits_by_legend) | Get map units for a survey area by legend/area symbol. |
 | [mapunits_intersecting_bbox](#soildb.query.QueryBuilder.mapunits_intersecting_bbox) | Get map units that intersect with a bounding box. |
+| [pedon_by_pedon_key](#soildb.query.QueryBuilder.pedon_by_pedon_key) | Get a single pedon by its pedon key with flexible table joining. |
+| [pedon_horizons_by_pedon_keys](#soildb.query.QueryBuilder.pedon_horizons_by_pedon_keys) | Get horizon data for specified pedon keys with flexible table joining. |
+| [pedons_intersecting_bbox](#soildb.query.QueryBuilder.pedons_intersecting_bbox) | Get pedons that intersect with a bounding box with flexible table joining. |
 | [spatial_by_legend](#soildb.query.QueryBuilder.spatial_by_legend) | Get spatial data for map units on a legend/area symbol. |
 | [survey_area_boundaries](#soildb.query.QueryBuilder.survey_area_boundaries) | Get survey area boundary polygons. |
 
 ### available_survey_areas { #soildb.query.QueryBuilder.available_survey_areas }
 
 ```python
-query.QueryBuilder.available_survey_areas()
+query.QueryBuilder.available_survey_areas(columns=None, table='sacatalog')
 ```
 
 Get list of available survey areas.
@@ -31,7 +34,7 @@ Get list of available survey areas.
 ### component_horizons_by_legend { #soildb.query.QueryBuilder.component_horizons_by_legend }
 
 ```python
-query.QueryBuilder.component_horizons_by_legend(areasymbol)
+query.QueryBuilder.component_horizons_by_legend(areasymbol, columns=None)
 ```
 
 Get component and horizon data for a survey area.
@@ -39,7 +42,7 @@ Get component and horizon data for a survey area.
 ### components_at_point { #soildb.query.QueryBuilder.components_at_point }
 
 ```python
-query.QueryBuilder.components_at_point(longitude, latitude)
+query.QueryBuilder.components_at_point(longitude, latitude, columns=None)
 ```
 
 Get soil component data at a specific point.
@@ -47,7 +50,7 @@ Get soil component data at a specific point.
 ### components_by_legend { #soildb.query.QueryBuilder.components_by_legend }
 
 ```python
-query.QueryBuilder.components_by_legend(areasymbol)
+query.QueryBuilder.components_by_legend(areasymbol, columns=None)
 ```
 
 Get components for a survey area.
@@ -69,7 +72,7 @@ Returns:
 ### mapunits_by_legend { #soildb.query.QueryBuilder.mapunits_by_legend }
 
 ```python
-query.QueryBuilder.mapunits_by_legend(areasymbol)
+query.QueryBuilder.mapunits_by_legend(areasymbol, columns=None)
 ```
 
 Get map units for a survey area by legend/area symbol.
@@ -77,15 +80,97 @@ Get map units for a survey area by legend/area symbol.
 ### mapunits_intersecting_bbox { #soildb.query.QueryBuilder.mapunits_intersecting_bbox }
 
 ```python
-query.QueryBuilder.mapunits_intersecting_bbox(min_x, min_y, max_x, max_y)
+query.QueryBuilder.mapunits_intersecting_bbox(
+    min_x,
+    min_y,
+    max_x,
+    max_y,
+    columns=None,
+)
 ```
 
 Get map units that intersect with a bounding box.
 
+### pedon_by_pedon_key { #soildb.query.QueryBuilder.pedon_by_pedon_key }
+
+```python
+query.QueryBuilder.pedon_by_pedon_key(
+    pedon_key,
+    columns=None,
+    base_table='lab_combine_nasis_ncss',
+    related_tables=None,
+)
+```
+
+Get a single pedon by its pedon key with flexible table joining.
+
+Args:
+    pedon_key: Pedon key to query
+    columns: Columns to select (defaults to basic pedon columns)
+    base_table: Base pedon/site table (default: "lab_combine_nasis_ncss")
+    related_tables: Additional tables to left join
+
+Returns:
+    Query object ready for execution
+
+### pedon_horizons_by_pedon_keys { #soildb.query.QueryBuilder.pedon_horizons_by_pedon_keys }
+
+```python
+query.QueryBuilder.pedon_horizons_by_pedon_keys(
+    pedon_keys,
+    columns=None,
+    base_table='lab_layer',
+    related_tables=None,
+)
+```
+
+Get horizon data for specified pedon keys with flexible table joining.
+
+Args:
+    pedon_keys: List of pedon keys to query
+    columns: Columns to select (defaults to basic lab horizon columns)
+    base_table: Base horizon table (default: "lab_layer")
+    related_tables: Additional tables to left join (default: basic lab tables)
+
+Returns:
+    Query object ready for execution
+
+### pedons_intersecting_bbox { #soildb.query.QueryBuilder.pedons_intersecting_bbox }
+
+```python
+query.QueryBuilder.pedons_intersecting_bbox(
+    min_x,
+    min_y,
+    max_x,
+    max_y,
+    columns=None,
+    base_table='lab_combine_nasis_ncss',
+    related_tables=None,
+    lon_column='longitude_decimal_degrees',
+    lat_column='latitude_decimal_degrees',
+)
+```
+
+Get pedons that intersect with a bounding box with flexible table joining.
+
+Args:
+    min_x: Minimum longitude
+    min_y: Minimum latitude
+    max_x: Maximum longitude
+    max_y: Maximum latitude
+    columns: Columns to select (defaults to basic pedon columns)
+    base_table: Base pedon/site table (default: "lab_combine_nasis_ncss")
+    related_tables: Additional tables to left join
+    lon_column: Name of the longitude column (default: "longitude_decimal_degrees")
+    lat_column: Name of the latitude column (default: "latitude_decimal_degrees")
+
+Returns:
+    Query object ready for execution
+
 ### spatial_by_legend { #soildb.query.QueryBuilder.spatial_by_legend }
 
 ```python
-query.QueryBuilder.spatial_by_legend(areasymbol)
+query.QueryBuilder.spatial_by_legend(areasymbol, columns=None)
 ```
 
 Get spatial data for map units on a legend/area symbol.
@@ -93,7 +178,7 @@ Get spatial data for map units on a legend/area symbol.
 ### survey_area_boundaries { #soildb.query.QueryBuilder.survey_area_boundaries }
 
 ```python
-query.QueryBuilder.survey_area_boundaries()
+query.QueryBuilder.survey_area_boundaries(columns=None, table='sapolygon')
 ```
 
 Get survey area boundary polygons.
