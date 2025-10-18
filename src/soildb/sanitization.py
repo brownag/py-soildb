@@ -53,8 +53,8 @@ def sanitize_sql_numeric(value: Union[int, float, str]) -> str:
         # Convert to float to validate
         float(value)
         return str(value)
-    except (ValueError, TypeError):
-        raise ValueError(f"Invalid numeric value: {value}")
+    except (ValueError, TypeError) as err:
+        raise ValueError(f"Invalid numeric value: {value}") from err
 
 
 def validate_wkt_geometry(wkt: str) -> str:

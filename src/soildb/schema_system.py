@@ -723,7 +723,7 @@ def create_dynamic_dataclass(
     if base_class:
         # If we have a base class, create a subclass
         base_dict = {}
-        for fname, ftype, default_val in fields:
+        for fname, _ftype, default_val in fields:
             if isinstance(default_val, Field):
                 # Handle field() objects
                 base_dict[fname] = default_val
