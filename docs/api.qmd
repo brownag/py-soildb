@@ -198,7 +198,8 @@ response = await get_sacatalog(columns=['areasymbol', 'areaname'])
 df = response.to_pandas()
 
 # Get just survey area symbols (backward compatibility)
-area_list = await list_survey_areas()
+sacatalog = await get_sacatalog(columns=['areasymbol'])
+area_list = sacatalog.to_pandas()['areasymbol'].tolist()
 ```
 
 ## Spatial Queries

@@ -1,5 +1,7 @@
-.PHONY: help install test lint format docs clean build
+.PHONY: help install test lint format docs clean build all
 .DEFAULT_GOAL := help
+
+all: clean install lint test build docs ## Run full build pipeline (clean, install, lint, test, build, docs)
 
 help: ## Show this help message
 	@echo "Available commands:"

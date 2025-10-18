@@ -117,10 +117,11 @@ soildb provides several high-level functions for common tasks:
 
 ```{python}
 #| eval: false
-mapunits = await soildb.get_mapunit_by_areasymbol("IA109")
-df = mapunits.to_pandas()
-print(f"Found {len(df)} map units")
-df.head()
+async with soildb.SDAClient() as client:
+    mapunits = await soildb.get_mapunit_by_areasymbol("IA109", client=client)
+    df = mapunits.to_pandas()
+    print(f"Found {len(df)} map units")
+    df.head()
 ```
 
 If you have suggestions for new convenience functions please file a ["feature request" on GitHub](https://github.com/brownag/py-soildb/issues/new).

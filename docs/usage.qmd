@@ -82,7 +82,8 @@ async with soildb.SDAClient() as client:
 ```{python}
 #| eval: false
 try:
-    response = await soildb.get_mapunit_by_point(-93.6, 42.0)
+    async with soildb.SDAClient() as client:
+        response = await soildb.get_mapunit_by_point(-93.6, 42.0, client=client)
 except soildb.SDAConnectionError:
     print("SDA service unavailable")
 except soildb.SDAQueryError as e:
