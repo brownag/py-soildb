@@ -557,6 +557,8 @@ class QueryBuilder:
     ) -> Query:
         """Get component and horizon data for a survey area."""
         if columns is None:
+            # Qualify chorizon columns with table alias 'h' to avoid ambiguous column errors
+            horizon_columns = [f"h.{col}" for col in ColumnSets.CHORIZON_TEXTURE]
             columns = [
                 "m.mukey",
                 "m.musym",
@@ -564,7 +566,7 @@ class QueryBuilder:
                 "c.cokey",
                 "c.compname",
                 "c.comppct_r",
-            ] + ColumnSets.CHORIZON_TEXTURE
+            ] + horizon_columns
 
         return (
             Query()
@@ -585,13 +587,15 @@ class QueryBuilder:
     ) -> SpatialQuery:
         """Get soil component data at a specific point."""
         if columns is None:
+            # Qualify chorizon columns with table alias 'h' to avoid ambiguous column errors
+            horizon_columns = [f"h.{col}" for col in ColumnSets.CHORIZON_TEXTURE]
             columns = [
                 "m.mukey",
                 "m.musym",
                 "m.muname",
                 "c.compname",
                 "c.comppct_r",
-            ] + ColumnSets.CHORIZON_TEXTURE
+            ] + horizon_columns
 
         return (
             SpatialQuery()
