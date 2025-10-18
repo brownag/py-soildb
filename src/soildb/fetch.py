@@ -426,7 +426,7 @@ async def fetch_pedons_by_bbox(
     chunk_size: int = 1000,
     return_type: Literal["sitedata", "combined", "soilprofilecollection"] = "sitedata",
     client: Optional[SDAClient] = None,
-) -> Union[SDAResponse, Dict[str, Any], "Any"]:
+) -> Union[SDAResponse, Dict[str, Any], Any]:
     """
     Fetch pedon site data within a geographic bounding box with flexible return types.
 
