@@ -6,9 +6,13 @@ to dataclass fields with minimal hardcoded logic.
 """
 
 from dataclasses import asdict, dataclass, field, make_dataclass
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
 
-import pandas as pd
+if TYPE_CHECKING:
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None  # type: ignore
 
 
 @dataclass
@@ -43,7 +47,7 @@ class TableSchema:
         return [col.name for col in self.columns.values() if col.required]
 
     def process_row(
-        self, row: pd.Series, requested_columns: Optional[List[str]] = None
+        self, row: Any, requested_columns: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Process a data row according to the schema."""
         result = dict(self.base_fields)  # Start with base fields
@@ -74,24 +78,35 @@ class TableSchema:
 
 
 # Define processors
+def _notna(value: Any) -> bool:
+    """Check if a value is not NaN/null, without requiring pandas."""
+    if value is None:
+        return False
+    if isinstance(value, float) and str(value).lower() in ("nan", "inf", "-inf"):
+        return False
+    if isinstance(value, str) and value.lower() in ("null", "none", ""):
+        return False
+    return True
+
+
 def to_optional_float(value: Any) -> Optional[float]:
     """Convert to float, returning None if NaN."""
-    return float(value) if pd.notna(value) else None
+    return float(value) if _notna(value) else None
 
 
 def to_optional_int(value: Any) -> Optional[int]:
     """Convert to int, returning None if NaN."""
-    return int(value) if pd.notna(value) else None
+    return int(value) if _notna(value) else None
 
 
 def to_str(value: Any) -> str:
     """Convert to string."""
-    return str(value) if pd.notna(value) else ""
+    return str(value) if _notna(value) else ""
 
 
 def to_optional_str(value: Any) -> Optional[str]:
     """Convert to string or None."""
-    return str(value) if pd.notna(value) else None
+    return str(value) if _notna(value) else None
 
 
 # Schema definitions
