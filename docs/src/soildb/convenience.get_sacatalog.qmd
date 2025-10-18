@@ -8,20 +8,25 @@ Get survey area catalog (sacatalog) data.
 
 Args:
     columns: List of columns to return. If None, returns ['areasymbol', 'areaname', 'saversion']
-    client: Optional client instance
+    client: SDA client instance (required)
 
 Returns:
     SDAResponse containing sacatalog data
 
+Raises:
+    TypeError: If client is not provided
+
 Examples:
     # Get basic survey area info
-    response = await get_sacatalog()
+    client = SDAClient()
+    response = await get_sacatalog(client=client)
     df = response.to_pandas()  # areasymbol, areaname, saversion
 
     # Get all available columns
-    response = await get_sacatalog(columns=['areasymbol', 'areaname', 'saversion', 'saverest'])
+    response = await get_sacatalog(columns=['areasymbol', 'areaname', 'saversion', 'saverest'], client=client)
     df = response.to_pandas()
 
-    # Get just survey area symbols (equivalent to old list_survey_areas)
-    response = await get_sacatalog(columns=['areasymbol'])
-    symbols = response.to_pandas()['areasymbol'].tolist()
+    # Get just survey area symbols
+    response = await get_sacatalog(columns=['areasymbol'], client=client)
+    df = response.to_pandas()
+    symbols = df['areasymbol'].tolist()

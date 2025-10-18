@@ -18,7 +18,7 @@ Performance Notes:
 
 Args:
     mukeys: Map unit key(s) (single key or list of keys)
-    columns: Columns to select (default: key component columns)
+    columns: Columns to select (default: key component columns from schema)
     chunk_size: Chunk size for pagination (recommended: 500-1000)
     client: Optional SDA client
 
