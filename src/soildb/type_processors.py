@@ -77,9 +77,9 @@ def to_datetime(value: Any) -> Optional[datetime]:
 
             # Try parsing with dateutil if available
             try:
-                from dateutil import parser
+                from dateutil import parser  # type: ignore[import-untyped]
 
-                return parser.parse(value)
+                return parser.parse(value)  # type: ignore[no-any-return]
             except ImportError:
                 pass
 
