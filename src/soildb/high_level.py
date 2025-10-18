@@ -186,26 +186,49 @@ async def fetch_mapunit_struct_by_point(
         extra_fields = processed.get("extra_fields", {})
 
         # Helper function to get field value from processed or extra_fields
-        def get_field(field_name: str, alt_names: Optional[List[str]] = None):
-            if field_name in processed:
-                return processed[field_name]
+        def get_field(
+            field_name: str,
+            processed_dict: dict,
+            extra_fields_dict: dict,
+            alt_names: Optional[List[str]] = None,
+        ) -> Any:
+            if field_name in processed_dict:
+                return processed_dict[field_name]
             if alt_names:
                 for alt in alt_names:
-                    if alt in extra_fields:
-                        return extra_fields[alt]
-            return extra_fields.get(field_name)
+                    if alt in extra_fields_dict:
+                        return extra_fields_dict[alt]
+            return extra_fields_dict.get(field_name)
 
         components.append(
             MapUnitComponent(
-                component_key=get_field("component_key", ["cokey"]),
-                component_name=get_field("component_name", ["compname"]),
-                component_percentage=get_field("component_percentage", ["comppct_r"]),
-                is_major_component=get_field("is_major_component", ["majcompflag"]),
-                taxonomic_class=get_field("taxonomic_class", ["taxclname"]),
-                drainage_class=get_field("drainage_class", ["drainagecl"]),
-                local_phase=get_field("local_phase", ["localphase"]),
-                hydric_rating=get_field("hydric_rating", ["hydricrating"]),
-                component_kind=get_field("component_kind", ["compkind"]),
+                component_key=get_field(
+                    "component_key", processed, extra_fields, ["cokey"]
+                ),
+                component_name=get_field(
+                    "component_name", processed, extra_fields, ["compname"]
+                ),
+                component_percentage=get_field(
+                    "component_percentage", processed, extra_fields, ["comppct_r"]
+                ),
+                is_major_component=get_field(
+                    "is_major_component", processed, extra_fields, ["majcompflag"]
+                ),
+                taxonomic_class=get_field(
+                    "taxonomic_class", processed, extra_fields, ["taxclname"]
+                ),
+                drainage_class=get_field(
+                    "drainage_class", processed, extra_fields, ["drainagecl"]
+                ),
+                local_phase=get_field(
+                    "local_phase", processed, extra_fields, ["localphase"]
+                ),
+                hydric_rating=get_field(
+                    "hydric_rating", processed, extra_fields, ["hydricrating"]
+                ),
+                component_kind=get_field(
+                    "component_kind", processed, extra_fields, ["compkind"]
+                ),
                 extra_fields=extra_fields,
             )
         )

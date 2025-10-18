@@ -14,6 +14,13 @@ if TYPE_CHECKING:
     except ImportError:
         pd = None  # type: ignore
 
+from .type_processors import (
+    to_optional_float,
+    to_optional_int,
+    to_optional_str,
+    to_str,
+)
+
 
 @dataclass
 class ColumnSchema:
@@ -75,14 +82,6 @@ class TableSchema:
 
         result["extra_fields"] = extra_fields
         return result
-
-
-from .type_processors import (
-    to_optional_float,
-    to_optional_int,
-    to_str,
-    to_optional_str,
-)
 
 
 # Schema definitions
@@ -706,9 +705,9 @@ def create_dynamic_dataclass(
             else:
                 # Use default_factory for mutable defaults to avoid shared state
                 if isinstance(default_val, list):
-                    base_dict[fname] = field(default_factory=list)
+                    base_dict[fname] = field(default_factory=list)  # type: ignore
                 elif isinstance(default_val, dict):
-                    base_dict[fname] = field(default_factory=dict)
+                    base_dict[fname] = field(default_factory=dict)  # type: ignore
                 else:
                     base_dict[fname] = field(default=default_val)
 

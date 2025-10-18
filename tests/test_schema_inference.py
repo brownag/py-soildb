@@ -2,11 +2,14 @@
 Unit tests for schema inference functionality.
 """
 
-import pytest
 from unittest.mock import Mock
 
-from soildb.schema_inference import infer_column_type, create_schema_from_sda_metadata, auto_register_schema
-from soildb.type_processors import to_datetime, to_date, to_bool
+from soildb.schema_inference import (
+    auto_register_schema,
+    create_schema_from_sda_metadata,
+    infer_column_type,
+)
+from soildb.type_processors import to_bool, to_date, to_datetime
 
 
 class TestTypeInference:
@@ -15,14 +18,14 @@ class TestTypeInference:
     def test_infer_varchar_column(self):
         """Test inference of varchar columns."""
         python_type, processor, is_optional = infer_column_type("varchar(255)")
-        assert python_type == str
+        assert python_type is str
         assert is_optional is False
         assert callable(processor)
 
     def test_infer_varchar_no_length(self):
         """Test inference of varchar without length specifier."""
         python_type, processor, is_optional = infer_column_type("varchar")
-        assert python_type == str
+        assert python_type is str
         assert is_optional is False
 
     def test_infer_int_column(self):
@@ -64,7 +67,7 @@ class TestTypeInference:
     def test_infer_bit_column(self):
         """Test inference of bit columns."""
         python_type, processor, is_optional = infer_column_type("bit")
-        assert python_type == bool
+        assert python_type is bool
         assert is_optional is False
 
     def test_infer_datetime_column(self):
@@ -88,97 +91,19 @@ class TestTypeInference:
     def test_infer_text_column(self):
         """Test inference of text columns."""
         python_type, processor, is_optional = infer_column_type("text")
-        assert python_type == str
+        assert python_type is str
         assert is_optional is False
 
     def test_infer_nvarchar_column(self):
         """Test inference of nvarchar columns."""
         python_type, processor, is_optional = infer_column_type("nvarchar(max)")
-        assert python_type == str
+        assert python_type is str
         assert is_optional is False
 
     def test_infer_unknown_type(self):
         """Test inference of unknown types falls back to string."""
         python_type, processor, is_optional = infer_column_type("unknown_type")
-        assert python_type == str
-        assert is_optional is False
-
-    def test_infer_int_column(self):
-        """Test inference of int columns."""
-        python_type, processor, is_optional = infer_column_type("int")
-        assert str(python_type).startswith("typing.Optional[int]")
-        assert is_optional is True
-
-    def test_infer_bigint_column(self):
-        """Test inference of bigint columns."""
-        python_type, processor, is_optional = infer_column_type("bigint")
-        assert str(python_type).startswith("typing.Optional[int]")
-        assert is_optional is True
-
-    def test_infer_float_column(self):
-        """Test inference of float columns."""
-        python_type, processor, is_optional = infer_column_type("float")
-        assert str(python_type).startswith("typing.Optional[float]")
-        assert is_optional is True
-
-    def test_infer_real_column(self):
-        """Test inference of real columns."""
-        python_type, processor, is_optional = infer_column_type("real")
-        assert str(python_type).startswith("typing.Optional[float]")
-        assert is_optional is True
-
-    def test_infer_numeric_column(self):
-        """Test inference of numeric columns."""
-        python_type, processor, is_optional = infer_column_type("numeric(10,2)")
-        assert str(python_type).startswith("typing.Optional[float]")
-        assert is_optional is True
-
-    def test_infer_decimal_column(self):
-        """Test inference of decimal columns."""
-        python_type, processor, is_optional = infer_column_type("decimal(8,3)")
-        assert str(python_type).startswith("typing.Optional[float]")
-        assert is_optional is True
-
-    def test_infer_bit_column(self):
-        """Test inference of bit columns."""
-        python_type, processor, is_optional = infer_column_type("bit")
-        assert python_type == bool
-        assert is_optional is False
-
-    def test_infer_datetime_column(self):
-        """Test inference of datetime columns."""
-        python_type, processor, is_optional = infer_column_type("datetime")
-        assert str(python_type).startswith("typing.Optional[datetime.datetime]")
-        assert is_optional is True
-
-    def test_infer_datetime2_column(self):
-        """Test inference of datetime2 columns."""
-        python_type, processor, is_optional = infer_column_type("datetime2")
-        assert str(python_type).startswith("typing.Optional[datetime.datetime]")
-        assert is_optional is True
-
-    def test_infer_date_column(self):
-        """Test inference of date columns."""
-        python_type, processor, is_optional = infer_column_type("date")
-        assert str(python_type).startswith("typing.Optional[datetime.date]")
-        assert is_optional is True
-
-    def test_infer_text_column(self):
-        """Test inference of text columns."""
-        python_type, processor, is_optional = infer_column_type("text")
-        assert python_type == str
-        assert is_optional is False
-
-    def test_infer_nvarchar_column(self):
-        """Test inference of nvarchar columns."""
-        python_type, processor, is_optional = infer_column_type("nvarchar(max)")
-        assert python_type == str
-        assert is_optional is False
-
-    def test_infer_unknown_type(self):
-        """Test inference of unknown types falls back to string."""
-        python_type, processor, is_optional = infer_column_type("unknown_type")
-        assert python_type == str
+        assert python_type is str
         assert is_optional is False
 
 
@@ -197,8 +122,8 @@ class TestSchemaCreation:
                 [  # Metadata
                     "ColumnOrdinal=0,DataTypeName=int",
                     "ColumnOrdinal=1,DataTypeName=varchar",
-                    "ColumnOrdinal=2,DataTypeName=bit"
-                ]
+                    "ColumnOrdinal=2,DataTypeName=bit",
+                ],
             ]
         }
 
@@ -219,11 +144,11 @@ class TestSchemaCreation:
 
         # Check muname (varchar -> str)
         muname_col = schema.columns["muname"]
-        assert muname_col.type_hint == str
+        assert muname_col.type_hint is str
 
         # Check iscomplete (bit -> bool)
         iscomplete_col = schema.columns["iscomplete"]
-        assert iscomplete_col.type_hint == bool
+        assert iscomplete_col.type_hint is bool
 
     def test_create_schema_empty_response(self):
         """Test creating schema from empty response."""
@@ -260,10 +185,7 @@ class TestAutoRegistration:
         # Mock response
         mock_response = Mock()
         mock_response._raw_data = {
-            "Table": [
-                ["test_col"],
-                ["ColumnOrdinal=0,DataTypeName=varchar"]
-            ]
+            "Table": [["test_col"], ["ColumnOrdinal=0,DataTypeName=varchar"]]
         }
 
         result = auto_register_schema(mock_response, "test_table")
@@ -286,16 +208,15 @@ class TestAutoRegistration:
         # Mock response
         mock_response = Mock()
         mock_response._raw_data = {
-            "Table": [
-                ["new_col"],
-                ["ColumnOrdinal=0,DataTypeName=int"]
-            ]
+            "Table": [["new_col"], ["ColumnOrdinal=0,DataTypeName=int"]]
         }
 
         result = auto_register_schema(mock_response, "mapunit")
 
         assert result is False  # Should not register
-        assert len(SCHEMAS["mapunit"].columns) == existing_columns  # Should be unchanged
+        assert (
+            len(SCHEMAS["mapunit"].columns) == existing_columns
+        )  # Should be unchanged
 
     def test_auto_register_invalid_response(self):
         """Test handling of invalid responses."""

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from soildb.client import SDAClient
-from soildb.convenience import get_mapunit_by_areasymbol, get_sacatalog
+from soildb.convenience import get_mapunit_by_areasymbol
 from soildb.fetch import (
     TABLE_KEY_MAPPING,
     FetchError,
@@ -518,7 +518,9 @@ class TestFetchIntegration:
             assert schema_before is not None  # Should exist as manual schema
 
             # Fetch with auto_schema=True - should not interfere with existing schema
-            response = await fetch_component_by_mukey(test_mukeys, auto_schema=True, client=client)
+            response = await fetch_component_by_mukey(
+                test_mukeys, auto_schema=True, client=client
+            )
 
             # Verify response is valid
             assert not response.is_empty()
@@ -534,7 +536,9 @@ class TestFetchIntegration:
 
             # Verify schema has the expected structure (manual schema with field mappings)
             assert len(schema_after.columns) > 0
-            has_field_mappings = any(col.field_name for col in schema_after.columns.values())
+            has_field_mappings = any(
+                col.field_name for col in schema_after.columns.values()
+            )
             assert has_field_mappings  # Should have field mappings from manual schema
 
     async def test_auto_schema_mapunit(self):
@@ -547,7 +551,9 @@ class TestFetchIntegration:
             assert schema_before is not None  # Should exist as manual schema
 
             # Fetch with auto_schema=True - should not interfere with existing schema
-            response = await get_mapunit_by_areasymbol("CA630", auto_schema=True, client=client)
+            response = await get_mapunit_by_areasymbol(
+                "CA630", auto_schema=True, client=client
+            )
 
             # Verify response is valid
             assert not response.is_empty()
@@ -563,7 +569,9 @@ class TestFetchIntegration:
 
             # Verify schema has the expected structure (manual schema with field mappings)
             assert len(schema_after.columns) > 0
-            has_field_mappings = any(col.field_name for col in schema_after.columns.values())
+            has_field_mappings = any(
+                col.field_name for col in schema_after.columns.values()
+            )
             assert has_field_mappings  # Should have field mappings from manual schema
 
     async def test_auto_schema_no_duplicate_registration(self):
@@ -572,7 +580,7 @@ class TestFetchIntegration:
 
         # Use a table that might not have a manual schema
         test_table = "component"  # This should have a manual schema
-        
+
         async with SDAClient() as client:
             mukeys = await get_mukey_by_areasymbol(["CA630"], client)
             test_mukeys = mukeys[:2]
@@ -581,11 +589,15 @@ class TestFetchIntegration:
             schema_before = SCHEMAS.get(test_table)
 
             # First call with auto_schema should not register if it already exists
-            response1 = await fetch_component_by_mukey(test_mukeys, auto_schema=True, client=client)
-            
+            response1 = await fetch_component_by_mukey(
+                test_mukeys, auto_schema=True, client=client
+            )
+
             # Second call with auto_schema should not re-register
-            response2 = await fetch_component_by_mukey(test_mukeys, auto_schema=True, client=client)
-            
+            response2 = await fetch_component_by_mukey(
+                test_mukeys, auto_schema=True, client=client
+            )
+
             schema_after = SCHEMAS.get(test_table)
 
             # Schema should be the same object (not re-registered)

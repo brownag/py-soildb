@@ -11,9 +11,8 @@ try:
 except Exception:
     __version__ = "unknown"
 
-from . import fetch
+from . import fetch, schema_inference
 from .client import SDAClient
-from . import schema_inference
 from .convenience import (
     get_lab_pedon_by_id,
     get_lab_pedons_by_bbox,
@@ -70,6 +69,8 @@ __all__ = [
     "SpatialQuery",
     "QueryBuilder",
     "SDAResponse",
+    # Schema inference
+    "schema_inference",
     # Exceptions
     "SoilDBError",
     "SDAConnectionError",
