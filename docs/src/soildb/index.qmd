@@ -18,7 +18,7 @@ Classes and functions for building and executing queries.
 | [query.SpatialQuery](query.SpatialQuery.qmd#soildb.query.SpatialQuery) | Builder for spatial queries with geometry filters. |
 | [query.QueryBuilder](query.QueryBuilder.qmd#soildb.query.QueryBuilder) | Factory class for common SDA query patterns. |
 | [convenience.get_mapunit_by_point](convenience.get_mapunit_by_point.qmd#soildb.convenience.get_mapunit_by_point) | Get map unit data at a specific point location. |
-| [convenience.get_mapunit_by_areasymbol](convenience.get_mapunit_by_areasymbol.qmd#soildb.convenience.get_mapunit_by_areasymbol) | Get map unit data by survey area symbol (legend). |
+| [convenience.get_mapunit_by_areasymbol](convenience.get_mapunit_by_areasymbol.qmd#soildb.convenience.get_mapunit_by_areasymbol) | Get map unit data by survey area symbol (legend) with optional schema auto-registration. |
 | [convenience.get_mapunit_by_bbox](convenience.get_mapunit_by_bbox.qmd#soildb.convenience.get_mapunit_by_bbox) | Get map unit data within a bounding box. |
 | [convenience.get_sacatalog](convenience.get_sacatalog.qmd#soildb.convenience.get_sacatalog) | Get survey area catalog (sacatalog) data. |
 
@@ -55,7 +55,7 @@ Functions for bulk data fetching.
 | --- | --- |
 | [fetch.fetch_by_keys](fetch.fetch_by_keys.qmd#soildb.fetch.fetch_by_keys) | Fetch data from a table using a list of key values with pagination. |
 | [fetch.fetch_mapunit_polygon](fetch.fetch_mapunit_polygon.qmd#soildb.fetch.fetch_mapunit_polygon) | Fetch map unit polygon data for a list of mukeys. |
-| [fetch.fetch_component_by_mukey](fetch.fetch_component_by_mukey.qmd#soildb.fetch.fetch_component_by_mukey) | Fetch component data for a list of mukeys. |
+| [fetch.fetch_component_by_mukey](fetch.fetch_component_by_mukey.qmd#soildb.fetch.fetch_component_by_mukey) | Fetch component data for a list of mukeys with optional schema auto-registration. |
 | [fetch.fetch_chorizon_by_cokey](fetch.fetch_chorizon_by_cokey.qmd#soildb.fetch.fetch_chorizon_by_cokey) | Fetch chorizon data for a list of cokeys. |
 | [fetch.fetch_survey_area_polygon](fetch.fetch_survey_area_polygon.qmd#soildb.fetch.fetch_survey_area_polygon) | Fetch survey area polygon data for a list of area symbols. |
 | [fetch.get_mukey_by_areasymbol](fetch.get_mukey_by_areasymbol.qmd#soildb.fetch.get_mukey_by_areasymbol) | Get all mukeys for given area symbols. |
