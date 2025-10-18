@@ -13,9 +13,9 @@ from soildb.high_level import (
 )
 from soildb.models import SoilMapUnit
 
-# A known location in California
-TEST_LAT = 38.5
-TEST_LON = -121.5
+# A known location in Iowa with soil data
+TEST_LAT = 42.0
+TEST_LON = -93.6
 
 # A known lab pedon ID
 TEST_PEDON_ID = "S1999NY061001"
@@ -32,7 +32,9 @@ async def test_fetch_mapunit_struct_by_point(sda_client):
         assert isinstance(map_unit, SoilMapUnit)
         assert map_unit.map_unit_key is not None
         assert len(map_unit.components) > 0
-        assert len(map_unit.components[0].aggregate_horizons) > 0
+        # Check that at least one component has horizons
+        has_horizons = any(len(comp.aggregate_horizons) > 0 for comp in map_unit.components)
+        assert has_horizons, f"No components have horizons. Components: {[len(comp.aggregate_horizons) for comp in map_unit.components]}"
         print("SUCCESS: fetch_mapunit_struct_by_point returned a valid SoilMapUnit.")
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")

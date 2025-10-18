@@ -13,6 +13,7 @@ except Exception:
 
 from . import fetch
 from .client import SDAClient
+from . import schema_inference
 from .convenience import (
     get_lab_pedon_by_id,
     get_lab_pedons_by_bbox,

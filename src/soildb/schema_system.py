@@ -77,36 +77,12 @@ class TableSchema:
         return result
 
 
-# Define processors
-def _notna(value: Any) -> bool:
-    """Check if a value is not NaN/null, without requiring pandas."""
-    if value is None:
-        return False
-    if isinstance(value, float) and str(value).lower() in ("nan", "inf", "-inf"):
-        return False
-    if isinstance(value, str) and value.lower() in ("null", "none", ""):
-        return False
-    return True
-
-
-def to_optional_float(value: Any) -> Optional[float]:
-    """Convert to float, returning None if NaN."""
-    return float(value) if _notna(value) else None
-
-
-def to_optional_int(value: Any) -> Optional[int]:
-    """Convert to int, returning None if NaN."""
-    return int(value) if _notna(value) else None
-
-
-def to_str(value: Any) -> str:
-    """Convert to string."""
-    return str(value) if _notna(value) else ""
-
-
-def to_optional_str(value: Any) -> Optional[str]:
-    """Convert to string or None."""
-    return str(value) if _notna(value) else None
+from .type_processors import (
+    to_optional_float,
+    to_optional_int,
+    to_str,
+    to_optional_str,
+)
 
 
 # Schema definitions
