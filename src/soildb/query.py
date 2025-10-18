@@ -63,7 +63,8 @@ class ColumnSets:
         "sandtotal_r",
         "silttotal_r",
         "claytotal_r",
-        "texture",
+        # Note: "texture" column not available on chorizon table
+        # Texture information is stored in chtexture/chtexturegrp tables
     ]
     CHORIZON_CHEMICAL = CHORIZON_BASIC + [
         "ph1to1h2o_r",
