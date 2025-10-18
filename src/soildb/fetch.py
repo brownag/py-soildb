@@ -15,7 +15,7 @@ from .exceptions import SoilDBError
 from .query import Query, QueryBuilder
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
-from .schema_system import get_schema, SCHEMAS
+from .schema_system import SCHEMAS, get_schema
 
 logger = logging.getLogger(__name__)
 
@@ -365,6 +365,7 @@ async def fetch_component_by_mukey(
 
     if auto_schema and "component" not in SCHEMAS:
         from . import schema_inference
+
         schema_inference.auto_register_schema(response, "component")
 
     return response

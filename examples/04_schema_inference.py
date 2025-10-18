@@ -6,9 +6,10 @@ to automatically create ColumnSchema entries from SDA metadata.
 """
 
 import asyncio
+
 from soildb import SDAClient
-from soildb.fetch import fetch_component_by_mukey, get_mukey_by_areasymbol
 from soildb.convenience import get_mapunit_by_areasymbol
+from soildb.fetch import fetch_component_by_mukey, get_mukey_by_areasymbol
 from soildb.schema_system import SCHEMAS, get_schema
 
 
@@ -45,8 +46,12 @@ async def main():
         # Check if schema was auto-registered
         component_schema = get_schema("component")
         if component_schema:
-            print(f"   ✓ Component schema auto-registered with {len(component_schema.columns)} columns")
-            print(f"   Default columns: {component_schema.get_default_columns()[:5]}...")
+            print(
+                f"   ✓ Component schema auto-registered with {len(component_schema.columns)} columns"
+            )
+            print(
+                f"   Default columns: {component_schema.get_default_columns()[:5]}..."
+            )
         else:
             print("   ✗ Component schema not found")
 
@@ -64,7 +69,9 @@ async def main():
         # Check if schema was auto-registered
         mapunit_schema = get_schema("mapunit")
         if mapunit_schema:
-            print(f"   ✓ Mapunit schema auto-registered with {len(mapunit_schema.columns)} columns")
+            print(
+                f"   ✓ Mapunit schema auto-registered with {len(mapunit_schema.columns)} columns"
+            )
             print(f"   Default columns: {mapunit_schema.get_default_columns()[:5]}...")
         else:
             print("   ✗ Mapunit schema not found")
@@ -75,8 +82,10 @@ async def main():
         print("5. Inspecting auto-generated component schema...")
         if component_schema:
             print("   Column details:")
-            for i, (col_name, col_schema) in enumerate(list(component_schema.columns.items())[:5]):
-                print(f"     {col_name}: {col_schema.type_hint} (required: {col_schema.required})")
+            for col_name, col_schema in list(component_schema.columns.items())[:5]:
+                print(
+                    f"     {col_name}: {col_schema.type_hint} (required: {col_schema.required})"
+                )
             if len(component_schema.columns) > 5:
                 print(f"     ... and {len(component_schema.columns) - 5} more columns")
 
@@ -86,16 +95,20 @@ async def main():
         print("6. Testing that auto_schema doesn't re-register existing schemas...")
         initial_schema_count = len(component_schema.columns) if component_schema else 0
 
-        # Call again with auto_schema=True
-        component_response2 = await fetch_component_by_mukey(
-            test_mukeys[:1], auto_schema=True, client=client  # Just one mukey this time
+        # Call again with auto_schema=True (result not used, just testing schema registration)
+        await fetch_component_by_mukey(
+            test_mukeys[:1],
+            auto_schema=True,
+            client=client,  # Just one mukey this time
         )
 
         final_schema_count = len(component_schema.columns) if component_schema else 0
         if initial_schema_count == final_schema_count:
             print("   ✓ Schema not re-registered (counts match)")
         else:
-            print(f"   ✗ Schema was re-registered ({initial_schema_count} -> {final_schema_count})")
+            print(
+                f"   ✗ Schema was re-registered ({initial_schema_count} -> {final_schema_count})"
+            )
 
         print("\n=== Example Complete ===")
         print("\nThe auto_schema feature automatically:")

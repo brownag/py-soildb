@@ -64,6 +64,7 @@ async def get_mapunit_by_areasymbol(
 
     if auto_schema and "mapunit" not in SCHEMAS:
         from . import schema_inference
+
         schema_inference.auto_register_schema(response, "mapunit")
 
     return response

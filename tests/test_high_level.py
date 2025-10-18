@@ -33,8 +33,12 @@ async def test_fetch_mapunit_struct_by_point(sda_client):
         assert map_unit.map_unit_key is not None
         assert len(map_unit.components) > 0
         # Check that at least one component has horizons
-        has_horizons = any(len(comp.aggregate_horizons) > 0 for comp in map_unit.components)
-        assert has_horizons, f"No components have horizons. Components: {[len(comp.aggregate_horizons) for comp in map_unit.components]}"
+        has_horizons = any(
+            len(comp.aggregate_horizons) > 0 for comp in map_unit.components
+        )
+        assert has_horizons, (
+            f"No components have horizons. Components: {[len(comp.aggregate_horizons) for comp in map_unit.components]}"
+        )
         print("SUCCESS: fetch_mapunit_struct_by_point returned a valid SoilMapUnit.")
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")
