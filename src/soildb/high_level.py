@@ -183,19 +183,30 @@ async def fetch_mapunit_struct_by_point(
     for _, row in comp_df.iterrows():
         # Process row using schema
         processed = comp_schema.process_row(row, component_columns)
+        extra_fields = processed.get("extra_fields", {})
+
+        # Helper function to get field value from processed or extra_fields
+        def get_field(field_name: str, alt_names: Optional[List[str]] = None):
+            if field_name in processed:
+                return processed[field_name]
+            if alt_names:
+                for alt in alt_names:
+                    if alt in extra_fields:
+                        return extra_fields[alt]
+            return extra_fields.get(field_name)
 
         components.append(
             MapUnitComponent(
-                component_key=processed["component_key"],
-                component_name=processed["component_name"],
-                component_percentage=processed["component_percentage"],
-                is_major_component=processed["is_major_component"],
-                taxonomic_class=processed.get("taxonomic_class"),
-                drainage_class=processed.get("drainage_class"),
-                local_phase=processed.get("local_phase"),
-                hydric_rating=processed.get("hydric_rating"),
-                component_kind=processed.get("component_kind"),
-                extra_fields=processed.get("extra_fields", {}),
+                component_key=get_field("component_key", ["cokey"]),
+                component_name=get_field("component_name", ["compname"]),
+                component_percentage=get_field("component_percentage", ["comppct_r"]),
+                is_major_component=get_field("is_major_component", ["majcompflag"]),
+                taxonomic_class=get_field("taxonomic_class", ["taxclname"]),
+                drainage_class=get_field("drainage_class", ["drainagecl"]),
+                local_phase=get_field("local_phase", ["localphase"]),
+                hydric_rating=get_field("hydric_rating", ["hydricrating"]),
+                component_kind=get_field("component_kind", ["compkind"]),
+                extra_fields=extra_fields,
             )
         )
     map_unit.components = components
@@ -232,9 +243,10 @@ async def fetch_mapunit_struct_by_point(
             for _, h_row in comp_horizons_df.iterrows():
                 # Process horizon row using schema
                 processed = hz_schema.process_row(h_row, horizon_columns)
+                extra_fields = processed.get("extra_fields", {})
 
                 properties = []
-                # Extract properties from processed data
+                # Extract properties from extra_fields (since property columns have field_name=None)
                 prop_data = {
                     "clay": ("claytotal_r", "claytotal_l", "claytotal_h", "%"),
                     "sand": ("sandtotal_r", "sandtotal_l", "sandtotal_h", "%"),
@@ -242,19 +254,11 @@ async def fetch_mapunit_struct_by_point(
                     "ph": ("ph1to1h2o_r", "ph1to1h2o_l", "ph1to1h2o_h", "pH"),
                 }
 
-                extra = processed.get("extra_fields", {})
                 for name, (rv_key, low_key, high_key, unit) in prop_data.items():
-                    # Try to get from processed, else from extra
-                    rv = processed.get(rv_key)
-                    if rv is None:
-                        rv = extra.get(rv_key)
+                    rv = extra_fields.get(rv_key)
                     if rv is not None:
-                        low = processed.get(low_key)
-                        if low is None:
-                            low = extra.get(low_key)
-                        high = processed.get(high_key)
-                        if high is None:
-                            high = extra.get(high_key)
+                        low = extra_fields.get(low_key)
+                        high = extra_fields.get(high_key)
                         properties.append(
                             HorizonProperty(
                                 property_name=name,
@@ -272,7 +276,7 @@ async def fetch_mapunit_struct_by_point(
                         top_depth=processed["top_depth"],
                         bottom_depth=processed["bottom_depth"],
                         properties=properties,
-                        extra_fields=processed.get("extra_fields", {}),
+                        extra_fields=extra_fields,
                     )
                 )
 

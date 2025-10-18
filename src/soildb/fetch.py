@@ -15,7 +15,7 @@ from .exceptions import SoilDBError
 from .query import Query, QueryBuilder
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
-from .schema_system import get_schema
+from .schema_system import get_schema, SCHEMAS
 
 logger = logging.getLogger(__name__)
 
@@ -310,9 +310,10 @@ async def fetch_component_by_mukey(
     columns: Optional[Union[str, List[str]]] = None,
     chunk_size: int = 1000,
     client: Optional[SDAClient] = None,
+    auto_schema: bool = False,
 ) -> SDAResponse:
     """
-    Fetch component data for a list of mukeys.
+    Fetch component data for a list of mukeys with optional schema auto-registration.
 
     Performance Notes:
     - Components are the most numerous SSURGO entities (often 1000s per survey area)
@@ -324,9 +325,23 @@ async def fetch_component_by_mukey(
         columns: Columns to select (default: key component columns from schema)
         chunk_size: Chunk size for pagination (recommended: 500-1000)
         client: Optional SDA client
+        auto_schema: If True, automatically creates and registers schema from
+                    SDA response metadata. Useful for custom tables or new columns
 
     Returns:
         SDAResponse with component data
+
+    Examples:
+        # Basic usage
+        response = await fetch_component_by_mukey("123456")
+
+        # With auto schema registration
+        response = await fetch_component_by_mukey("123456", auto_schema=True)
+
+        # Custom columns
+        response = await fetch_component_by_mukey(
+            "123456", columns=["cokey", "compname", "taxclname"]
+        )
     """
     # Handle single mukey values for convenience
     if not isinstance(mukeys, list):
@@ -335,11 +350,24 @@ async def fetch_component_by_mukey(
     if columns is None:
         # Use schema-based default columns for component table
         schema = get_schema("component")
-        columns = schema.get_default_columns() + ["mukey"] if schema else ["mukey"]
+        if schema:
+            columns = schema.get_default_columns() + ["mukey"]
+        elif auto_schema:
+            # If auto_schema is enabled and no schema exists, select all columns
+            # to get complete metadata for schema inference
+            columns = "*"
+        else:
+            columns = ["mukey"]
 
-    return await fetch_by_keys(
+    response = await fetch_by_keys(
         mukeys, "component", "mukey", columns, chunk_size, False, client
     )
+
+    if auto_schema and "component" not in SCHEMAS:
+        from . import schema_inference
+        schema_inference.auto_register_schema(response, "component")
+
+    return response
 
 
 async def fetch_chorizon_by_cokey(

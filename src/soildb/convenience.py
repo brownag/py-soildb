@@ -9,6 +9,7 @@ from .fetch import fetch_pedons_by_bbox
 from .query import ColumnSets, Query, QueryBuilder
 from .response import SDAResponse
 from .sanitization import sanitize_sql_string
+from .schema_system import SCHEMAS
 from .spatial import spatial_query
 
 
@@ -16,26 +17,56 @@ async def get_mapunit_by_areasymbol(
     areasymbol: str,
     columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
+    auto_schema: bool = False,
 ) -> "SDAResponse":
     """
-    Get map unit data by survey area symbol (legend).
+    Get map unit data by survey area symbol (legend) with optional schema auto-registration.
 
     Args:
         areasymbol: Survey area symbol (e.g., 'IA015') to retrieve map units for
         columns: List of columns to return. If None, returns basic map unit columns
         client: SDA client instance (required)
+        auto_schema: If True, automatically creates and registers schema from
+                    SDA response metadata. Useful for custom tables or new columns
 
     Returns:
         SDAResponse containing map unit data for the specified survey area
 
     Raises:
         TypeError: If client is not provided
+
+    Examples:
+        # Basic usage
+        response = await get_mapunit_by_areasymbol("IA015")
+
+        # With auto schema registration
+        response = await get_mapunit_by_areasymbol("IA015", auto_schema=True)
     """
     if client is None:
         raise TypeError("client parameter is required")
 
-    query = QueryBuilder.mapunits_by_legend(areasymbol, columns)
-    return await client.execute(query)
+    # Determine columns for query
+    if columns is None and auto_schema and "mapunit" not in SCHEMAS:
+        # If auto_schema is enabled and no schema exists, select all columns
+        # to get complete metadata for schema inference
+        query = (
+            Query()
+            .select("*")
+            .from_("mapunit m")
+            .inner_join("legend l", "m.lkey = l.lkey")
+            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)}")
+            .order_by("m.musym")
+        )
+    else:
+        query = QueryBuilder.mapunits_by_legend(areasymbol, columns)
+
+    response = await client.execute(query)
+
+    if auto_schema and "mapunit" not in SCHEMAS:
+        from . import schema_inference
+        schema_inference.auto_register_schema(response, "mapunit")
+
+    return response
 
 
 async def get_mapunit_by_point(
