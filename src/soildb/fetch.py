@@ -6,6 +6,7 @@ Handles thousands of keys efficiently with concurrent processing.
 """
 
 import asyncio
+import logging
 import math
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 
@@ -15,6 +16,8 @@ from .query import Query, QueryBuilder
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
 from .schema_system import get_schema
+
+logger = logging.getLogger(__name__)
 
 # Common SSURGO tables and their typical key columns
 TABLE_KEY_MAPPING = {
@@ -157,7 +160,7 @@ async def fetch_by_keys(
         )
     else:
         # Multiple queries for large key lists
-        print(f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}")
+        logger.debug(f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}")
 
         # Create chunks
         chunks = [
@@ -513,7 +516,7 @@ async def fetch_pedons_by_bbox(
             all_horizons.extend(horizons_response.data)
     else:
         # Multiple queries for large pedon lists
-        print(
+        logger.debug(
             f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}"
         )
         for i in range(0, len(pedon_keys), chunk_size):
