@@ -1,5 +1,7 @@
-.PHONY: help install test lint format docs clean build
+.PHONY: help install test lint lint-fix format docs clean build all
 .DEFAULT_GOAL := help
+
+all: clean install lint-fix test build docs ## Run full build pipeline (clean, install, lint-fix, test, build, docs)
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -22,6 +24,11 @@ test-integration: ## Run integration tests (requires network)
 
 lint: ## Run linting checks
 	ruff check src/ tests/ examples/
+	mypy src/soildb --ignore-missing-imports
+
+lint-fix: ## Run linting checks and auto-fix issues
+	ruff check --fix src/ tests/ examples/
+	ruff format src/ tests/ examples/
 	mypy src/soildb --ignore-missing-imports
 
 format: ## Format code

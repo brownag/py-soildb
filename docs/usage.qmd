@@ -5,6 +5,7 @@ This document shows common soildb usage patterns without extensive explanation.
 ## Basic Queries
 
 ```{python}
+#| eval: false
 import asyncio
 import soildb
 
@@ -20,6 +21,7 @@ df = response.to_pandas()
 ## Spatial Queries
 
 ```{python}
+#| eval: false
 # Bounding box
 bbox = {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}
 response = await soildb.spatial_query(bbox, "mupolygon", spatial_relation="intersects")
@@ -38,6 +40,7 @@ gdf = response.to_geodataframe()  # Requires GeoPandas
 ## Bulk Data
 
 ```{python}
+#| eval: false
 # Get many mukeys
 mukeys = await soildb.get_mukey_by_areasymbol(["IA015", "IA109"])
 
@@ -58,6 +61,9 @@ df = response.to_pandas()
 ## Custom Queries
 
 ```{python}
+#| eval: false
+import soildb
+
 # Build SQL
 query = (soildb.Query()
     .select("mukey", "muname")
@@ -74,17 +80,75 @@ async with soildb.SDAClient() as client:
 ## Error Handling
 
 ```{python}
+#| eval: false
 try:
-    response = await soildb.get_mapunit_by_point(-93.6, 42.0)
+    async with soildb.SDAClient() as client:
+        response = await soildb.get_mapunit_by_point(-93.6, 42.0, client=client)
 except soildb.SDAConnectionError:
     print("SDA service unavailable")
 except soildb.SDAQueryError as e:
     print(f"Query error: {e}")
 ```
 
+## Structured Data Objects
+
+```{python}
+#| eval: false
+# Fetch structured objects with default columns
+map_unit = await soildb.fetch_mapunit_struct_by_point(38.5, -121.5)
+pedon = await soildb.fetch_pedon_struct_by_id("S1999NY061001")
+
+# Access nested data
+for component in map_unit.components:
+    print(f"Component: {component.component_name}")
+    for horizon in component.aggregate_horizons:
+        print(f"  Horizon: {horizon.horizon_name}")
+
+# Access pedon horizons
+for horizon in pedon.horizons:
+    print(f"Horizon: {horizon.horizon_name}, Depth: {horizon.top_depth}-{horizon.bottom_depth}")
+```
+
+## Flexible Column Support
+
+```{python}
+#| eval: false
+# Fetch with additional custom columns
+map_unit = await soildb.fetch_mapunit_struct_by_point(
+    38.5, -121.5,
+    component_columns=["cokey", "compname", "comppct_r", "majcompflag", "localphase", "drainagecl"],
+    horizon_columns=["chkey", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r", "om_r", "ph1to1h2o_r"]
+)
+
+# Access extra fields
+component = map_unit.components[0]
+if "localphase" in component.extra_fields:
+    print(f"Local phase: {component.extra_fields['localphase']}")
+
+horizon = component.aggregate_horizons[0]
+if "om_r" in horizon.extra_fields:
+    print(f"Organic matter: {horizon.extra_fields['om_r']}")
+
+# Pedon with custom horizon columns
+pedon = await soildb.fetch_pedon_struct_by_id(
+    "S1999NY061001",
+    horizon_columns=[
+        "layer_key", "layer_sequence", "hzn_desgn", "hzn_top", "hzn_bot",
+        "sand_total", "silt_total", "clay_total", "ph_h2o", "organic_carbon",
+        "cec7_r", "ecec_r", "sar_r"  # Custom columns
+    ]
+)
+
+# Access custom horizon data
+horizon = pedon.horizons[0]
+if "cec7_r" in horizon.extra_fields:
+    print(f"CEC: {horizon.extra_fields['cec7_r']}")
+```
+
 ## DataFrame Export
 
 ```{python}
+#| eval: false
 # Pandas (default)
 df = response.to_pandas()
 

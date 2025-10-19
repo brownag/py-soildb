@@ -43,9 +43,6 @@ quartodoc:
         - convenience.get_mapunit_by_areasymbol
         - convenience.get_mapunit_by_bbox
         - convenience.get_sacatalog
-        - convenience.get_sacatalog_sync
-        - convenience.list_survey_areas
-        - convenience.list_survey_areas_sync
     - title: "Fluent Query Methods"
       desc: "Fluent interface methods for building SQL queries."
       contents:

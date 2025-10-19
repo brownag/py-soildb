@@ -6,13 +6,18 @@ Handles thousands of keys efficiently with concurrent processing.
 """
 
 import asyncio
+import logging
 import math
-from typing import List, Optional, Sequence, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 
 from .client import SDAClient
 from .exceptions import SoilDBError
-from .query import Query
+from .query import Query, QueryBuilder
 from .response import SDAResponse
+from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
+from .schema_system import SCHEMAS, get_schema
+
+logger = logging.getLogger(__name__)
 
 # Common SSURGO tables and their typical key columns
 TABLE_KEY_MAPPING = {
@@ -115,10 +120,11 @@ async def fetch_by_keys(
 
     keys_list = cast(List[Union[str, int]], keys)
 
-    if client is None:
-        from .convenience import _get_default_client
+    if not keys_list:
+        raise FetchError("The 'keys' parameter cannot be an empty list.")
 
-        client = _get_default_client()
+    if client is None:
+        raise TypeError("client parameter is required")
 
     # Auto-detect key column if not provided
     if key_column is None:
@@ -157,7 +163,9 @@ async def fetch_by_keys(
         )
     else:
         # Multiple queries for large key lists
-        print(f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}")
+        logger.debug(
+            f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}"
+        )
 
         # Create chunks
         chunks = [
@@ -278,7 +286,7 @@ async def fetch_mapunit_polygon(
 
     Args:
         mukeys: Map unit key(s) (single key or list of keys)
-        columns: Columns to select (default: key columns + geometry)
+        columns: Columns to select (default: key columns from schema + geometry)
         include_geometry: Whether to include polygon geometry as WKT
         chunk_size: Chunk size for pagination (recommended: 500-1000 for geometry)
         client: Optional SDA client
@@ -291,7 +299,9 @@ async def fetch_mapunit_polygon(
         mukeys = [mukeys]
 
     if columns is None:
-        columns = "mukey, musym, nationalmusym, muareaacres"
+        # Use schema-based default columns for mupolygon table
+        schema = get_schema("mupolygon")
+        columns = schema.get_default_columns() if schema else []
 
     return await fetch_by_keys(
         mukeys, "mupolygon", "mukey", columns, chunk_size, include_geometry, client
@@ -303,9 +313,10 @@ async def fetch_component_by_mukey(
     columns: Optional[Union[str, List[str]]] = None,
     chunk_size: int = 1000,
     client: Optional[SDAClient] = None,
+    auto_schema: bool = False,
 ) -> SDAResponse:
     """
-    Fetch component data for a list of mukeys.
+    Fetch component data for a list of mukeys with optional schema auto-registration.
 
     Performance Notes:
     - Components are the most numerous SSURGO entities (often 1000s per survey area)
@@ -314,25 +325,53 @@ async def fetch_component_by_mukey(
 
     Args:
         mukeys: Map unit key(s) (single key or list of keys)
-        columns: Columns to select (default: key component columns)
+        columns: Columns to select (default: key component columns from schema)
         chunk_size: Chunk size for pagination (recommended: 500-1000)
         client: Optional SDA client
+        auto_schema: If True, automatically creates and registers schema from
+                    SDA response metadata. Useful for custom tables or new columns
 
     Returns:
         SDAResponse with component data
+
+    Examples:
+        # Basic usage
+        response = await fetch_component_by_mukey("123456")
+
+        # With auto schema registration
+        response = await fetch_component_by_mukey("123456", auto_schema=True)
+
+        # Custom columns
+        response = await fetch_component_by_mukey(
+            "123456", columns=["cokey", "compname", "taxclname"]
+        )
     """
     # Handle single mukey values for convenience
     if not isinstance(mukeys, list):
         mukeys = [mukeys]
 
     if columns is None:
-        columns = (
-            "mukey, cokey, compname, comppct_r, majcompflag, localphase, drainagecl"
-        )
+        # Use schema-based default columns for component table
+        schema = get_schema("component")
+        if schema:
+            columns = schema.get_default_columns() + ["mukey"]
+        elif auto_schema:
+            # If auto_schema is enabled and no schema exists, select all columns
+            # to get complete metadata for schema inference
+            columns = "*"
+        else:
+            columns = ["mukey"]
 
-    return await fetch_by_keys(
+    response = await fetch_by_keys(
         mukeys, "component", "mukey", columns, chunk_size, False, client
     )
+
+    if auto_schema and "component" not in SCHEMAS:
+        from . import schema_inference
+
+        schema_inference.auto_register_schema(response, "component")
+
+    return response
 
 
 async def fetch_chorizon_by_cokey(
@@ -351,7 +390,7 @@ async def fetch_chorizon_by_cokey(
 
     Args:
         cokeys: Component key(s) (single key or list of keys)
-        columns: Columns to select (default: key chorizon columns)
+        columns: Columns to select (default: key chorizon columns from schema)
         chunk_size: Chunk size for pagination (recommended: 200-500)
         client: Optional SDA client
 
@@ -363,11 +402,9 @@ async def fetch_chorizon_by_cokey(
         cokeys = [cokeys]
 
     if columns is None:
-        columns = (
-            "cokey, chkey, hzname, hzdept_r, hzdepb_r, "
-            "sandtotal_r, silttotal_r, claytotal_r, om_r, ph1to1h2o_r, "
-            "awc_r, ksat_r, dbthirdbar_r"
-        )
+        # Use schema-based default columns for chorizon table
+        schema = get_schema("chorizon")
+        columns = schema.get_default_columns() if schema else []
 
     return await fetch_by_keys(
         cokeys, "chorizon", "cokey", columns, chunk_size, False, client
@@ -417,6 +454,174 @@ async def fetch_survey_area_polygon(
     )
 
 
+async def fetch_pedons_by_bbox(
+    bbox: Tuple[float, float, float, float],
+    columns: Optional[List[str]] = None,
+    chunk_size: int = 1000,
+    return_type: Literal["sitedata", "combined", "soilprofilecollection"] = "sitedata",
+    client: Optional[SDAClient] = None,
+) -> Union[SDAResponse, Dict[str, Any], Any]:
+    """
+    Fetch pedon site data within a geographic bounding box with flexible return types.
+
+    Similar to fetchLDM() in R soilDB, this function retrieves laboratory-analyzed
+    soil profiles (pedons) within a specified geographic area. The return type
+    can be customized to return site data only, combined site and horizon data,
+    or a SoilProfileCollection object.
+
+    Args:
+        bbox: Bounding box as (min_lon, min_lat, max_lon, max_lat)
+        columns: List of columns to return for site data. If None, returns basic pedon columns
+        chunk_size: Number of pedons to process per query (for pagination when fetching horizons)
+        return_type: Type of return value (default: "sitedata")
+            - "sitedata": Returns only site data as SDAResponse
+            - "combined": Returns dict with keys "site" (SDAResponse) and "horizons" (SDAResponse)
+            - "soilprofilecollection": Returns a SoilProfileCollection object with site and horizon data
+        client: Optional SDA client instance
+
+    Returns:
+        Depending on return_type:
+        - "sitedata": SDAResponse containing pedon site data only
+        - "combined": Dict with keys "site" (SDAResponse) and "horizons" (SDAResponse)
+        - "soilprofilecollection": SoilProfileCollection object
+
+    Raises:
+        TypeError: If client parameter is required but not provided
+        ImportError: If soilprofilecollection is requested but not installed
+        ValueError: If return_type is invalid
+
+    Examples:
+        # Fetch pedons in California's Central Valley - site data only (default)
+        >>> bbox = (-122.0, 36.0, -118.0, 38.0)
+        >>> response = await fetch_pedons_by_bbox(bbox)
+        >>> df = response.to_pandas()
+
+        # Fetch site and horizon data separately
+        >>> result = await fetch_pedons_by_bbox(bbox, return_type="combined")
+        >>> site_df = result["site"].to_pandas()
+        >>> horizons_df = result["horizons"].to_pandas()
+
+        # Fetch complete pedon profiles as SoilProfileCollection
+        >>> spc = await fetch_pedons_by_bbox(bbox, return_type="soilprofilecollection")
+        >>> # spc is now a soilprofilecollection.SoilProfileCollection object
+
+        # Get horizon data for returned pedons (manual approach)
+        >>> site_response = await fetch_pedons_by_bbox(bbox)
+        >>> pedon_keys = site_response.to_pandas()["pedon_key"].unique().tolist()
+        >>> horizons = await fetch_pedon_horizons(pedon_keys, client=client)
+    """
+    if return_type not in ["sitedata", "combined", "soilprofilecollection"]:
+        raise ValueError(
+            f"Invalid return_type: {return_type!r}. Must be one of: "
+            "'sitedata', 'combined', 'soilprofilecollection'"
+        )
+
+    min_lon, min_lat, max_lon, max_lat = bbox
+
+    if client is None:
+        raise TypeError("client parameter is required")
+
+    # Fetch site data
+    query = QueryBuilder.pedons_intersecting_bbox(
+        min_lon, min_lat, max_lon, max_lat, columns
+    )
+    site_response = await client.execute(query)
+
+    # If only site data is requested or response is empty, return early
+    if return_type == "sitedata" or site_response.is_empty():
+        return site_response
+
+    # For "combined" or "soilprofilecollection", we need horizon data
+    # Get pedon keys for horizon fetching
+    site_df = site_response.to_pandas()
+    pedon_keys = site_df["pedon_key"].unique().tolist()
+
+    # Fetch horizons in chunks if needed
+    all_horizons = []
+    sample_cols = None
+    sample_meta = None
+    if len(pedon_keys) <= chunk_size:
+        # Single query for small pedon lists
+        horizons_response = await fetch_pedon_horizons(pedon_keys, client=client)
+        if not horizons_response.is_empty():
+            # Capture columns and metadata from the response
+            sample_cols = horizons_response.columns
+            sample_meta = horizons_response.metadata
+            all_horizons.extend(horizons_response.data)
+    else:
+        # Multiple queries for large pedon lists
+        logger.debug(
+            f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}"
+        )
+        for i in range(0, len(pedon_keys), chunk_size):
+            chunk_keys = pedon_keys[i : i + chunk_size]
+            chunk_response = await fetch_pedon_horizons(chunk_keys, client=client)
+            if not chunk_response.is_empty():
+                # Capture columns and metadata from first non-empty chunk
+                if sample_cols is None:
+                    sample_cols = chunk_response.columns
+                    sample_meta = chunk_response.metadata
+                all_horizons.extend(chunk_response.data)
+
+    # Build horizons response object from combined data
+    if all_horizons:
+        # Reconstruct the raw data format that SDAResponse expects
+        horizons_table = []
+        horizons_table.append(sample_cols)
+        horizons_table.append(sample_meta)
+        horizons_table.extend(all_horizons)
+        horizons_raw_data = {"Table": horizons_table}
+        horizons_response = SDAResponse(horizons_raw_data)
+    else:
+        # Empty horizons response
+        horizons_response = SDAResponse({})
+
+    if return_type == "combined":
+        return {"site": site_response, "horizons": horizons_response}
+
+    elif return_type == "soilprofilecollection":
+        # Convert to SoilProfileCollection
+        if horizons_response.is_empty():
+            raise ValueError(
+                "No horizon data found. Cannot create SoilProfileCollection without horizons."
+            )
+
+        return horizons_response.to_soilprofilecollection(
+            site_data=site_df,
+            site_id_col="pedon_key",
+            hz_id_col="layer_key",
+            hz_top_col="hzn_top",
+            hz_bot_col="hzn_bot",
+        )
+
+    # Fallback (shouldn't reach here due to validation above)
+    return site_response
+
+
+async def fetch_pedon_horizons(
+    pedon_keys: Union[List[str], str],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """
+    Fetch horizon data for specified pedon keys.
+
+    Args:
+        pedon_keys: Single pedon key or list of pedon keys
+        client: Optional SDA client instance
+
+    Returns:
+        SDAResponse containing horizon data
+    """
+    if isinstance(pedon_keys, str):
+        pedon_keys = [pedon_keys]
+
+    if client is None:
+        raise TypeError("client parameter is required")
+
+    query = QueryBuilder.pedon_horizons_by_pedon_keys(pedon_keys)
+    return await client.execute(query)
+
+
 # Bulk key extraction helpers
 async def get_mukey_by_areasymbol(
     areasymbols: List[str], client: Optional[SDAClient] = None
@@ -428,12 +633,10 @@ async def get_mukey_by_areasymbol(
     before fetching detailed data.
     """
     if client is None:
-        from .convenience import _get_default_client
-
-        client = _get_default_client()
+        raise TypeError("client parameter is required")
 
     # Use the existing get_mapunits_by_legend pattern but for multiple areas
-    key_strings = [f"'{area}'" for area in areasymbols]
+    key_strings = sanitize_sql_string_list(areasymbols)
     where_clause = f"l.areasymbol IN ({', '.join(key_strings)})"
 
     query = (
@@ -473,7 +676,8 @@ async def get_cokey_by_mukey(
     # At this point mukeys is guaranteed to be a list
     mukeys_list: List[Union[str, int]] = mukeys
 
-    where_clause = f"mukey IN ({', '.join(str(k) for k in mukeys)})"
+    sanitized_keys = [sanitize_sql_numeric(k) for k in mukeys_list]
+    where_clause = f"mukey IN ({', '.join(sanitized_keys)})"
     if major_components_only:
         where_clause += " AND majcompflag = 'Yes'"
 

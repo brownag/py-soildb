@@ -18,7 +18,7 @@ Performance Notes:
 
 Args:
     cokeys: Component key(s) (single key or list of keys)
-    columns: Columns to select (default: key chorizon columns)
+    columns: Columns to select (default: key chorizon columns from schema)
     chunk_size: Chunk size for pagination (recommended: 200-500)
     client: Optional SDA client
 

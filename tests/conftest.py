@@ -2,11 +2,29 @@
 Test configuration and fixtures for soildb tests.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+import pytest_asyncio
 
 from soildb import SDAClient
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for each test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def sda_client():
+    """Create a real SDAClient for integration tests."""
+    client = SDAClient()
+    yield client
+    await client.close()
 
 
 @pytest.fixture
@@ -46,3 +64,18 @@ def empty_sda_response_json():
         ]
     }
     """
+
+
+@pytest.fixture
+def no_soilprofilecollection(monkeypatch):
+    """
+    Fixture to simulate that the 'soilprofilecollection' package is not installed.
+    """
+    import_orig = __import__
+
+    def import_mock(name, *args, **kwargs):
+        if name == "soilprofilecollection":
+            raise ImportError()
+        return import_orig(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", import_mock)

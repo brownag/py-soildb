@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
 from .client import SDAClient
 from .query import Query
 from .response import SDAResponse
+from .sanitization import validate_wkt_geometry
 
 if TYPE_CHECKING:
     try:
@@ -162,7 +163,7 @@ class SpatialQueryBuilder:
         """Convert various geometry inputs to WKT string."""
         if isinstance(geometry, str):
             # Assume it's already WKT
-            return geometry
+            return validate_wkt_geometry(geometry)
         elif isinstance(geometry, dict):
             # Assume it's a bounding box
             if all(k in geometry for k in ["xmin", "ymin", "xmax", "ymax"]):
@@ -337,10 +338,8 @@ async def spatial_query(
         >>> polygon_wkt = "POLYGON((-94.7 42.0, -94.6 42.0, -94.6 42.1, -94.7 42.1, -94.7 42.0))"
         >>> response = await spatial_query(polygon_wkt, "sapolygon", "tabular")
     """
-    from .convenience import _get_default_client
-
     if client is None:
-        client = _get_default_client()
+        raise TypeError("client parameter is required")
 
     builder = SpatialQueryBuilder(client)
     query = builder.query(

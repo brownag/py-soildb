@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "soildb"
-version = "0.1.0"
+version = "0.2.0"
 readme = "README.md"
 authors = [
     {name = "Andrew Brown", email = "brown.andrewg@gmail.com"},
@@ -66,8 +66,9 @@ spatial = [
     "geopandas>=0.13.0",
     "shapely>=2.0.0",
 ]
+soil = ["soilprofilecollection>=0.2.0"]
 all = [
-    "soildb[dev,dataframes,spatial]"
+    "soildb[dev,dataframes,spatial,soil]"
 ]
 
 [project.urls]

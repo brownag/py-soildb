@@ -63,6 +63,7 @@ query = (Query()
 Generic spatial query builder class. `SpatialQueryBuilder` builds a `Query` object but does not execute it. For async execution, use the `spatial_query` function.
 
 ```{python}
+#| eval: false
 from soildb import spatial_query
 
 # For a direct async operation, use the `spatial_query` function.
@@ -133,6 +134,7 @@ query = QueryBuilder.components_at_point(-93.6, 42.0)
 Response object with data conversion methods.
 
 ```{python}
+#| eval: false
 # DataFrame export
 df = response.to_pandas()        # pandas DataFrame
 df = response.to_polars()        # polars DataFrame (if installed)
@@ -162,6 +164,7 @@ count = len(response)           # Number of rows
 ### Point Queries
 
 ```{python}
+#| eval: false
 from soildb import get_mapunit_by_point
 
 # Get map units at a point
@@ -172,6 +175,7 @@ df = response.to_pandas()
 ### Area Queries
 
 ```{python}
+#| eval: false
 from soildb import get_mapunit_by_areasymbol, get_mapunit_by_bbox
 
 # Get map units for survey area
@@ -186,6 +190,7 @@ df = response.to_pandas()
 ### Survey Areas
 
 ```{python}
+#| eval: false
 from soildb import get_sacatalog, list_survey_areas
 
 # Get survey area catalog with custom columns
@@ -193,7 +198,8 @@ response = await get_sacatalog(columns=['areasymbol', 'areaname'])
 df = response.to_pandas()
 
 # Get just survey area symbols (backward compatibility)
-area_list = await list_survey_areas()
+sacatalog = await get_sacatalog(columns=['areasymbol'])
+area_list = sacatalog.to_pandas()['areasymbol'].tolist()
 ```
 
 ## Spatial Queries
@@ -203,6 +209,7 @@ area_list = await list_survey_areas()
 Generic spatial query function.
 
 ```{python}
+#| eval: false
 from soildb import spatial_query
 
 # Point query
@@ -233,6 +240,7 @@ response = await spatial_query(
 ### Table-Specific Functions
 
 ```{python}
+#| eval: false
 from soildb import (
     query_mupolygon, query_sapolygon,
     query_featpoint, query_featline,
@@ -261,6 +269,7 @@ response = await sapolygon_in_bbox(-93.7, 42.0, -93.6, 42.1)
 Generic bulk data retrieval with pagination.
 
 ```{python}
+#| eval: false
 from soildb import fetch_by_keys
 
 # Fetch map units by mukeys
@@ -277,6 +286,7 @@ response = await fetch_by_keys(
 ### Specialized Functions
 
 ```{python}
+#| eval: false
 from soildb import (
     fetch_mapunit_polygon,
     fetch_component_by_mukey,
@@ -306,6 +316,7 @@ response = await fetch_survey_area_polygon(areasymbols)
 ### Key Extraction
 
 ```{python}
+#| eval: false
 from soildb import get_mukey_by_areasymbol, get_cokey_by_mukey
 
 # Get mukeys for survey areas
@@ -320,6 +331,7 @@ cokeys = await get_cokey_by_mukey(mukeys, major_components_only=True)
 ### Exception Types
 
 ```{python}
+#| eval: false
 from soildb import (
     get_mapunit_by_areasymbol,
     SoilDBError,          # Base exception
@@ -344,6 +356,7 @@ except SDAMaintenanceError:
 ### XML Metadata Parsing
 
 ```{python}
+#| eval: false
 from soildb import SDAClient, parse_survey_metadata, extract_metadata_summary
 
 response = await SDAClient().execute("SELECT TOP 1 * FROM sacatalog")
