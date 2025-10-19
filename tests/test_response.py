@@ -351,7 +351,5 @@ class TestSoilProfileCollectionIntegration:
             pytest.skip("soilprofilecollection not installed")
 
         response = SDAResponse(MOCK_EMPTY_RESPONSE)
-        with pytest.raises(
-            KeyError, match="Horizon data missing required columns"
-        ):
+        with pytest.raises(KeyError, match="Horizon data missing required columns"):
             response.to_soilprofilecollection()
