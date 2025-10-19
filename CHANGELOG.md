@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] - 2025-10-17
+## [0.2.0] - 2025-10-19
 
 Major release with schema-driven architecture.
 
