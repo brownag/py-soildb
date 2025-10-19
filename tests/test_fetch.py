@@ -75,7 +75,7 @@ class TestFetchByKeys:
         """Test that empty keys list raises error."""
         mock_client = AsyncMock(spec=SDAClient)
         with pytest.raises(
-            FetchError, match="No data was returned from the fetch operation"
+            FetchError, match="The 'keys' parameter cannot be an empty list."
         ):
             await fetch_by_keys([], "mapunit", client=mock_client)
 
