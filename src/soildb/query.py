@@ -491,8 +491,17 @@ class SpatialQuery(BaseQuery):
         base_sql = self._base_query.to_sql()
 
         if self._geometry_filter:
+            from_clause = self._base_query._from_clause
+            alias = None
+            if " " in from_clause:
+                alias = from_clause.split(" ")[-1]
+
+            geom_column = "mupolygongeo"
+            if alias:
+                geom_column = f"{alias}.{geom_column}"
+
             spatial_condition = (
-                f"mupolygongeo.{self._spatial_relationship}"
+                f"{geom_column}.{self._spatial_relationship}"
                 f"(geometry::STGeomFromText('{self._geometry_filter}', 4326)) = 1"
             )
 
