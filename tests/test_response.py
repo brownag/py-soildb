@@ -312,7 +312,7 @@ class TestSoilProfileCollectionIntegration:
 
         response = SDAResponse(MOCK_HORIZON_DATA_MISSING_COL)
         with pytest.raises(
-            ValueError, match="Missing required columns in horizon data"
+            ValueError, match="Missing required columns for SoilProfileCollection"
         ):
             response.to_soilprofilecollection()
 
@@ -344,7 +344,7 @@ class TestSoilProfileCollectionIntegration:
         assert "compname" in spc.site.columns
 
     def test_to_soilprofilecollection_empty_response(self):
-        """Test that an empty response raises a ValueError due to missing columns."""
+        """Test that an empty response raises a KeyError due to missing columns."""
         try:
             from soilprofilecollection import SoilProfileCollection  # noqa
         except ImportError:
@@ -352,6 +352,6 @@ class TestSoilProfileCollectionIntegration:
 
         response = SDAResponse(MOCK_EMPTY_RESPONSE)
         with pytest.raises(
-            ValueError, match="Missing required columns in horizon data"
+            KeyError, match="Horizon data missing required columns"
         ):
             response.to_soilprofilecollection()
