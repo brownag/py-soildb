@@ -28,6 +28,7 @@ Represents a response from the Soil Data Access web service.
 | [to_pandas](#soildb.response.SDAResponse.to_pandas) | Convert to pandas DataFrame with proper type conversion. |
 | [to_polars](#soildb.response.SDAResponse.to_polars) | Convert to polars DataFrame with proper type conversion. |
 | [to_records](#soildb.response.SDAResponse.to_records) | Alias for to_dict() for compatibility. |
+| [to_soilprofilecollection](#soildb.response.SDAResponse.to_soilprofilecollection) | Converts the response data to a soilprofilecollection.SoilProfileCollection object. |
 
 ### from_json { #soildb.response.SDAResponse.from_json }
 
@@ -115,3 +116,38 @@ response.SDAResponse.to_records()
 ```
 
 Alias for to_dict() for compatibility.
+
+### to_soilprofilecollection { #soildb.response.SDAResponse.to_soilprofilecollection }
+
+```python
+response.SDAResponse.to_soilprofilecollection(
+    site_data=None,
+    site_id_col='cokey',
+    hz_id_col='chkey',
+    hz_top_col='hzdept_r',
+    hz_bot_col='hzdepb_r',
+)
+```
+
+Converts the response data to a soilprofilecollection.SoilProfileCollection object.
+
+This method is intended for horizon-level data, which can be joined with
+site-level data (e.g., from the component table) to form a complete
+soil profile collection.
+
+Args:
+    site_data: Optional pandas DataFrame containing site-level data.
+        This will be joined with the horizon data.
+    site_id_col: The name of the site ID column, used to link site and
+        horizon data (default: "cokey").
+    hz_id_col: The name of the unique horizon ID column (default: "chkey").
+    hz_top_col: The name of the horizon top depth column (default: "hzdept_r").
+    hz_bot_col: The name of the horizon bottom depth column (default: "hzdepb_r").
+
+Returns:
+    A SoilProfileCollection object.
+
+Raises:
+    ImportError: If the 'soilprofilecollection' package is not installed.
+    ValueError: If required columns for creating the SoilProfileCollection
+        are missing from the data.

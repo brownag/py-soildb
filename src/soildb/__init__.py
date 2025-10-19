@@ -11,16 +11,15 @@ try:
 except Exception:
     __version__ = "unknown"
 
-from . import fetch
+from . import fetch, schema_inference
 from .client import SDAClient
 from .convenience import (
+    get_lab_pedon_by_id,
+    get_lab_pedons_by_bbox,
     get_mapunit_by_areasymbol,
     get_mapunit_by_bbox,
     get_mapunit_by_point,
     get_sacatalog,
-    get_sacatalog_sync,
-    list_survey_areas,  # Backward compatibility
-    list_survey_areas_sync,  # Backward compatibility
 )
 from .exceptions import (
     SDAConnectionError,
@@ -33,9 +32,16 @@ from .fetch import (
     fetch_chorizon_by_cokey,
     fetch_component_by_mukey,
     fetch_mapunit_polygon,
+    fetch_pedon_horizons,
+    fetch_pedons_by_bbox,
     fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
+)
+from .high_level import (
+    fetch_mapunit_struct_by_point,
+    fetch_pedon_struct_by_bbox,
+    fetch_pedon_struct_by_id,
 )
 from .metadata import (
     MetadataParseError,
@@ -63,6 +69,8 @@ __all__ = [
     "SpatialQuery",
     "QueryBuilder",
     "SDAResponse",
+    # Schema inference
+    "schema_inference",
     # Exceptions
     "SoilDBError",
     "SDAConnectionError",
@@ -77,10 +85,13 @@ __all__ = [
     "get_mapunit_by_areasymbol",
     "get_mapunit_by_point",
     "get_mapunit_by_bbox",
+    "get_lab_pedons_by_bbox",
+    "get_lab_pedon_by_id",
     "get_sacatalog",
-    "get_sacatalog_sync",
-    "list_survey_areas",  # Backward compatibility
-    "list_survey_areas_sync",  # Backward compatibility
+    # High-level functions
+    "fetch_mapunit_struct_by_point",
+    "fetch_pedon_struct_by_bbox",
+    "fetch_pedon_struct_by_id",
     # Spatial query functions
     "spatial_query",
     "query_mupolygon",
@@ -96,6 +107,8 @@ __all__ = [
     "fetch_mapunit_polygon",
     "fetch_component_by_mukey",
     "fetch_chorizon_by_cokey",
+    "fetch_pedons_by_bbox",
+    "fetch_pedon_horizons",
     "fetch_survey_area_polygon",
     "get_mukey_by_areasymbol",
     "get_cokey_by_mukey",

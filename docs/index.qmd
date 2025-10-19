@@ -58,6 +58,7 @@ pip install soildb[all]
 This is a basic example of building a custom query and getting the results:
 
 ```{python}
+#| eval: false
 from soildb import Query
     
 query = (Query()
@@ -115,10 +116,12 @@ For comprehensive async usage, see the [Async Programming Guide](async.qmd).
 soildb provides several high-level functions for common tasks:
 
 ```{python}
-mapunits = await soildb.get_mapunit_by_areasymbol("IA109")
-df = mapunits.to_pandas()
-print(f"Found {len(df)} map units")
-df.head()
+#| eval: false
+async with soildb.SDAClient() as client:
+    mapunits = await soildb.get_mapunit_by_areasymbol("IA109", client=client)
+    df = mapunits.to_pandas()
+    print(f"Found {len(df)} map units")
+    df.head()
 ```
 
 If you have suggestions for new convenience functions please file a ["feature request" on GitHub](https://github.com/brownag/py-soildb/issues/new).
@@ -128,6 +131,7 @@ If you have suggestions for new convenience functions please file a ["feature re
 soildb also offers support for queries by location via `spatial_query()`. You can specify arbitrary geometry to target several spatial and tabular types of results.
 
 ```{python}
+#| eval: false
 import asyncio
 
 async def spatial_query_example():
@@ -163,6 +167,7 @@ result
 soildb makes it easy to retrieve large datasets efficiently, using concurrent requests and built-in functions that automatically handle pagination. 
 
 ```{python}
+#| eval: false
 import asyncio
 
 async def bulk_fetch_example():

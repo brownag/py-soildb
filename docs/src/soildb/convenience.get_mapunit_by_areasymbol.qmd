@@ -1,14 +1,32 @@
 # convenience.get_mapunit_by_areasymbol { #soildb.convenience.get_mapunit_by_areasymbol }
 
 ```python
-convenience.get_mapunit_by_areasymbol(areasymbol, client=None)
+convenience.get_mapunit_by_areasymbol(
+    areasymbol,
+    columns=None,
+    client=None,
+    auto_schema=False,
+)
 ```
 
-Get map unit data by survey area symbol (legend).
+Get map unit data by survey area symbol (legend) with optional schema auto-registration.
 
 Args:
     areasymbol: Survey area symbol (e.g., 'IA015') to retrieve map units for
-    client: Optional client instance
+    columns: List of columns to return. If None, returns basic map unit columns
+    client: SDA client instance (required)
+    auto_schema: If True, automatically creates and registers schema from
+                SDA response metadata. Useful for custom tables or new columns
 
 Returns:
     SDAResponse containing map unit data for the specified survey area
+
+Raises:
+    TypeError: If client is not provided
+
+Examples:
+    # Basic usage
+    response = await get_mapunit_by_areasymbol("IA015")
+
+    # With auto schema registration
+    response = await get_mapunit_by_areasymbol("IA015", auto_schema=True)

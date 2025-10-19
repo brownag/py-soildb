@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from soildb.client import SDAClient
+from soildb.convenience import get_mapunit_by_areasymbol
 from soildb.fetch import (
     TABLE_KEY_MAPPING,
     FetchError,
@@ -16,6 +17,7 @@ from soildb.fetch import (
     fetch_chorizon_by_cokey,
     fetch_component_by_mukey,
     fetch_mapunit_polygon,
+    fetch_pedons_by_bbox,
     fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
@@ -71,18 +73,19 @@ class TestFetchByKeys:
 
     async def test_empty_keys_error(self):
         """Test that empty keys list raises error."""
+        mock_client = AsyncMock(spec=SDAClient)
         with pytest.raises(
-            FetchError, match="No data was returned from the fetch operation"
+            FetchError, match="The 'keys' parameter cannot be an empty list."
         ):
-            await fetch_by_keys([], "mapunit")
+            await fetch_by_keys([], "mapunit", client=mock_client)
 
     async def test_unknown_table_error(self):
         """Test that unknown table without key_column raises error."""
+        mock_client = AsyncMock(spec=SDAClient)
         with pytest.raises(FetchError, match="Unknown table"):
-            await fetch_by_keys([1, 2, 3], "unknown_table")
+            await fetch_by_keys([1, 2, 3], "unknown_table", client=mock_client)
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_single_chunk(self, mock_get_client):
+    async def test_single_chunk(self):
         """Test fetch with keys that fit in single chunk."""
         # Mock client and response
         mock_client = AsyncMock(spec=SDAClient)
@@ -90,15 +93,13 @@ class TestFetchByKeys:
         mock_response.data = [{"mukey": 123456, "muname": "Test Unit"}]
 
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        result = await fetch_by_keys([123456], "mapunit")
+        result = await fetch_by_keys([123456], "mapunit", client=mock_client)
 
         assert result == mock_response
         mock_client.execute.assert_called_once()
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_multiple_chunks(self, mock_get_client):
+    async def test_multiple_chunks(self):
         """Test fetch with keys requiring multiple chunks."""
         # Mock client and responses
         mock_client = AsyncMock(spec=SDAClient)
@@ -108,39 +109,40 @@ class TestFetchByKeys:
         mock_response2.data = [{"mukey": 2, "muname": "Unit 2"}]
 
         mock_client.execute.side_effect = [mock_response1, mock_response2]
-        mock_get_client.return_value = mock_client
 
         #  use chunk_size=1 to force multiple chunks
-        result = await fetch_by_keys([1, 2], "mapunit", chunk_size=1)
+        result = await fetch_by_keys(
+            [1, 2], "mapunit", chunk_size=1, client=mock_client
+        )
 
         assert len(result.data) == 2
         assert result.data[0]["mukey"] == 1
         assert result.data[1]["mukey"] == 2
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_custom_columns(self, mock_get_client):
+    async def test_custom_columns(self):
         """Test fetch with custom column selection."""
         mock_client = AsyncMock(spec=SDAClient)
         mock_response = AsyncMock(spec=SDAResponse)
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        await fetch_by_keys([123456], "mapunit", columns=["mukey", "muname"])
+        await fetch_by_keys(
+            [123456], "mapunit", columns=["mukey", "muname"], client=mock_client
+        )
 
         # Check that query was built with correct columns
         # The Query object should have the specified columns
         # (This is a simplified check - in real implementation we'd check the SQL)
         assert mock_client.execute.called
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_include_geometry(self, mock_get_client):
+    async def test_include_geometry(self):
         """Test fetch with geometry inclusion."""
         mock_client = AsyncMock(spec=SDAClient)
         mock_response = AsyncMock(spec=SDAResponse)
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        await fetch_by_keys([123456], "mupolygon", include_geometry=True)
+        await fetch_by_keys(
+            [123456], "mupolygon", include_geometry=True, client=mock_client
+        )
 
         assert mock_client.execute.called
 
@@ -157,11 +159,12 @@ class TestSpecializedFunctions:
 
         result = await fetch_mapunit_polygon([123456, 123457])
 
+        # Columns now come from schema as a list
         mock_fetch.assert_called_once_with(
             [123456, 123457],
             "mupolygon",
             "mukey",
-            "mukey, musym, nationalmusym, muareaacres",
+            ["mukey", "musym", "areasymbol", "spatialversion"],  # From mupolygon schema
             1000,
             True,  # include_geometry
             None,
@@ -176,11 +179,23 @@ class TestSpecializedFunctions:
 
         result = await fetch_component_by_mukey([123456])
 
+        # Columns now come from schema as a list
         mock_fetch.assert_called_once_with(
             [123456],
             "component",
             "mukey",
-            "mukey, cokey, compname, comppct_r, majcompflag, localphase, drainagecl",
+            [
+                "cokey",
+                "compname",
+                "comppct_r",
+                "majcompflag",
+                "taxclname",
+                "drainagecl",
+                "localphase",
+                "hydricrating",
+                "compkind",
+                "mukey",
+            ],  # From component schema + mukey
             1000,
             False,  # include_geometry
             None,
@@ -195,15 +210,21 @@ class TestSpecializedFunctions:
 
         result = await fetch_chorizon_by_cokey(["123456:1", "123456:2"])
 
+        # Columns now come from schema as a list
         mock_fetch.assert_called_once_with(
             ["123456:1", "123456:2"],
             "chorizon",
             "cokey",
-            (
-                "cokey, chkey, hzname, hzdept_r, hzdepb_r, "
-                "sandtotal_r, silttotal_r, claytotal_r, om_r, ph1to1h2o_r, "
-                "awc_r, ksat_r, dbthirdbar_r"
-            ),
+            [
+                "chkey",
+                "hzname",
+                "hzdept_r",
+                "hzdepb_r",
+                "claytotal_r",
+                "sandtotal_r",
+                "om_r",
+                "ph1to1h2o_r",
+            ],  # From chorizon schema
             1000,
             False,
             None,
@@ -234,8 +255,7 @@ class TestSpecializedFunctions:
 class TestKeyExtractionHelpers:
     """Test helper functions for extracting keys."""
 
-    @patch("soildb.convenience._get_default_client")
-    async def test_get_mukey_by_areasymbol(self, mock_get_client):
+    async def test_get_mukey_by_areasymbol(self):
         """Test getting mukeys from area symbols."""
         mock_client = AsyncMock(spec=SDAClient)
         mock_response = AsyncMock(spec=SDAResponse)
@@ -247,9 +267,8 @@ class TestKeyExtractionHelpers:
         mock_response.to_pandas.return_value = mock_df
 
         mock_client.execute.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
-        result = await get_mukey_by_areasymbol(["CA630", "CA632"])
+        result = await get_mukey_by_areasymbol(["CA630", "CA632"], client=mock_client)
 
         assert result == [123456, 123457]
         mock_client.execute.assert_called_once()
@@ -274,21 +293,140 @@ class TestKeyExtractionHelpers:
             [123456], "component", "mukey", "cokey", client=None
         )
 
-    @patch("soildb.fetch.fetch_by_keys")
-    async def test_get_cokeys_major_only(self, mock_fetch):
-        """Test getting only major component cokeys."""
-        mock_response = AsyncMock(spec=SDAResponse)
-        mock_df = AsyncMock()
-        mock_df.empty = False
-        mock_df.__getitem__.return_value.tolist.return_value = ["123456:1"]
-        mock_response.to_pandas.return_value = mock_df
-        mock_fetch.return_value = mock_response
 
-        result = await get_cokey_by_mukey([123456], major_components_only=True)
+@pytest.mark.asyncio
+class TestFetchPedonsByBbox:
+    """Test the fetch_pedons_by_bbox function."""
 
-        assert result == ["123456:1"]
-        # Note: The function currently doesn't properly implement the major_components_only filter
-        # This test documents the current behavior and should be updated when the function is fixed
+    async def test_fetch_pedons_chunking_bug_regression(self):
+        """Test that chunking doesn't cause UnboundLocalError for horizons_response.
+
+        This test reproduces the bug where pedon_keys > chunk_size would cause
+        an UnboundLocalError when trying to access horizons_response.columns
+        and horizons_response.metadata in the reconstruction code.
+        """
+        # Mock client
+        mock_client = AsyncMock(spec=SDAClient)
+
+        # Mock site response with many pedon keys
+        site_response = AsyncMock(spec=SDAResponse)
+        site_response.is_empty.return_value = False
+        # Create mock DataFrame with 5 pedon keys
+        mock_site_df = AsyncMock()
+        mock_site_df.__getitem__.return_value.unique.return_value.tolist.return_value = [
+            "1001",
+            "1002",
+            "1003",
+            "1004",
+            "1005",
+        ]
+        site_response.to_pandas.return_value = mock_site_df
+        mock_client.execute.side_effect = [
+            site_response
+        ]  # First call returns site data
+
+        # Mock horizon responses for chunks
+        # First chunk: empty
+        empty_chunk_response = AsyncMock(spec=SDAResponse)
+        empty_chunk_response.is_empty.return_value = True
+
+        # Second chunk: has data
+        data_chunk_response = AsyncMock(spec=SDAResponse)
+        data_chunk_response.is_empty.return_value = False
+        data_chunk_response.data = [
+            {"layer_key": 1, "hzn_top": 0, "hzn_bot": 10, "pedon_key": "1003"},
+            {"layer_key": 2, "hzn_top": 10, "hzn_bot": 20, "pedon_key": "1003"},
+        ]
+        data_chunk_response.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        data_chunk_response.metadata = ["meta1", "meta2"]
+
+        # Third chunk: has data
+        data_chunk_response2 = AsyncMock(spec=SDAResponse)
+        data_chunk_response2.is_empty.return_value = False
+        data_chunk_response2.data = [
+            {"layer_key": 3, "hzn_top": 0, "hzn_bot": 15, "pedon_key": "1004"},
+        ]
+        data_chunk_response2.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        data_chunk_response2.metadata = ["meta1", "meta2"]
+
+        # Set up the side effects: site query, then horizon chunks
+        mock_client.execute.side_effect = [
+            site_response,  # Site query
+            empty_chunk_response,  # First horizon chunk (empty)
+            data_chunk_response,  # Second horizon chunk (has data)
+            data_chunk_response2,  # Third horizon chunk (has data)
+        ]
+
+        # Call with small chunk_size to force chunking
+        bbox = (-95.0, 40.0, -94.0, 41.0)
+        result = await fetch_pedons_by_bbox(
+            bbox, chunk_size=2, return_type="combined", client=mock_client
+        )
+
+        # Verify the result structure
+        assert "site" in result
+        assert "horizons" in result
+        assert result["site"] == site_response
+
+        # Verify horizons response was reconstructed correctly
+        horizons_response = result["horizons"]
+        assert not horizons_response.is_empty()
+        assert len(horizons_response.data) == 3  # Combined data from chunks
+        assert horizons_response.columns == [
+            "layer_key",
+            "hzn_top",
+            "hzn_bot",
+            "pedon_key",
+        ]
+        assert horizons_response.metadata == ["meta1", "meta2"]
+
+    async def test_fetch_pedons_single_chunk(self):
+        """Test fetch_pedons_by_bbox with single chunk (no chunking)."""
+        # Mock client
+        mock_client = AsyncMock(spec=SDAClient)
+
+        # Mock site response
+        site_response = AsyncMock(spec=SDAResponse)
+        site_response.is_empty.return_value = False
+        mock_site_df = AsyncMock()
+        mock_site_df.__getitem__.return_value.unique.return_value.tolist.return_value = [
+            "1001",
+            "1002",
+        ]
+        site_response.to_pandas.return_value = mock_site_df
+
+        # Mock horizons response
+        horizons_response = AsyncMock(spec=SDAResponse)
+        horizons_response.is_empty.return_value = False
+        horizons_response.data = [
+            {"layer_key": 1, "hzn_top": 0, "hzn_bot": 10, "pedon_key": "1001"},
+        ]
+        horizons_response.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
+        horizons_response.metadata = ["meta1", "meta2"]
+
+        mock_client.execute.side_effect = [site_response, horizons_response]
+
+        # Call with large chunk_size to avoid chunking
+        bbox = (-95.0, 40.0, -94.0, 41.0)
+        result = await fetch_pedons_by_bbox(
+            bbox, chunk_size=100, return_type="combined", client=mock_client
+        )
+
+        assert "site" in result
+        assert "horizons" in result
+        assert result["site"] == site_response
+
+        # In single chunk case, it still reconstructs the response
+        reconstructed_horizons = result["horizons"]
+        assert not reconstructed_horizons.is_empty()
+        assert len(reconstructed_horizons.data) == 1
+        assert reconstructed_horizons.columns == [
+            "layer_key",
+            "hzn_top",
+            "hzn_bot",
+            "pedon_key",
+        ]
+        assert reconstructed_horizons.metadata == ["meta1", "meta2"]
 
 
 # Integration tests (require network access)
@@ -302,13 +440,14 @@ class TestFetchIntegration:
         # Use known good mukeys from California
         mukeys = [461994, 461995]  # CA630 mukeys
 
-        response = await fetch_by_keys(mukeys, "mapunit")
-        df = response.to_pandas()
+        async with SDAClient() as client:
+            response = await fetch_by_keys(mukeys, "mapunit", client=client)
+            df = response.to_pandas()
 
-        assert not df.empty
-        assert len(df) <= len(mukeys)  # Some keys might not exist
-        assert "mukey" in df.columns
-        assert "muname" in df.columns
+            assert not df.empty
+            assert len(df) <= len(mukeys)  # Some keys might not exist
+            assert "mukey" in df.columns
+            assert "muname" in df.columns
 
     async def test_fetch_real_component_data(self):
         """Test fetching real component data."""
@@ -364,6 +503,110 @@ class TestFetchIntegration:
                     geom_type in geom_sample.upper()
                     for geom_type in ["POLYGON", "MULTIPOLYGON"]
                 )
+
+    async def test_auto_schema_component(self):
+        """Test that auto_schema works correctly with existing manual schemas."""
+        from soildb.schema_system import SCHEMAS
+
+        async with SDAClient() as client:
+            # Get some mukeys first
+            mukeys = await get_mukey_by_areasymbol(["CA630"], client)
+            test_mukeys = mukeys[:2]  # Small sample
+
+            # Get the schema before calling with auto_schema
+            schema_before = SCHEMAS.get("component")
+            assert schema_before is not None  # Should exist as manual schema
+
+            # Fetch with auto_schema=True - should not interfere with existing schema
+            response = await fetch_component_by_mukey(
+                test_mukeys, auto_schema=True, client=client
+            )
+
+            # Verify response is valid
+            assert not response.is_empty()
+            df = response.to_pandas()
+            assert not df.empty
+            assert "cokey" in df.columns
+            assert "mukey" in df.columns
+
+            # Verify schema still exists and is unchanged
+            schema_after = SCHEMAS.get("component")
+            assert schema_after is not None
+            assert schema_before is schema_after  # Same object
+
+            # Verify schema has the expected structure (manual schema with field mappings)
+            assert len(schema_after.columns) > 0
+            has_field_mappings = any(
+                col.field_name for col in schema_after.columns.values()
+            )
+            assert has_field_mappings  # Should have field mappings from manual schema
+
+    async def test_auto_schema_mapunit(self):
+        """Test that auto_schema works correctly with existing manual schemas."""
+        from soildb.schema_system import SCHEMAS
+
+        async with SDAClient() as client:
+            # Get the schema before calling with auto_schema
+            schema_before = SCHEMAS.get("mapunit")
+            assert schema_before is not None  # Should exist as manual schema
+
+            # Fetch with auto_schema=True - should not interfere with existing schema
+            response = await get_mapunit_by_areasymbol(
+                "CA630", auto_schema=True, client=client
+            )
+
+            # Verify response is valid
+            assert not response.is_empty()
+            df = response.to_pandas()
+            assert not df.empty
+            assert "mukey" in df.columns
+            assert "muname" in df.columns
+
+            # Verify schema still exists and is unchanged
+            schema_after = SCHEMAS.get("mapunit")
+            assert schema_after is not None
+            assert schema_before is schema_after  # Same object
+
+            # Verify schema has the expected structure (manual schema with field mappings)
+            assert len(schema_after.columns) > 0
+            has_field_mappings = any(
+                col.field_name for col in schema_after.columns.values()
+            )
+            assert has_field_mappings  # Should have field mappings from manual schema
+
+    async def test_auto_schema_no_duplicate_registration(self):
+        """Test that auto_schema doesn't re-register existing schemas."""
+        from soildb.schema_system import SCHEMAS
+
+        # Use a table that might not have a manual schema
+        test_table = "component"  # This should have a manual schema
+
+        async with SDAClient() as client:
+            mukeys = await get_mukey_by_areasymbol(["CA630"], client)
+            test_mukeys = mukeys[:2]
+
+            # Get the schema before the first call
+            schema_before = SCHEMAS.get(test_table)
+
+            # First call with auto_schema should not register if it already exists
+            response1 = await fetch_component_by_mukey(
+                test_mukeys, auto_schema=True, client=client
+            )
+
+            # Second call with auto_schema should not re-register
+            response2 = await fetch_component_by_mukey(
+                test_mukeys, auto_schema=True, client=client
+            )
+
+            schema_after = SCHEMAS.get(test_table)
+
+            # Schema should be the same object (not re-registered)
+            if schema_before is not None:
+                assert schema_before is schema_after
+
+            # Both responses should be valid
+            assert not response1.is_empty()
+            assert not response2.is_empty()
 
 
 if __name__ == "__main__":

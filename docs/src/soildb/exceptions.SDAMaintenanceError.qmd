@@ -4,4 +4,4 @@
 exceptions.SDAMaintenanceError(message, details=None)
 ```
 
-Raised when the SDA service is under maintenance.
+Raised when the SDA service is under daily (or other) maintenance.
