@@ -120,6 +120,9 @@ async def fetch_by_keys(
 
     keys_list = cast(List[Union[str, int]], keys)
 
+    if not keys_list:
+        raise FetchError("The 'keys' parameter cannot be an empty list.")
+
     if client is None:
         raise TypeError("client parameter is required")
 
