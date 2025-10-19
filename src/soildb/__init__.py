@@ -12,6 +12,16 @@ except Exception:
     __version__ = "unknown"
 
 from . import fetch, schema_inference
+from .awdb import (
+    AWDBClient,
+    AWDBError,
+    StationInfo,
+    StationTimeSeries,
+    TimeSeriesDataPoint,
+    get_monitoring_station_data,
+    get_nearby_stations,
+    list_available_variables,
+)
 from .client import SDAClient
 from .convenience import (
     get_lab_pedon_by_id,
@@ -69,6 +79,15 @@ __all__ = [
     "SpatialQuery",
     "QueryBuilder",
     "SDAResponse",
+    # AWDB (SCAN/SNOTEL) classes and functions
+    "AWDBClient",
+    "get_monitoring_station_data",
+    "get_nearby_stations",
+    "list_available_variables",
+    "AWDBError",
+    "StationInfo",
+    "TimeSeriesDataPoint",
+    "StationTimeSeries",
     # Schema inference
     "schema_inference",
     # Exceptions

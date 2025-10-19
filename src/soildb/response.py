@@ -4,9 +4,9 @@ Response handling for SDA query results with proper data type conversion.
 
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
-from dataclasses import dataclass
 
 from .exceptions import SDAResponseError
 
@@ -166,13 +166,19 @@ class SDAResponse:
                 )
 
             if len(table_data) < 2:
-                logger.warning(f"SDA response has incomplete table structure: {len(table_data)} rows")
+                logger.warning(
+                    f"SDA response has incomplete table structure: {len(table_data)} rows"
+                )
                 # Try to recover partial data
                 if len(table_data) >= 1:
-                    self._columns = table_data[0] if isinstance(table_data[0], list) else []
+                    self._columns = (
+                        table_data[0] if isinstance(table_data[0], list) else []
+                    )
                     self._metadata = []
                     self._data = []
-                    logger.info(f"Recovered column names from partial response: {self._columns}")
+                    logger.info(
+                        f"Recovered column names from partial response: {self._columns}"
+                    )
                 else:
                     raise SDAResponseError(
                         f"Invalid SDA response format: Table data has {len(table_data)} rows, minimum 2 required"
@@ -187,13 +193,17 @@ class SDAResponse:
             # Second row contains column metadata (data types, etc.)
             self._metadata = table_data[1] if len(table_data) > 1 else []
             if len(self._metadata) != len(self._columns):
-                logger.warning(f"Metadata count ({len(self._metadata)}) doesn't match column count ({len(self._columns)})")
+                logger.warning(
+                    f"Metadata count ({len(self._metadata)}) doesn't match column count ({len(self._columns)})"
+                )
 
             # Remaining rows contain actual data
             self._data = table_data[2:] if len(table_data) > 2 else []
 
             # Log parsing summary
-            logger.debug(f"Successfully parsed SDA response: {len(self._columns)} columns, {len(self._data)} rows")
+            logger.debug(
+                f"Successfully parsed SDA response: {len(self._columns)} columns, {len(self._data)} rows"
+            )
 
         except Exception as e:
             logger.error(f"Failed to parse SDA response: {e}", exc_info=True)
@@ -238,6 +248,7 @@ class SDAResponse:
     def validate_response(self) -> ValidationResult:
         """Validate the response for common issues and return detailed results."""
         import time
+
         start_time = time.time()
 
         result = ValidationResult()
@@ -263,13 +274,17 @@ class SDAResponse:
         else:
             # Check for duplicate column names
             if len(self._columns) != len(set(self._columns)):
-                duplicates = [col for col in self._columns if self._columns.count(col) > 1]
+                duplicates = [
+                    col for col in self._columns if self._columns.count(col) > 1
+                ]
                 result.add_warning(f"Duplicate column names found: {duplicates}")
                 result.add_transformation("duplicate_columns_detected")
 
             # Check for missing metadata
             if len(self._metadata) != len(self._columns):
-                result.add_warning(f"Metadata count ({len(self._metadata)}) doesn't match column count ({len(self._columns)})")
+                result.add_warning(
+                    f"Metadata count ({len(self._metadata)}) doesn't match column count ({len(self._columns)})"
+                )
                 result.add_transformation("metadata_mismatch_detected")
 
         # Validate data integrity
@@ -282,17 +297,25 @@ class SDAResponse:
 
             for i, row in enumerate(self._data):
                 total_values += len(row)
-                null_value_count += sum(1 for val in row if val is None or str(val).lower() in ['', 'null', 'none'])
+                null_value_count += sum(
+                    1
+                    for val in row
+                    if val is None or str(val).lower() in ["", "null", "none"]
+                )
 
                 if len(row) != expected_length:
                     inconsistent_rows.append(i)
 
             if inconsistent_rows:
-                result.add_warning(f"Rows with inconsistent lengths: {inconsistent_rows[:5]}{'...' if len(inconsistent_rows) > 5 else ''}")
+                result.add_warning(
+                    f"Rows with inconsistent lengths: {inconsistent_rows[:5]}{'...' if len(inconsistent_rows) > 5 else ''}"
+                )
                 result.add_transformation("inconsistent_row_lengths_detected")
 
             # Calculate data completeness
-            completeness = 1.0 - (null_value_count / total_values) if total_values > 0 else 0.0
+            completeness = (
+                1.0 - (null_value_count / total_values) if total_values > 0 else 0.0
+            )
             result.metadata["data_completeness"] = completeness
 
             if completeness < 0.8:
@@ -307,7 +330,9 @@ class SDAResponse:
         unknown_types = 0
         for col_name, sda_type in column_types.items():
             if sda_type.lower() not in self.SDA_TYPE_MAPPING:
-                result.add_warning(f"Unknown SDA data type '{sda_type}' for column '{col_name}'")
+                result.add_warning(
+                    f"Unknown SDA data type '{sda_type}' for column '{col_name}'"
+                )
                 unknown_types += 1
 
         if unknown_types > 0:
@@ -315,11 +340,15 @@ class SDAResponse:
 
         # Update processing statistics
         end_time = time.time()
-        result.update_processing_stats("validation_duration_seconds", end_time - start_time)
+        result.update_processing_stats(
+            "validation_duration_seconds", end_time - start_time
+        )
         result.update_processing_stats("columns_validated", len(self._columns))
         result.update_processing_stats("rows_validated", len(self._data))
         result.update_processing_stats("data_types_validated", len(column_types))
-        result.update_processing_stats("transformations_applied", len(result.transformations_applied))
+        result.update_processing_stats(
+            "transformations_applied", len(result.transformations_applied)
+        )
 
         # Store validation result
         self._validation_result = result
@@ -341,16 +370,30 @@ class SDAResponse:
 
         # Mapunit-specific validations
         required_columns = ["mukey", "musym", "muname"]
-        if hasattr(response_data, 'columns'):
-            missing_cols = [col for col in required_columns if col not in response_data.columns]
+        if hasattr(response_data, "columns"):
+            missing_cols = [
+                col for col in required_columns if col not in response_data.columns
+            ]
             if missing_cols:
                 result.add_error(f"Missing required mapunit columns: {missing_cols}")
 
             # Check for data in key columns
-            if hasattr(response_data, 'data') and response_data.data:
-                empty_mukeys = sum(1 for row in response_data.data if not row or str(row[response_data.columns.index("mukey")] if "mukey" in response_data.columns else "").strip() == "")
+            if hasattr(response_data, "data") and response_data.data:
+                empty_mukeys = sum(
+                    1
+                    for row in response_data.data
+                    if not row
+                    or str(
+                        row[response_data.columns.index("mukey")]
+                        if "mukey" in response_data.columns
+                        else ""
+                    ).strip()
+                    == ""
+                )
                 if empty_mukeys > 0:
-                    result.add_warning(f"{empty_mukeys} mapunits have empty mukey values")
+                    result.add_warning(
+                        f"{empty_mukeys} mapunits have empty mukey values"
+                    )
 
         return result
 
@@ -370,8 +413,10 @@ class SDAResponse:
 
         # Pedon-specific validations
         required_columns = ["pedon_id", "site_id"]
-        if hasattr(response_data, 'columns'):
-            missing_cols = [col for col in required_columns if col not in response_data.columns]
+        if hasattr(response_data, "columns"):
+            missing_cols = [
+                col for col in required_columns if col not in response_data.columns
+            ]
             if missing_cols:
                 result.add_error(f"Missing required pedon columns: {missing_cols}")
 
@@ -384,7 +429,11 @@ class SDAResponse:
         return result
 
     @staticmethod
-    def handle_missing_fields(data: Dict[str, Any], required_fields: List[str], fallback_values: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], List[str]]:
+    def handle_missing_fields(
+        data: Dict[str, Any],
+        required_fields: List[str],
+        fallback_values: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[Dict[str, Any], List[str]]:
         """Handle missing required fields with fallbacks or defaults.
 
         Args:
@@ -400,17 +449,27 @@ class SDAResponse:
         fallback_values = fallback_values or {}
 
         for field in required_fields:
-            if field not in data or data[field] is None or str(data[field]).strip() == "":
+            if (
+                field not in data
+                or data[field] is None
+                or str(data[field]).strip() == ""
+            ):
                 if field in fallback_values:
                     processed_data[field] = fallback_values[field]
-                    logger.warning(f"Using fallback value for missing field '{field}': {fallback_values[field]}")
+                    logger.warning(
+                        f"Using fallback value for missing field '{field}': {fallback_values[field]}"
+                    )
                 else:
                     missing_fields.append(field)
-                    logger.error(f"Required field '{field}' is missing and no fallback provided")
+                    logger.error(
+                        f"Required field '{field}' is missing and no fallback provided"
+                    )
 
         return processed_data, missing_fields
 
-    def validate_transformed_data(self, data_dicts: List[Dict[str, Any]]) -> ValidationResult:
+    def validate_transformed_data(
+        self, data_dicts: List[Dict[str, Any]]
+    ) -> ValidationResult:
         """Validate transformed data dictionaries for consistency and data quality.
 
         Args:
@@ -439,10 +498,14 @@ class SDAResponse:
                 if schema_inconsistencies <= 5:  # Limit logging
                     missing = expected_keys - record_keys
                     extra = record_keys - expected_keys
-                    logger.warning(f"Schema inconsistency in record {i}: missing={missing}, extra={extra}")
+                    logger.warning(
+                        f"Schema inconsistency in record {i}: missing={missing}, extra={extra}"
+                    )
 
         if schema_inconsistencies > 0:
-            result.add_warning(f"{schema_inconsistencies} records have inconsistent schemas")
+            result.add_warning(
+                f"{schema_inconsistencies} records have inconsistent schemas"
+            )
 
         # Validate data types and ranges for known columns
         column_types = self.get_column_types()
@@ -462,10 +525,22 @@ class SDAResponse:
 
                 # Type validation
                 if value is not None:
-                    if sda_type_lower in ["int", "integer", "bigint", "smallint", "tinyint"]:
+                    if sda_type_lower in [
+                        "int",
+                        "integer",
+                        "bigint",
+                        "smallint",
+                        "tinyint",
+                    ]:
                         if not isinstance(value, int):
                             violations += 1
-                    elif sda_type_lower in ["float", "real", "double", "decimal", "numeric"]:
+                    elif sda_type_lower in [
+                        "float",
+                        "real",
+                        "double",
+                        "decimal",
+                        "numeric",
+                    ]:
                         if not isinstance(value, (int, float)):
                             violations += 1
                     elif sda_type_lower == "bit":
@@ -477,9 +552,14 @@ class SDAResponse:
                         if isinstance(value, (int, float)) and not (-90 <= value <= 90):
                             range_issues += 1
                     elif col_name.lower() in ["longitude", "lon", "lng"]:
-                        if isinstance(value, (int, float)) and not (-180 <= value <= 180):
+                        if isinstance(value, (int, float)) and not (
+                            -180 <= value <= 180
+                        ):
                             range_issues += 1
-                    elif col_name.lower().endswith("_depth") or col_name.lower() in ["hzdept_r", "hzdepb_r"]:
+                    elif col_name.lower().endswith("_depth") or col_name.lower() in [
+                        "hzdept_r",
+                        "hzdepb_r",
+                    ]:
                         if isinstance(value, (int, float)) and value < 0:
                             range_issues += 1
 
@@ -494,7 +574,9 @@ class SDAResponse:
             result.add_warning(f"Range violations found: {range_violations}")
 
         # Calculate overall data quality
-        total_violations = sum(type_violations.values()) + sum(range_violations.values())
+        total_violations = sum(type_violations.values()) + sum(
+            range_violations.values()
+        )
         total_values = len(data_dicts) * len(expected_keys)
 
         if total_values > 0:
@@ -531,7 +613,7 @@ class SDAResponse:
 
                 # Convert values based on inferred types
                 converted_row = {}
-                for col_idx, (col_name, value) in enumerate(
+                for _col_idx, (col_name, value) in enumerate(
                     zip(self._columns, padded_row[: len(self._columns)])
                 ):
                     try:
@@ -541,20 +623,27 @@ class SDAResponse:
                     except Exception as e:
                         # Log conversion error but continue with original value
                         if conversion_errors < max_errors:
-                            logger.warning(f"Failed to convert value in row {row_idx}, column '{col_name}' (type: {sda_type}): {value} -> {e}")
+                            logger.warning(
+                                f"Failed to convert value in row {row_idx}, column '{col_name}' (type: {sda_type}): {value} -> {e}"
+                            )
                         conversion_errors += 1
                         converted_row[col_name] = value  # Keep original value
 
                 result.append(converted_row)
 
             except Exception as e:
-                logger.error(f"Failed to process row {row_idx}: {e}", exc_info=conversion_errors < max_errors)
+                logger.error(
+                    f"Failed to process row {row_idx}: {e}",
+                    exc_info=conversion_errors < max_errors,
+                )
                 conversion_errors += 1
                 # Skip malformed rows but continue processing
                 continue
 
         if conversion_errors > 0:
-            logger.warning(f"Encountered {conversion_errors} conversion errors during processing")
+            logger.warning(
+                f"Encountered {conversion_errors} conversion errors during processing"
+            )
 
         # Validate transformed data if requested
         if len(result) > 0:
@@ -562,7 +651,7 @@ class SDAResponse:
             if not data_validation.is_valid():
                 logger.warning(f"Data validation found issues: {data_validation}")
             # Store validation result
-            if not hasattr(self, '_data_validation_result'):
+            if not hasattr(self, "_data_validation_result"):
                 self._data_validation_result = data_validation
 
         return result
@@ -573,7 +662,11 @@ class SDAResponse:
 
     def _convert_value(self, value: Any, sda_type: str) -> Any:
         """Convert a single value based on SDA data type with enhanced error handling."""
-        if value is None or value == "" or str(value).lower() in ["null", "none", "nan"]:
+        if (
+            value is None
+            or value == ""
+            or str(value).lower() in ["null", "none", "nan"]
+        ):
             return None
 
         sda_type = sda_type.lower().strip()
@@ -588,7 +681,8 @@ class SDAResponse:
                     str_val = str(value).strip()
                     # Remove common suffixes/prefixes that might prevent conversion
                     import re
-                    numeric_match = re.search(r'[-+]?\d*\.?\d+', str_val)
+
+                    numeric_match = re.search(r"[-+]?\d*\.?\d+", str_val)
                     if numeric_match:
                         try:
                             return int(float(numeric_match.group()))
@@ -622,7 +716,7 @@ class SDAResponse:
                     # Try to clean the value
                     str_val = str(value).strip()
                     # Remove currency symbols and commas
-                    cleaned = str_val.replace('$', '').replace(',', '').replace(' ', '')
+                    cleaned = str_val.replace("$", "").replace(",", "").replace(" ", "")
                     try:
                         return float(cleaned)
                     except (ValueError, TypeError):
@@ -661,7 +755,8 @@ class SDAResponse:
                     # If no format worked, try pandas (if available) for more flexible parsing
                     try:
                         import pandas as pd
-                        return pd.to_datetime(value, errors='coerce')
+
+                        return pd.to_datetime(value, errors="coerce")
                     except (ImportError, Exception):
                         pass
 
@@ -680,7 +775,9 @@ class SDAResponse:
 
         except Exception as e:
             # Log unexpected conversion errors but return original value
-            logger.debug(f"Unexpected error converting value '{value}' of type '{sda_type}': {e}")
+            logger.debug(
+                f"Unexpected error converting value '{value}' of type '{sda_type}': {e}"
+            )
             return value if value is not None else None
 
     def _get_pandas_dtype_mapping(self) -> Dict[str, str]:
@@ -944,8 +1041,12 @@ class SDAResponse:
                 if missing_col in fallbacks:
                     for fallback in fallbacks[missing_col]:
                         if fallback in horizons_df.columns:
-                            logger.info(f"Using fallback column '{fallback}' for required column '{missing_col}'")
-                            horizons_df = horizons_df.rename(columns={fallback: missing_col})
+                            logger.info(
+                                f"Using fallback column '{fallback}' for required column '{missing_col}'"
+                            )
+                            horizons_df = horizons_df.rename(
+                                columns={fallback: missing_col}
+                            )
                             found_fallback = True
                             break
 
@@ -962,17 +1063,17 @@ class SDAResponse:
 
         # Validate depth values
         try:
-            top_depths = pd.to_numeric(horizons_df[hz_top_col], errors='coerce')
-            bottom_depths = pd.to_numeric(horizons_df[hz_bot_col], errors='coerce')
+            top_depths = pd.to_numeric(horizons_df[hz_top_col], errors="coerce")
+            bottom_depths = pd.to_numeric(horizons_df[hz_bot_col], errors="coerce")
 
             invalid_depths = (
-                top_depths.isna() |
-                bottom_depths.isna() |
-                (top_depths >= bottom_depths)
+                top_depths.isna() | bottom_depths.isna() | (top_depths >= bottom_depths)
             ).sum()
 
             if invalid_depths > 0:
-                logger.warning(f"Found {invalid_depths} horizon records with invalid depth values")
+                logger.warning(
+                    f"Found {invalid_depths} horizon records with invalid depth values"
+                )
 
         except Exception as e:
             logger.warning(f"Could not validate depth values: {e}")
@@ -1052,7 +1153,9 @@ class SDAResponse:
             "warnings": result.warnings[:10],  # Limit to first 10 warnings
         }
 
-    def recover_partial_data(self, max_errors: int = 10) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def recover_partial_data(
+        self, max_errors: int = 10
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Attempt to recover partial data by skipping malformed records.
 
         Args:
@@ -1079,7 +1182,7 @@ class SDAResponse:
                 converted_row = {}
                 row_errors = []
 
-                for col_idx, (col_name, value) in enumerate(
+                for _col_idx, (col_name, value) in enumerate(
                     zip(self._columns, padded_row[: len(self._columns)])
                 ):
                     try:
@@ -1087,21 +1190,21 @@ class SDAResponse:
                         converted_value = self._convert_value(value, sda_type)
                         converted_row[col_name] = converted_value
                     except Exception as e:
-                        row_errors.append({
-                            "column": col_name,
-                            "value": value,
-                            "error": str(e)
-                        })
+                        row_errors.append(
+                            {"column": col_name, "value": value, "error": str(e)}
+                        )
                         # Use fallback value
                         converted_row[col_name] = value if value is not None else None
 
                 if row_errors:
-                    error_records.append({
-                        "row_index": row_idx,
-                        "original_row": row,
-                        "converted_row": converted_row,
-                        "errors": row_errors
-                    })
+                    error_records.append(
+                        {
+                            "row_index": row_idx,
+                            "original_row": row,
+                            "converted_row": converted_row,
+                            "errors": row_errors,
+                        }
+                    )
 
                 valid_records.append(converted_row)
 
@@ -1109,23 +1212,23 @@ class SDAResponse:
                 error_count += 1
                 if error_count <= max_errors:
                     logger.warning(f"Skipping malformed row {row_idx}: {e}")
-                    error_records.append({
-                        "row_index": row_idx,
-                        "original_row": row,
-                        "error": str(e)
-                    })
+                    error_records.append(
+                        {"row_index": row_idx, "original_row": row, "error": str(e)}
+                    )
                 else:
                     logger.error(f"Too many errors ({error_count}), stopping recovery")
                     break
 
-        logger.info(f"Partial data recovery: {len(valid_records)} valid records, {len(error_records)} error records")
+        logger.info(
+            f"Partial data recovery: {len(valid_records)} valid records, {len(error_records)} error records"
+        )
         return valid_records, error_records
 
     @staticmethod
     def find_fallback_columns(
         available_columns: List[str],
         preferred_columns: List[str],
-        fallback_mappings: Optional[Dict[str, List[str]]] = None
+        fallback_mappings: Optional[Dict[str, List[str]]] = None,
     ) -> Dict[str, str]:
         """Find fallback column names when preferred columns are not available.
 
@@ -1165,20 +1268,29 @@ class SDAResponse:
                 for fallback in default_fallbacks.get(preferred, []):
                     if fallback in available_columns:
                         mappings[preferred] = fallback
-                        logger.info(f"Using fallback column '{fallback}' for preferred '{preferred}'")
+                        logger.info(
+                            f"Using fallback column '{fallback}' for preferred '{preferred}'"
+                        )
                         break
                 else:
                     # Look for case-insensitive matches
                     preferred_lower = preferred.lower()
                     if preferred_lower in available_lower:
                         mappings[preferred] = available_lower[preferred_lower]
-                        logger.info(f"Using case-insensitive match '{available_lower[preferred_lower]}' for '{preferred}'")
+                        logger.info(
+                            f"Using case-insensitive match '{available_lower[preferred_lower]}' for '{preferred}'"
+                        )
                     else:
                         # Look for partial matches
                         for avail_col in available_columns:
-                            if preferred_lower in avail_col.lower() or avail_col.lower() in preferred_lower:
+                            if (
+                                preferred_lower in avail_col.lower()
+                                or avail_col.lower() in preferred_lower
+                            ):
                                 mappings[preferred] = avail_col
-                                logger.info(f"Using partial match '{avail_col}' for preferred '{preferred}'")
+                                logger.info(
+                                    f"Using partial match '{avail_col}' for preferred '{preferred}'"
+                                )
                                 break
 
         return mappings
