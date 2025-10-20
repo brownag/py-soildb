@@ -19,19 +19,25 @@ API Documentation:
 
 from .client import AWDBClient
 from .convenience import (
+    find_stations_by_criteria,
     get_monitoring_station_data,
     get_nearby_stations,
+    get_soil_moisture_data,
     list_available_variables,
 )
 from .exceptions import AWDBError
-from .models import StationInfo, StationTimeSeries, TimeSeriesDataPoint
+from .models import ForecastData, ReferenceData, StationInfo, StationTimeSeries, TimeSeriesDataPoint
 
 __all__ = [
     "AWDBClient",
+    "find_stations_by_criteria",
     "get_monitoring_station_data",
     "get_nearby_stations",
+    "get_soil_moisture_data",
     "list_available_variables",
     "AWDBError",
+    "ForecastData",
+    "ReferenceData",
     "StationInfo",
     "TimeSeriesDataPoint",
     "StationTimeSeries",
