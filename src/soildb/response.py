@@ -4,7 +4,7 @@ Response handling for SDA query results with proper data type conversion.
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
@@ -29,24 +29,12 @@ logger = logging.getLogger(__name__)
 class ValidationResult:
     """Result of response validation with warnings and errors."""
 
-    errors: List[str] = None
-    warnings: List[str] = None
-    metadata: Dict[str, Any] = None
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     data_quality_score: float = 1.0  # 1.0 = perfect, 0.0 = unusable
-    transformations_applied: List[str] = None
-    processing_stats: Dict[str, Any] = None
-
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
-        if self.warnings is None:
-            self.warnings = []
-        if self.metadata is None:
-            self.metadata = {}
-        if self.transformations_applied is None:
-            self.transformations_applied = []
-        if self.processing_stats is None:
-            self.processing_stats = {}
+    transformations_applied: List[str] = field(default_factory=list)
+    processing_stats: Dict[str, Any] = field(default_factory=dict)
 
     def add_error(self, error: str) -> None:
         """Add a validation error."""
@@ -138,6 +126,9 @@ class SDAResponse:
         self._validation_result: Optional[ValidationResult] = None
         self._transformations_applied: List[str] = []
         self._processing_stats: Dict[str, Any] = {}
+        self._columns: List[str] = []
+        self._metadata: List[str] = []
+        self._data: List[List[Any]] = []
         self._parse_response()
 
     def _parse_response(self) -> None:
@@ -148,8 +139,8 @@ class SDAResponse:
                 if self._raw_data == {}:
                     logger.debug("Received empty SDA response (no results)")
                     # Empty result set
-                    self._columns: List[str] = []
-                    self._metadata: List[str] = []
+                    self._columns = []
+                    self._metadata = []
                     self._data = []
                     return
                 else:
@@ -319,10 +310,10 @@ class SDAResponse:
             result.metadata["data_completeness"] = completeness
 
             if completeness < 0.8:
-                result.add_error(".1f")
+                result.add_error(f"Data completeness too low: {completeness:.1%}")
                 result.add_transformation("low_data_completeness_detected")
             elif completeness < 0.95:
-                result.add_warning(".1f")
+                result.add_warning(f"Data completeness moderate: {completeness:.1%}")
                 result.add_transformation("moderate_data_completeness_detected")
 
         # Validate data types
@@ -448,21 +439,21 @@ class SDAResponse:
         missing_fields = []
         fallback_values = fallback_values or {}
 
-        for field in required_fields:
+        for required_field in required_fields:
             if (
-                field not in data
-                or data[field] is None
-                or str(data[field]).strip() == ""
+                required_field not in data
+                or data[required_field] is None
+                or str(data[required_field]).strip() == ""
             ):
-                if field in fallback_values:
-                    processed_data[field] = fallback_values[field]
+                if required_field in fallback_values:
+                    processed_data[required_field] = fallback_values[required_field]
                     logger.warning(
-                        f"Using fallback value for missing field '{field}': {fallback_values[field]}"
+                        f"Using fallback value for missing field '{required_field}': {fallback_values[required_field]}"
                     )
                 else:
-                    missing_fields.append(field)
+                    missing_fields.append(required_field)
                     logger.error(
-                        f"Required field '{field}' is missing and no fallback provided"
+                        f"Required field '{required_field}' is missing and no fallback provided"
                     )
 
         return processed_data, missing_fields
@@ -582,9 +573,9 @@ class SDAResponse:
         if total_values > 0:
             violation_rate = total_violations / total_values
             if violation_rate > 0.1:  # More than 10% violations
-                result.add_error(".1%")
+                result.add_error(f"Data violation rate too high: {violation_rate:.1%}")
             elif violation_rate > 0.05:  # More than 5% violations
-                result.add_warning(".1%")
+                result.add_warning(f"Data violation rate moderate: {violation_rate:.1%}")
 
         return result
 
@@ -1122,6 +1113,7 @@ class SDAResponse:
         """Get the validation result for this response."""
         if self._validation_result is None:
             self.validate_response()
+        assert self._validation_result is not None  # validate_response() should have set this
         return self._validation_result
 
     @property
