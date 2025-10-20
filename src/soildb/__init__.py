@@ -15,11 +15,15 @@ from . import fetch, schema_inference
 from .awdb import (
     AWDBClient,
     AWDBError,
+    ForecastData,
+    ReferenceData,
     StationInfo,
     StationTimeSeries,
     TimeSeriesDataPoint,
+    find_stations_by_criteria,
     get_monitoring_station_data,
     get_nearby_stations,
+    get_soil_moisture_data,
     list_available_variables,
 )
 from .client import SDAClient
@@ -81,10 +85,14 @@ __all__ = [
     "SDAResponse",
     # AWDB (SCAN/SNOTEL) classes and functions
     "AWDBClient",
+    "find_stations_by_criteria",
     "get_monitoring_station_data",
     "get_nearby_stations",
+    "get_soil_moisture_data",
     "list_available_variables",
     "AWDBError",
+    "ForecastData",
+    "ReferenceData",
     "StationInfo",
     "TimeSeriesDataPoint",
     "StationTimeSeries",
