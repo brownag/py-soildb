@@ -270,7 +270,7 @@ SCHEMAS = {
                 Optional[str],
                 to_optional_str,
                 default=True,
-                field_name="series",
+                field_name="taxonname",
             ),
             "latitude_decimal_degrees": ColumnSchema(
                 "latitude_decimal_degrees",
@@ -291,7 +291,7 @@ SCHEMAS = {
                 Optional[str],
                 to_optional_str,
                 default=True,
-                field_name="soil_classification",
+                field_name="taxclname",
             ),
         },
     ),
