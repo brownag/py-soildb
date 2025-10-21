@@ -255,9 +255,7 @@ class TestAWDBClient:
         )
 
         assert len(data) == 1
-        assert data[0].timestamp == datetime(
-            2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc
-        )
+        assert data[0].timestamp == datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
     @patch("httpx.AsyncClient")
     @pytest.mark.asyncio
@@ -364,6 +362,7 @@ class TestConvenienceFunctions:
 
         # Mock get_station_data - now returns TimeSeriesDataPoint objects
         from soildb.awdb.models import TimeSeriesDataPoint
+
         mock_client.get_station_data.return_value = [
             TimeSeriesDataPoint(timestamp=datetime(2023, 1, 1), value=25.5, flags=[]),
             TimeSeriesDataPoint(timestamp=datetime(2023, 1, 2), value=26.0, flags=[]),
