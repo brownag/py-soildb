@@ -16,6 +16,7 @@ from .query import Query, QueryBuilder
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
 from .schema_system import SCHEMAS, get_schema
+from .utils import add_sync_version
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class FetchError(SoilDBError):
         return self.message
 
 
+@add_sync_version
 async def fetch_by_keys(
     keys: Union[Sequence[Union[str, int]], str, int],
     table: str,
@@ -269,6 +271,7 @@ def _get_geometry_column_for_table(table: str) -> Optional[str]:
 
 
 # Specialized functions for common use cases
+@add_sync_version
 async def fetch_mapunit_polygon(
     mukeys: Union[List[Union[str, int]], Union[str, int]],
     columns: Optional[Union[str, List[str]]] = None,
@@ -308,6 +311,7 @@ async def fetch_mapunit_polygon(
     )
 
 
+@add_sync_version
 async def fetch_component_by_mukey(
     mukeys: Union[List[Union[str, int]], Union[str, int]],
     columns: Optional[Union[str, List[str]]] = None,
@@ -374,6 +378,7 @@ async def fetch_component_by_mukey(
     return response
 
 
+@add_sync_version
 async def fetch_chorizon_by_cokey(
     cokeys: Union[List[Union[str, int]], Union[str, int]],
     columns: Optional[Union[str, List[str]]] = None,
@@ -411,6 +416,7 @@ async def fetch_chorizon_by_cokey(
     )
 
 
+@add_sync_version
 async def fetch_survey_area_polygon(
     areasymbols: Union[List[str], str],
     columns: Optional[Union[str, List[str]]] = None,
@@ -454,6 +460,7 @@ async def fetch_survey_area_polygon(
     )
 
 
+@add_sync_version
 async def fetch_pedons_by_bbox(
     bbox: Tuple[float, float, float, float],
     columns: Optional[List[str]] = None,
@@ -598,6 +605,7 @@ async def fetch_pedons_by_bbox(
     return site_response
 
 
+@add_sync_version
 async def fetch_pedon_horizons(
     pedon_keys: Union[List[str], str],
     client: Optional[SDAClient] = None,
@@ -623,6 +631,7 @@ async def fetch_pedon_horizons(
 
 
 # Bulk key extraction helpers
+@add_sync_version
 async def get_mukey_by_areasymbol(
     areasymbols: List[str], client: Optional[SDAClient] = None
 ) -> List[int]:
@@ -653,6 +662,7 @@ async def get_mukey_by_areasymbol(
     return df["mukey"].tolist() if not df.empty else []
 
 
+@add_sync_version
 async def get_cokey_by_mukey(
     mukeys: Union[List[Union[str, int]], Union[str, int]],
     major_components_only: bool = True,

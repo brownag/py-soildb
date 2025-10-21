@@ -19,12 +19,14 @@ from . import (
 from .client import SDAClient
 from .models import (
     AggregateHorizon,
+    AggregateHorizon,
     HorizonProperty,
     MapUnitComponent,
     PedonData,
     SoilMapUnit,
 )
 from .schema_system import PedonHorizon, get_schema  # type: ignore
+from .utils import add_sync_version
 
 
 def _create_pedon_horizon_from_row(
@@ -87,6 +89,7 @@ def _create_pedon_horizon_from_row(
     )
 
 
+@add_sync_version
 async def fetch_mapunit_struct_by_point(
     latitude: float,
     longitude: float,
@@ -306,6 +309,7 @@ async def fetch_mapunit_struct_by_point(
     return map_unit  # type: ignore
 
 
+@add_sync_version
 async def fetch_pedon_struct_by_bbox(
     min_x: float,
     min_y: float,
@@ -411,6 +415,7 @@ async def fetch_pedon_struct_by_bbox(
     return pedons
 
 
+@add_sync_version
 async def fetch_pedon_struct_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
