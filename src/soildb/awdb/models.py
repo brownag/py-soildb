@@ -32,7 +32,7 @@ class StationInfo:
     end_date: Optional[str] = None
     forecast_point: Optional[Dict[str, Any]] = None
     reservoir_metadata: Optional[Dict[str, Any]] = None
-    station_elements: Optional[List[Dict[str, Any]]] = None
+    station_elements: Optional[List[Dict[str, Any]]] = None  # type: ignore
 
 
 @dataclass

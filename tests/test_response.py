@@ -344,12 +344,12 @@ class TestSoilProfileCollectionIntegration:
         assert "compname" in spc.site.columns
 
     def test_to_soilprofilecollection_empty_response(self):
-        """Test that an empty response raises a KeyError due to missing columns."""
+        """Test that an empty response raises a ValueError due to missing columns."""
         try:
             from soilprofilecollection import SoilProfileCollection  # noqa
         except ImportError:
             pytest.skip("soilprofilecollection not installed")
 
         response = SDAResponse(MOCK_EMPTY_RESPONSE)
-        with pytest.raises(KeyError, match="Horizon data missing required columns"):
+        with pytest.raises(ValueError, match="Missing required columns for SoilProfileCollection"):
             response.to_soilprofilecollection()

@@ -813,8 +813,7 @@ async def list_available_variables(station_triplet: str) -> List[Dict]:
         for property_name in sensors_dict.keys():
             sensors_list = sensors_dict[property_name]
             if isinstance(sensors_list, list):
-                # Type assertion: sensors_list is a List[Dict[str, Any]] here
-                sensors: List[Dict[str, Any]] = sensors_list  # type: ignore
+                sensors = sensors_list
                 if property_name.startswith("unknown_"):
                     # Unknown element codes
                     element_code = property_name.replace("unknown_", "")
