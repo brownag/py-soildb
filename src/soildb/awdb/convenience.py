@@ -3,7 +3,7 @@ High-level convenience functions for AWDB data access.
 """
 
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, cast
 
 from .client import AWDBClient
 from .exceptions import AWDBError
@@ -277,43 +277,44 @@ async def find_stations_by_criteria(
             }
 
             # Add sensor metadata if requested
-            if include_sensor_metadata and station.station_elements:
-                try:
-                    # Convert raw station elements to organized sensor metadata
-                    sensors_by_property = {}
-                    for elem in station.station_elements:
-                        element_code = elem.get('elementCode', '')
-                        property_name = None
+            if include_sensor_metadata:
+                if station.station_elements:
+                    try:
+                        # Convert raw station elements to organized sensor metadata
+                        sensors_by_property: Dict[str, List[Dict[str, Any]]] = {}
+                        for elem in station.station_elements:  # type: ignore
+                            element_code = elem.get('elementCode', '')
+                            property_name = None
 
-                        # Map element code to property name
-                        for prop_name, elem_code in PROPERTY_ELEMENT_MAP.items():
-                            if elem_code == element_code:
-                                property_name = prop_name
-                                break
+                            # Map element code to property name
+                            for prop_name, elem_code in PROPERTY_ELEMENT_MAP.items():
+                                if elem_code == element_code:
+                                    property_name = prop_name
+                                    break
 
-                        if not property_name:
-                            property_name = f"unknown_{element_code}"
+                            if not property_name:
+                                property_name = f"unknown_{element_code}"
 
-                        if property_name not in sensors_by_property:
-                            sensors_by_property[property_name] = []
+                            if property_name not in sensors_by_property:
+                                sensors_by_property[property_name] = []
 
-                        sensor_info = {
-                            'element_code': element_code,
-                            'ordinal': elem.get('ordinal', 1),
-                            'height_depth_inches': elem.get('heightDepth'),
-                            'begin_date': elem.get('beginDate'),
-                            'end_date': elem.get('endDate'),
-                            'data_precision': elem.get('dataPrecision'),
-                            'stored_unit_code': elem.get('storedUnitCode'),
-                            'original_unit_code': elem.get('originalUnitCode'),
-                            'derived_data': elem.get('derivedData', False),
-                        }
+                            sensor_info = {
+                                'element_code': element_code,
+                                'ordinal': elem.get('ordinal', 1),
+                                'height_depth_inches': elem.get('heightDepth'),
+                                'begin_date': elem.get('beginDate'),
+                                'end_date': elem.get('endDate'),
+                                'data_precision': elem.get('dataPrecision'),
+                                'stored_unit_code': elem.get('storedUnitCode'),
+                                'original_unit_code': elem.get('originalUnitCode'),
+                                'derived_data': elem.get('derivedData', False),
+                            }
 
-                        sensors_by_property[property_name].append(sensor_info)
+                            sensors_by_property[property_name].append(sensor_info)
 
-                    station_dict["sensor_metadata"] = sensors_by_property
-                except Exception as e:
-                    station_dict["sensor_metadata"] = {"error": str(e)}
+                        station_dict["sensor_metadata"] = sensors_by_property
+                    except Exception as e:
+                        station_dict["sensor_metadata"] = {"error": str(e)}
 
             result.append(station_dict)
 
@@ -409,8 +410,8 @@ async def get_station_soil_depths(station_triplet: str, property_name: str = "so
 async def get_soil_moisture_data(
     station_triplet: str,
     depths_inches: Optional[List[int]] = None,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> Dict:
     """
     Get soil moisture data for multiple depths at a station.
@@ -454,7 +455,7 @@ async def get_soil_moisture_data(
     async with AWDBClient() as client:
         from datetime import datetime
 
-        result = {
+        result: Dict[str, Any] = {
             'station_triplet': station_triplet,
             'depths': {},
             'metadata': {
@@ -680,9 +681,11 @@ async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> s
     """
     try:
         ref_data = await client.get_reference_data(['elements'])
-        for elem in ref_data.elements:
-            if elem['code'] == element_code:
-                return elem.get('englishUnitCode', elem.get('storedUnitCode', ''))
+        if ref_data.elements:
+            for elem in ref_data.elements:
+                if elem['code'] == element_code:
+                    unit = elem.get('englishUnitCode', elem.get('storedUnitCode', ''))
+                    return str(unit) if unit else ''
         return ''  # Not found
     except Exception:
         # Fallback to hardcoded units if API fails
@@ -690,7 +693,7 @@ async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> s
 
 
 @add_sync_version
-async def get_station_sensor_metadata(station_triplet: str) -> Dict:
+async def get_station_sensor_metadata(station_triplet: str) -> Dict[str, Any]:
     """
     Get comprehensive sensor metadata for a station.
 
@@ -711,9 +714,9 @@ async def get_station_sensor_metadata(station_triplet: str) -> Dict:
             return {"station_triplet": station_triplet, "sensors": {}}
 
         station = stations[0]
-        sensors_by_property = {}
+        sensors_by_property: Dict[str, List[Dict[str, Any]]] = {}
 
-        for elem in station.station_elements:
+        for elem in station.station_elements:  # type: ignore
             element_code = elem.get('elementCode', '')
             property_name = None
 
@@ -765,27 +768,34 @@ async def list_available_variables(station_triplet: str) -> List[Dict]:
     metadata = await get_station_sensor_metadata(station_triplet)
 
     variables = []
-    for property_name, sensors in metadata["sensors"].items():
-        if property_name.startswith("unknown_"):
-            # Unknown element codes
-            element_code = property_name.replace("unknown_", "")
-            variables.append({
-                "property_name": property_name,
-                "element_code": element_code,
-                "unit": "",
-                "description": f"Unknown element {element_code}",
-                "sensors": sensors,
-            })
-        else:
-            # Known properties
-            element_code = PROPERTY_ELEMENT_MAP.get(property_name, "")
-            unit = await get_property_unit_from_api(AWDBClient(), element_code) or PROPERTY_UNITS.get(property_name, "")
-            variables.append({
-                "property_name": property_name,
-                "element_code": element_code,
-                "unit": unit,
-                "description": f"{property_name.replace('_', ' ').title()}",
-                "sensors": sensors,
-            })
+    sensors_dict = metadata.get("sensors", {})
+    if sensors_dict:
+        for property_name in sensors_dict.keys():
+            sensors_list = sensors_dict[property_name]
+            if isinstance(sensors_list, list) and sensors_list is not None:
+                # Type assertion: sensors_list is a List[Dict[str, Any]] here
+                sensors: List[Dict[str, Any]] = sensors_list  # type: ignore
+                if property_name.startswith("unknown_"):
+                    # Unknown element codes
+                    element_code = property_name.replace("unknown_", "")
+                    variables.append({
+                        "property_name": property_name,
+                        "element_code": element_code,
+                        "unit": "",
+                        "description": f"Unknown element {element_code}",
+                        "sensors": sensors,  # type: ignore
+                    })
+                else:
+                    # Known properties
+                    element_code = PROPERTY_ELEMENT_MAP.get(property_name, "")
+                    api_unit = await get_property_unit_from_api(AWDBClient(), element_code)
+                    unit = str(api_unit) if api_unit else PROPERTY_UNITS.get(property_name, "")
+                    variables.append({
+                        "property_name": property_name,
+                        "element_code": element_code,
+                        "unit": unit,
+                        "description": f"{property_name.replace('_', ' ').title()}",
+                        "sensors": sensors,  # type: ignore
+                    })
 
     return variables
