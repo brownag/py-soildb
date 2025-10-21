@@ -426,7 +426,7 @@ class TestConvenienceFunctions:
         # This test will fail in mock environment since it tries to call real API
         # In a real environment, this would work, but for testing we skip the assertion
         try:
-            variables = await list_available_variables("1234:UT:SNTL")
+            variables = await list_available_variables("301:CA:SNTL")
             # If we get here, the API call succeeded, so we can test
             if len(variables) > 0:
                 # Check that soil_moisture is included
@@ -442,3 +442,79 @@ class TestConvenienceFunctions:
         except Exception:
             # API call failed (expected in test environment), skip assertions
             pass
+
+    def test_property_element_map_validation(self):
+        """Test that PROPERTY_ELEMENT_MAP contains expected properties."""
+        from soildb.awdb.convenience import PROPERTY_ELEMENT_MAP, PROPERTY_UNITS
+
+        # Test that core properties exist
+        core_properties = [
+            "soil_moisture",
+            "air_temp",
+            "precipitation",
+            "snow_depth",
+            "snow_water_equivalent",
+        ]
+
+        for prop in core_properties:
+            assert prop in PROPERTY_ELEMENT_MAP, f"Missing core property: {prop}"
+            assert prop in PROPERTY_UNITS, f"Missing units for core property: {prop}"
+
+    @pytest.mark.asyncio
+    async def test_parameter_validation(self):
+        """Test parameter validation for client methods."""
+        client = AWDBClient()
+
+        # Test invalid coordinates in find_nearby_stations
+        with pytest.raises(ValueError, match="Latitude must be between"):
+            await client.find_nearby_stations(latitude=91, longitude=0)
+
+        with pytest.raises(ValueError, match="Longitude must be between"):
+            await client.find_nearby_stations(latitude=0, longitude=181)
+
+    @pytest.mark.asyncio
+    async def test_convenience_function_property_validation(self):
+        """Test that convenience functions validate properties correctly."""
+        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.exceptions import AWDBError
+
+        # Test invalid property
+        with pytest.raises(AWDBError, match="Unsupported property"):
+            await get_monitoring_station_data(
+                latitude=40.0,
+                longitude=-120.0,
+                property_name="invalid_property",
+                start_date="2023-01-01",
+                end_date="2023-01-31",
+            )
+
+    @pytest.mark.asyncio
+    async def test_data_format_compatibility(self):
+        """Test that AWDB data format works with basic analysis operations."""
+        from datetime import datetime
+
+        from soildb.awdb.models import TimeSeriesDataPoint
+
+        # Create sample data points
+        data_points = [
+            TimeSeriesDataPoint(
+                timestamp=datetime(2023, 1, i + 1),  # Days 1-5
+                value=15.0 + i * 0.5,
+                flags=["QC:V"],
+                qc_flag="V",
+            )
+            for i in range(5)  # Small sample for testing
+        ]
+
+        # Test basic data processing operations
+        values = [dp.value for dp in data_points if dp.value is not None]
+        assert len(values) == len(data_points)
+
+        # Test statistical calculations
+        if values:
+            avg_value = sum(values) / len(values)
+            assert isinstance(avg_value, (int, float))
+
+        # Test quality flag extraction
+        quality_flags = [dp.qc_flag for dp in data_points if dp.qc_flag]
+        assert len(quality_flags) > 0
