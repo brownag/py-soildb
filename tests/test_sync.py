@@ -36,6 +36,7 @@ class TestSyncWrappers:
         with pytest.raises(SyncUsageError, match="existing asyncio event loop"):
             soildb.get_sacatalog.sync()
 
+    @pytest.mark.integration
     def test_sync_with_explicit_client(self):
         """Test that sync works with explicitly provided client."""
         client = SDAClient()
@@ -58,6 +59,7 @@ class TestSyncWrappers:
                 # Event loop is closed, close synchronously if possible
                 pass
 
+    @pytest.mark.integration
     def test_sync_automatic_client_creation(self):
         """Test that sync automatically creates client when none provided."""
         # This should work (though may fail due to network)
@@ -69,24 +71,9 @@ class TestSyncWrappers:
             # Network errors are expected in tests
             pass
 
+    @pytest.mark.integration
     def test_sync_with_custom_parameters(self):
-        """Test that sync works with custom parameters like columns."""
-        # Test get_sacatalog with custom columns
-        try:
-            result = soildb.get_sacatalog.sync(columns=["areasymbol", "areaname"])
-            assert isinstance(result, soildb.SDAResponse)
-            assert len(result) > 0
-
-            # Check that custom columns are present
-            df = result.to_pandas()
-            assert "areasymbol" in df.columns
-            assert "areaname" in df.columns
-        except (soildb.SDAConnectionError, soildb.SDAQueryError):
-            # Network errors are expected in tests
-            pass
-
-    def test_sync_with_saverest_column(self):
-        """Test that sync works with saverest column specifically."""
+        """Test that sync works with saverest column added."""
         try:
             result = soildb.get_sacatalog.sync(
                 columns=["areasymbol", "areaname", "saversion", "saverest"]
@@ -101,6 +88,7 @@ class TestSyncWrappers:
             # Network errors are expected in tests
             pass
 
+    @pytest.mark.integration
     def test_sync_point_query(self):
         """Test sync point query functionality."""
         try:
@@ -111,6 +99,7 @@ class TestSyncWrappers:
             # Network errors are expected in tests
             pass
 
+    @pytest.mark.integration
     def test_sync_fetch_by_keys(self):
         """Test sync bulk fetching functionality."""
         try:
