@@ -103,7 +103,7 @@ class SchemaMonitor:
 
     def check_schema_changes(self) -> List[Dict]:
         """Check for schema changes in key API endpoints."""
-        print("🔍 Checking for schema changes...")
+        print(" Checking for schema changes...")
 
         endpoints_to_monitor = [
             ('stations', lambda: self.client.get_stations(network_codes=['SCAN'], active_only=True)),
@@ -153,7 +153,7 @@ class SchemaMonitor:
                 self._store_snapshot(endpoint_name, current_hash, response, field_count, record_count)
 
             except Exception as e:
-                print(f"❌ Failed to check {endpoint_name}: {e}")
+                print(f" Failed to check {endpoint_name}: {e}")
                 changes_detected.append({
                     'endpoint': endpoint_name,
                     'change_type': 'error',
@@ -206,7 +206,7 @@ class SchemaMonitor:
 
     def monitor_data_quality_flags(self, stations: List[str] = None) -> Dict[str, Any]:
         """Monitor data quality flags that might change over time."""
-        print("🏷️  Monitoring data quality flags...")
+        print("  Monitoring data quality flags...")
 
         if stations is None:
             # Use a sample of stations from different networks
@@ -300,7 +300,7 @@ class SchemaMonitor:
                 print(f"  {station}: {total_count} points, {suspect_count} suspect")
 
             except Exception as e:
-                print(f"  ❌ {station}: Failed - {e}")
+                print(f"   {station}: Failed - {e}")
 
         return quality_summary
 
@@ -392,7 +392,7 @@ class SchemaMonitor:
 
 def main():
     """Run schema and quality monitoring."""
-    print("🔬 AWDB Schema & Quality Monitor")
+    print(" AWDB Schema & Quality Monitor")
     print("=" * 50)
 
     monitor = SchemaMonitor()
@@ -402,14 +402,14 @@ def main():
     schema_changes = monitor.check_schema_changes()
 
     if schema_changes:
-        print(f"⚠️  {len(schema_changes)} schema changes detected:")
+        print(f"  {len(schema_changes)} schema changes detected:")
         for change in schema_changes:
             if change['change_type'] != 'error':
-                print(f"   • {change['endpoint']}: {change['description']}")
+                print(f"    {change['endpoint']}: {change['description']}")
             else:
-                print(f"   • {change['endpoint']}: ERROR - {change['description']}")
+                print(f"    {change['endpoint']}: ERROR - {change['description']}")
     else:
-        print("✅ No schema changes detected")
+        print(" No schema changes detected")
 
     # Monitor data quality flags
     print("\n2. Monitoring data quality flags...")
@@ -419,11 +419,11 @@ def main():
     print(f"   Total data points: {quality_summary['total_data_points']}")
 
     if quality_summary['suspect_data_changes']:
-        print(f"   ⚠️  {len(quality_summary['suspect_data_changes'])} stations with suspect data changes:")
+        print(f"     {len(quality_summary['suspect_data_changes'])} stations with suspect data changes:")
         for change in quality_summary['suspect_data_changes']:
             print(".3f")
     else:
-        print("   ✅ No significant suspect data changes detected")
+        print("    No significant suspect data changes detected")
 
     # Show flag distribution
     if quality_summary['quality_flag_distribution']:
@@ -444,15 +444,15 @@ def main():
 
     print(f"   Quality monitoring: {len(history['quality_monitoring'])} stations tracked")
 
-    print("\n📊 Monitoring complete. Database updated at:", monitor.db_path)
+    print("\n Monitoring complete. Database updated at:", monitor.db_path)
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n⏹️  Monitoring interrupted by user")
+        print("\n  Monitoring interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n💥 Unexpected error: {e}")
+        print(f"\n Unexpected error: {e}")
         sys.exit(1)

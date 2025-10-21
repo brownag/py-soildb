@@ -207,12 +207,12 @@ async def main():
                 if var_data.get('total_days_with_data', 0) > 0:
                     var_summary.append(f"{var_key[:4]}:{var_data['overall_data_percentage']:.1f}%")
             if var_summary:
-                print(f"  ✅ {result['station_triplet']}: {', '.join(var_summary)}")
+                print(f"   {result['station_triplet']}: {', '.join(var_summary)}")
             else:
-                print(f"  ⚠️  {result['station_triplet']}: No data found")
+                print(f"    {result['station_triplet']}: No data found")
 
         except Exception as e:
-            print(f"  ❌ Error assessing {station.station_triplet}: {e}")
+            print(f"   Error assessing {station.station_triplet}: {e}")
             # Add error result
             all_results.append({
                 'station_triplet': station.station_triplet,

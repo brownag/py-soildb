@@ -65,7 +65,7 @@ async def point_buffer_analysis():
         center_gdf = gpd.GeoDataFrame([1], geometry=[center_point], crs="EPSG:4326")
         center_gdf.plot(ax=ax, color="red", markersize=100, marker="x")
 
-        ax.set_title(f"Map Units Within {buffer_degrees:.3f}° of Ames, Iowa")
+        ax.set_title(f"Map Units Within {buffer_degrees:.3f} degrees of Ames, Iowa")
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
         plt.tight_layout()
