@@ -63,7 +63,6 @@ class TestAWDBPerformance:
             total_stations = sum(len(result) for result in results)
             duration = end_time - start_time
 
-            print(".2f")
             print(f"Concurrent queries completed in {duration:.2f}s")
 
             # Validate results
@@ -107,7 +106,6 @@ class TestAWDBPerformance:
                     end_time = time.time()
                     duration = end_time - start_time
 
-                    print(".2f")
                     print(f"  Retrieved {len(data) if data else 0} data points")
 
                 except Exception as e:
@@ -147,8 +145,7 @@ class TestAWDBPerformance:
             total_time = end_time - start_time
 
             print(f"Rate limit test: {successes} successes, {failures} failures")
-            print(".2f")
-            print(".2f")
+            print(f"Total time: {total_time:.2f}s")
 
     @pytest.mark.asyncio
     async def test_large_dataset_handling(self, client):
@@ -172,7 +169,7 @@ class TestAWDBPerformance:
                 duration = end_time - start_time
 
                 print(f"Large dataset test: Retrieved {len(data) if data else 0} points")
-                print(".2f")
+                print(f"Duration: {duration:.2f}s")
 
                 # Should handle at least 3000+ days
                 if data:
@@ -196,7 +193,7 @@ class TestAWDBPerformance:
         async with client:
             # Get baseline memory
             baseline_memory = process.memory_info().rss / 1024 / 1024  # MB
-            print(".1f")
+            print(f"Baseline memory: {baseline_memory:.1f} MB")
 
             # Request increasing amounts of data
             date_ranges = [
@@ -219,7 +216,7 @@ class TestAWDBPerformance:
                     current_memory = process.memory_info().rss / 1024 / 1024
                     memory_delta = current_memory - baseline_memory
 
-                    print(".1f")
+                    print(f"  {desc}: {len(data)} points, memory delta: {memory_delta:.1f} MB")
 
                 except Exception as e:
                     print(f"  {desc}: Error - {e}")
@@ -256,7 +253,7 @@ class TestAWDBPerformance:
                     end_time = time.time()
                     duration = end_time - start_time
 
-                    print(".2f")
+                    print(f"  {desc}: {len(data) if data else 0} points in {duration:.2f}s")
 
                 except Exception as e:
                     print(f"  {desc}: Error - {e}")
@@ -304,7 +301,7 @@ class TestAWDBBulkOperations:
                         'duration': duration
                     }
 
-                    print(".2f")
+                    print(f"  {station}: {len(data) if data else 0} points in {duration:.2f}s")
 
                 except Exception as e:
                     results[station] = {
@@ -360,7 +357,7 @@ class TestAWDBBulkOperations:
                 success_rate = successful_queries / len(stations) * 100 if stations else 0
                 avg_data_points = total_data_points / successful_queries if successful_queries > 0 else 0
 
-                print(".1f")
+                print(f"  Success rate: {success_rate:.1f}%")
                 print(f"  Average data points per station: {avg_data_points:.0f}")
 
     @pytest.mark.asyncio
@@ -507,7 +504,7 @@ class TestAWDBPaginationAndLargeDatasets:
                 station_count = len(all_stations)
 
                 print(f"Retrieved {station_count} stations in {duration:.2f}s")
-                print(".2f")
+                print(f"Average stations per second: {station_count / duration:.2f}")
 
                 # Should have thousands of stations
                 assert station_count > 1000, f"Expected >1000 stations, got {station_count}"
@@ -582,7 +579,7 @@ class TestAWDBPaginationAndLargeDatasets:
                     duration = end_time - start_time
 
                     print(f"{chunk_name} chunks: {chunks_processed} chunks, {total_data_points} total points in {duration:.2f}s")
-                    print(".2f")
+                    print(f"Average points per second: {total_data_points / duration:.2f}")
 
                     # Should have retrieved data
                     assert total_data_points > 0, f"No data retrieved for {chunk_name} chunking"
@@ -741,14 +738,13 @@ class TestAWDBPaginationAndLargeDatasets:
             )
             concurrent_time = time.time() - concurrent_start
 
-            print(".2f")
-            print(".2f")
-            print(".2f")
+            print(f"Sequential time: {sequential_time:.2f}s")
+            print(f"Concurrent time: {concurrent_time:.2f}s")
 
             # Concurrent should be faster but not necessarily max_concurrent times faster
             if sequential_time > 0 and concurrent_time > 0:
                 speedup = sequential_time / concurrent_time
-                print(".2f")
+                print(f"Speedup: {speedup:.2f}x")
                 assert speedup >= 1.0, "Concurrent should not be slower than sequential"
 
         await concurrent_load_test()

@@ -19,7 +19,6 @@ from . import (
 from .client import SDAClient
 from .models import (
     AggregateHorizon,
-    AggregateHorizon,
     HorizonProperty,
     MapUnitComponent,
     PedonData,
