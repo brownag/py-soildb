@@ -82,7 +82,7 @@ print(df.head())
 
 You may have noticed that we need to `await` the query execution result.
 
-All soildb functions are async. Here’s how to run them in different
+All soildb functions are async. Here's how to run them in different
 environments like Jupyter notebooks, VSCode, or regular Python scripts.
 
 ### Basic Async Execution
@@ -151,7 +151,7 @@ df.head()
 </div>
 
 If you have suggestions for new convenience functions please file a
-[“feature request” on
+[feature request on
 GitHub](https://github,com/brownag/py-soildb/issues/new).
 
 ### Spatial Queries
