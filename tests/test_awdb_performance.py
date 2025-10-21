@@ -59,7 +59,7 @@ class TestAWDBPerformance:
             results = await asyncio.gather(*tasks)
             end_time = time.time()
 
-            total_stations = sum(len(result) for result in results)
+            sum(len(result) for result in results)
             duration = end_time - start_time
 
             print(f"Concurrent queries completed in {duration:.2f}s")
@@ -103,7 +103,7 @@ class TestAWDBPerformance:
                     )
 
                     end_time = time.time()
-                    duration = end_time - start_time
+                    end_time - start_time
 
                     print(f"  Retrieved {len(data) if data else 0} data points")
 
@@ -125,7 +125,7 @@ class TestAWDBPerformance:
 
             for i in range(request_count):
                 try:
-                    data = await client.get_station_data(
+                    await client.get_station_data(
                         station_triplet=test_station,
                         elements="TAVG",
                         start_date="2023-01-01",
@@ -622,7 +622,7 @@ class TestAWDBPaginationAndLargeDatasets:
                     # Simulate some processing on the batch
                     values = [point.value for point in batch if point.value is not None]
                     if values:
-                        avg_value = sum(values) / len(values)
+                        sum(values) / len(values)
                         # Just ensure we can process the batch
 
                 print(f"Processed in {batches_processed} batches, {total_processed} total points")
@@ -732,7 +732,7 @@ class TestAWDBPaginationAndLargeDatasets:
             # Test concurrent
             print("Testing concurrent requests...")
             concurrent_start = time.time()
-            concurrent_results = await asyncio.gather(
+            await asyncio.gather(
                 *[single_request(station) for station in test_stations[:max_concurrent]],
                 return_exceptions=True
             )

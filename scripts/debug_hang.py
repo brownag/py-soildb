@@ -131,7 +131,7 @@ async def main():
 
         # Try iterating rows (this might be where it hangs)
         print("    Iterating rows...", file=sys.stderr)
-        for idx, h_row in comp_horizons_df.iterrows():
+        for _idx, h_row in comp_horizons_df.iterrows():
             # Check property access
             for prop in ["claytotal_r", "sandtotal_r", "om_r", "ph1to1h2o_r"]:
                 if prop in h_row:
