@@ -78,7 +78,7 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
                 loop.close()
 
     # Attach the synchronous wrapper to the original async function
-    async_fn.sync = sync_wrapper
+    async_fn.sync = sync_wrapper  # type: ignore
     return async_fn
 
 
