@@ -21,6 +21,7 @@ TEST_LON = -93.6
 TEST_PEDON_ID = "S1999NY061001"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_mapunit_struct_by_point(sda_client):
     """Test fetching a structured SoilMapUnit by point."""
@@ -48,6 +49,7 @@ async def test_fetch_mapunit_struct_by_point(sda_client):
         pytest.fail(f"An unexpected error occurred: {e}")
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_pedon_struct_by_bbox(sda_client):
     """Test fetching structured pedon data by bounding box."""
@@ -81,6 +83,7 @@ async def test_fetch_pedon_struct_by_bbox(sda_client):
         pytest.fail(f"An unexpected error occurred: {e}")
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_pedon_struct_by_id(sda_client):
     """Test fetching structured pedon data by ID."""
@@ -111,6 +114,7 @@ async def test_fetch_pedon_struct_by_id(sda_client):
         pytest.fail(f"An unexpected error occurred: {e}")
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_mapunit_struct_by_point_with_custom_columns(sda_client):
     """Test fetching a structured SoilMapUnit by point with custom columns."""
@@ -173,6 +177,7 @@ async def test_fetch_mapunit_struct_by_point_with_custom_columns(sda_client):
         pytest.fail(f"An unexpected error occurred: {e}")
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_pedon_struct_by_id_with_custom_columns(sda_client):
     """Test fetching structured pedon data by ID with custom horizon columns."""

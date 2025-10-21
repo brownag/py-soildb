@@ -10,6 +10,7 @@ import pytest
 import soildb
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_sda_connection():
     """Test basic SDA connection and simple query."""
@@ -61,6 +62,7 @@ async def test_sda_connection():
     return True
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_flexible_query_parameters():
     """Test that the new flexible query parameters work with SDA."""
