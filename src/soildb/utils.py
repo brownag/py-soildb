@@ -4,13 +4,13 @@ Internal utility functions for soildb.
 import asyncio
 import inspect
 from functools import wraps
-from typing import Awaitable, Callable, TypeVar, get_origin, get_args, Union
+from typing import Awaitable, Callable, TypeVar, get_origin, get_args, Union, Any, Optional
 
 from .exceptions import SyncUsageError
 
 R = TypeVar("R")
 
-def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., R]:
+def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awaitable[R]]:
     """
     A decorator that adds a .sync attribute to an async function, allowing it
     to be called synchronously.
@@ -18,14 +18,14 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., R]:
     The .sync version runs the async function in a new asyncio event loop.
     """
 
-    async def _call_and_cleanup(async_fn, args, kwargs, temp_client):
+    async def _call_and_cleanup(async_fn: Callable[..., Awaitable[R]], args: tuple, kwargs: dict, temp_client: Optional[Any]) -> R:
         try:
             return await async_fn(*args, **kwargs)
         finally:
             if temp_client:
                 await temp_client.close()
 
-    def sync_wrapper(*args, **kwargs) -> R:
+    def sync_wrapper(*args: Any, **kwargs: Any) -> R:
         """
         Synchronous wrapper for the async function.
         """
@@ -51,13 +51,15 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., R]:
                 temp_client = client_class()
                 kwargs['client'] = temp_client
         
+        coro: Awaitable[R]
         if temp_client:
             coro = _call_and_cleanup(async_fn, args, kwargs, temp_client)
         else:
             coro = async_fn(*args, **kwargs)
         
         try:
-            return asyncio.run(coro)
+            # asyncio.run accepts any Awaitable since Python 3.7
+            return asyncio.run(coro)  # type: ignore[arg-type]
         except RuntimeError as e:
             # Try creating a new event loop
             loop = asyncio.new_event_loop()
@@ -72,7 +74,7 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., R]:
     return async_fn
 
 
-def _extract_client_class(annotation) -> type:
+def _extract_client_class(annotation: Any) -> Optional[type]:
     """
     Extract the client class from a type annotation.
     
@@ -91,9 +93,14 @@ def _extract_client_class(annotation) -> type:
         # For Optional[T] which is Union[T, None], get the non-None type
         for arg in args:
             if arg is not type(None):  # Skip None
-                return arg
+                # Ensure we return a type, not just any object
+                if isinstance(arg, type):
+                    return arg
+                else:
+                    return None
     else:
-        # Direct type annotation
-        return annotation
+        # Direct type annotation - ensure it's actually a type
+        if isinstance(annotation, type):
+            return annotation
     
     return None
