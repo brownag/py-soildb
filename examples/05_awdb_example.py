@@ -19,7 +19,16 @@ from soildb.awdb.convenience import (
 )
 
 
-async def fetch_and_print_data(client, network_code, property_name, start_date="2023-01-01", end_date="2023-01-10", height_depth_inches=None, state_codes=None, max_stations=3):
+async def fetch_and_print_data(
+    client,
+    network_code,
+    property_name,
+    start_date="2023-01-01",
+    end_date="2023-01-10",
+    height_depth_inches=None,
+    state_codes=None,
+    max_stations=3,
+):
     """
     Fetches and prints data for a given network and property.
     Updated to use proper API element format for soil properties.
@@ -27,7 +36,9 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
     print(f"\n--- Example: Fetching {property_name} for {network_code} network ---")
 
     # Get stations for this network (now using API filtering)
-    stations = await client.get_stations(network_codes=[network_code], state_codes=state_codes, active_only=True)
+    stations = await client.get_stations(
+        network_codes=[network_code], state_codes=state_codes, active_only=True
+    )
 
     if not stations:
         print(f"No active stations found for network: {network_code}")
@@ -48,6 +59,7 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
                 SOIL_PROPERTIES,
                 build_soil_element_string,
             )
+
             if property_name not in PROPERTY_ELEMENT_MAP:
                 print(f"Unknown property: {property_name}")
                 continue
@@ -57,9 +69,13 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
             # Build proper element string for soil properties
             if property_name in SOIL_PROPERTIES:
                 if height_depth_inches is None:
-                    print(f"   Soil property '{property_name}' requires height_depth_inches parameter")
+                    print(
+                        f"   Soil property '{property_name}' requires height_depth_inches parameter"
+                    )
                     continue
-                element_string = build_soil_element_string(element_code, height_depth_inches, ordinal=1)
+                element_string = build_soil_element_string(
+                    element_code, height_depth_inches, ordinal=1
+                )
                 print(f"   Using element: {element_string}")
             else:
                 element_string = element_code
@@ -74,7 +90,9 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
             )
 
             if raw_data:
-                print(f" Successfully fetched {len(raw_data)} data points for {station.name}")
+                print(
+                    f" Successfully fetched {len(raw_data)} data points for {station.name}"
+                )
                 print(f"   Sample: {raw_data[0]}")
                 break  # Found data, stop trying other stations
             else:
@@ -84,9 +102,13 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
             print(f"    Failed to fetch data for {station.name}: {e}")
 
     else:
-        print(f"\n Could not find any {network_code} station with data for the specified criteria.")
+        print(
+            f"\n Could not find any {network_code} station with data for the specified criteria."
+        )
         if network_code == "SNOW":
-            print("   NOTE: SNOW network data is manually collected and may not be available for all stations or date ranges.")
+            print(
+                "   NOTE: SNOW network data is manually collected and may not be available for all stations or date ranges."
+            )
 
 
 async def run_awdb_example():
@@ -107,9 +129,9 @@ async def run_awdb_example():
             latitude=39.7392,  # Denver, CO
             longitude=-104.9903,
             max_distance_km=50,
-            network_codes=['SCAN'],
+            network_codes=["SCAN"],
             limit=3,
-            include_sensor_metadata=True
+            include_sensor_metadata=True,
         )
 
         print(f"Found {len(stations)} SCAN stations with sensor metadata:")
@@ -117,15 +139,15 @@ async def run_awdb_example():
             print(f"\nStation: {station['name']} ({station['station_triplet']})")
             print(f"Distance: {station['distance_km']} km")
 
-            if 'sensor_metadata' in station and station['sensor_metadata']:
-                sensors = station['sensor_metadata']
+            if "sensor_metadata" in station and station["sensor_metadata"]:
+                sensors = station["sensor_metadata"]
                 print("Available sensors:")
                 for prop_name, sensor_list in sensors.items():
                     print(f"  {prop_name}: {len(sensor_list)} sensors")
                     for sensor in sensor_list[:2]:  # Show first 2
-                        depth = sensor.get('height_depth_inches', 'N/A')
-                        ordinal = sensor.get('ordinal', 'N/A')
-                        print(f"    Depth: {depth}\", Ordinal: {ordinal}")
+                        depth = sensor.get("height_depth_inches", "N/A")
+                        ordinal = sensor.get("ordinal", "N/A")
+                        print(f'    Depth: {depth}", Ordinal: {ordinal}')
             else:
                 print("  No sensor metadata available")
 
@@ -140,10 +162,10 @@ async def run_awdb_example():
         result = await get_monitoring_station_data(
             latitude=39.7392,
             longitude=-104.9903,
-            property_name='soil_moisture',
-            start_date='2023-10-01',
-            end_date='2023-10-05',
-            auto_select_sensor=True  # This is the key new feature!
+            property_name="soil_moisture",
+            start_date="2023-10-01",
+            end_date="2023-10-05",
+            auto_select_sensor=True,  # This is the key new feature!
         )
 
         print("✅ Success with auto sensor selection!")
@@ -153,9 +175,11 @@ async def run_awdb_example():
         print(f"Data points: {len(result['data_points'])}")
         print(f"Unit: {result.get('unit', 'N/A')}")
 
-        if result['data_points']:
-            sample = result['data_points'][0]
-            print(f"Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}")
+        if result["data_points"]:
+            sample = result["data_points"][0]
+            print(
+                f"Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}"
+            )
 
     except Exception as e:
         print(f"Auto sensor selection failed: {e}")
@@ -168,11 +192,11 @@ async def run_awdb_example():
         result = await get_monitoring_station_data(
             latitude=39.7392,
             longitude=-104.9903,
-            property_name='air_temp',
-            start_date='2023-01-01',
-            end_date='2023-01-05',
+            property_name="air_temp",
+            start_date="2023-01-01",
+            end_date="2023-01-05",
             height_depth_inches=10,  # 10 feet above ground
-            auto_select_sensor=False  # Explicitly disable auto-selection
+            auto_select_sensor=False,  # Explicitly disable auto-selection
         )
 
         print("✅ Success with manual sensor specification!")
@@ -189,20 +213,22 @@ async def run_awdb_example():
 
     try:
         stations = await find_stations_by_criteria(
-            network_codes=['SCAN'],
-            state_codes=['CO'],
+            network_codes=["SCAN"],
+            state_codes=["CO"],
             active_only=True,
             limit=5,
-            include_sensor_metadata=True
+            include_sensor_metadata=True,
         )
 
         print(f"Found {len(stations)} SCAN stations with sensor metadata:")
         for station in stations:
             sensor_types = []
-            if 'sensor_metadata' in station:
-                sensor_types = list(station['sensor_metadata'].keys())
+            if "sensor_metadata" in station:
+                sensor_types = list(station["sensor_metadata"].keys())
 
-            print(f"  {station['name']} ({station['station_triplet']}): {len(sensor_types)} sensor types")
+            print(
+                f"  {station['name']} ({station['station_triplet']}): {len(sensor_types)} sensor types"
+            )
             if sensor_types:
                 print(f"    Available: {', '.join(sensor_types[:3])}")  # Show first 3
 
@@ -219,19 +245,25 @@ async def run_awdb_example():
 
         variables = await list_available_variables(station_triplet)
 
-        print(f"Station {station_triplet} has {len(variables)} different variable types:")
+        print(
+            f"Station {station_triplet} has {len(variables)} different variable types:"
+        )
         print()
 
         # Group by known vs unknown
-        known_vars = [v for v in variables if not v['property_name'].startswith('unknown_')]
-        unknown_vars = [v for v in variables if v['property_name'].startswith('unknown_')]
+        known_vars = [
+            v for v in variables if not v["property_name"].startswith("unknown_")
+        ]
+        unknown_vars = [
+            v for v in variables if v["property_name"].startswith("unknown_")
+        ]
 
         print(f"✅ Known properties ({len(known_vars)}):")
         for var in known_vars[:8]:  # Show first 8
-            prop_name = var['property_name']
-            element_code = var['element_code']
-            unit = var['unit']
-            sensor_count = len(var['sensors'])
+            prop_name = var["property_name"]
+            element_code = var["element_code"]
+            unit = var["unit"]
+            sensor_count = len(var["sensors"])
             print(f"  {prop_name} ({element_code}): {unit}, {sensor_count} sensors")
 
         if len(known_vars) > 8:
@@ -240,9 +272,9 @@ async def run_awdb_example():
         if unknown_vars:
             print(f"\n❓ Unknown properties ({len(unknown_vars)}):")
             for var in unknown_vars[:3]:  # Show first 3
-                prop_name = var['property_name']
-                element_code = var['element_code']
-                sensor_count = len(var['sensors'])
+                prop_name = var["property_name"]
+                element_code = var["element_code"]
+                sensor_count = len(var["sensors"])
                 print(f"  {prop_name} ({element_code}): {sensor_count} sensors")
 
     except Exception as e:
@@ -278,10 +310,10 @@ async def fetch_soil_moisture_example(client):
         print(f"Available soil moisture depths: {len(depths)}")
 
         for depth in depths[:5]:  # Show first 5 depths
-            d_inches = depth['height_depth_inches']
-            ordinal = depth['ordinal']
-            element = depth['element_string']
-            print(f"  {d_inches}\": ordinal {ordinal}, element: {element}")
+            d_inches = depth["height_depth_inches"]
+            ordinal = depth["ordinal"]
+            element = depth["element_string"]
+            print(f'  {d_inches}": ordinal {ordinal}, element: {element}')
 
         if depths:
             # Demonstrate single depth query using get_monitoring_station_data
@@ -295,7 +327,7 @@ async def fetch_soil_moisture_example(client):
                     start_date="2024-09-01",
                     end_date="2024-10-01",
                     height_depth_inches=-20,  # 20 inches deep
-                    max_distance_km=100  # Allow wider search
+                    max_distance_km=100,  # Allow wider search
                 )
 
                 print(f" Found station: {result['site_name']} ({result['site_id']})")
@@ -303,9 +335,11 @@ async def fetch_soil_moisture_example(client):
                 print(f"   Data points: {result['metadata']['n_data_points']}")
                 print(f"   Element used: {result['metadata']['element_string']}")
 
-                if result['data_points']:
-                    sample = result['data_points'][0]
-                    print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']}% volumetric moisture")
+                if result["data_points"]:
+                    sample = result["data_points"][0]
+                    print(
+                        f"   Sample: {sample['timestamp'][:10]} = {sample['value']}% volumetric moisture"
+                    )
 
             except Exception as e:
                 print(f" Single depth query failed: {e}")
@@ -317,23 +351,25 @@ async def fetch_soil_moisture_example(client):
                 station_triplet,
                 depths_inches=[-40, -20, -8, -4, -2],  # Specific depths
                 start_date="2024-09-01",
-                end_date="2024-10-01"
+                end_date="2024-10-01",
             )
 
             print(f"Retrieved data for {len(soil_data['depths'])} depths:")
 
-            for depth_inches, depth_data in soil_data['depths'].items():
-                n_points = depth_data['n_data_points']
-                element = depth_data['element_string']
+            for depth_inches, depth_data in soil_data["depths"].items():
+                n_points = depth_data["n_data_points"]
+                element = depth_data["element_string"]
                 if n_points > 0:
-                    print(f" Depth {depth_inches}\": {n_points} points")
+                    print(f' Depth {depth_inches}": {n_points} points')
                     # Show sample value
-                    if depth_data['data_points']:
-                        sample = depth_data['data_points'][0]
-                        print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']}%")
+                    if depth_data["data_points"]:
+                        sample = depth_data["data_points"][0]
+                        print(
+                            f"   Sample: {sample['timestamp'][:10]} = {sample['value']}%"
+                        )
                 else:
-                    error = depth_data.get('error', 'No data')
-                    print(f" Depth {depth_inches}\": {error}")
+                    error = depth_data.get("error", "No data")
+                    print(f' Depth {depth_inches}": {error}')
 
         else:
             print("   No soil moisture sensors found")
@@ -342,7 +378,9 @@ async def fetch_soil_moisture_example(client):
         print(f" Error in soil moisture example: {e}")
 
 
-async def fetch_data_for_known_station(client, station_triplet, element_code, description):
+async def fetch_data_for_known_station(
+    client, station_triplet, element_code, description
+):
     """
     Fetch data for a specific known station and element.
     """
@@ -351,10 +389,7 @@ async def fetch_data_for_known_station(client, station_triplet, element_code, de
 
         # Get data directly from this specific station
         raw_data = await client.get_station_data(
-            station_triplet,
-            element_code,
-            "2023-01-01",
-            "2023-01-05"
+            station_triplet, element_code, "2023-01-01", "2023-01-05"
         )
 
         if raw_data:

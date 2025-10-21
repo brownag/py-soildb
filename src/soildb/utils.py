@@ -1,6 +1,7 @@
 """
 Internal utility functions for soildb.
 """
+
 import asyncio
 import inspect
 from typing import (
@@ -18,7 +19,10 @@ from .exceptions import SyncUsageError
 
 R = TypeVar("R")
 
-def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awaitable[R]]:
+
+def add_sync_version(
+    async_fn: Callable[..., Awaitable[R]],
+) -> Callable[..., Awaitable[R]]:
     """
     A decorator that adds a .sync attribute to an async function, allowing it
     to be called synchronously.
@@ -26,7 +30,12 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
     The .sync version runs the async function in a new asyncio event loop.
     """
 
-    async def _call_and_cleanup(async_fn: Callable[..., Awaitable[R]], args: tuple, kwargs: dict, temp_client: Optional[Any]) -> R:
+    async def _call_and_cleanup(
+        async_fn: Callable[..., Awaitable[R]],
+        args: tuple,
+        kwargs: dict,
+        temp_client: Optional[Any],
+    ) -> R:
         try:
             return await async_fn(*args, **kwargs)
         finally:
@@ -51,13 +60,13 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
         temp_client = None
         # Check if the function has a 'client' parameter and it's not provided
         sig = inspect.signature(async_fn)
-        client_param = sig.parameters.get('client')
-        if client_param and 'client' not in kwargs:
+        client_param = sig.parameters.get("client")
+        if client_param and "client" not in kwargs:
             # Extract client class from type annotation
             client_class = _extract_client_class(client_param.annotation)
             if client_class:
                 temp_client = client_class()
-                kwargs['client'] = temp_client
+                kwargs["client"] = temp_client
 
         coro: Awaitable[R]
         if temp_client:

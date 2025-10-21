@@ -30,14 +30,14 @@ class TestAWDBDocumentationValidation:
         # Test that the basic client instantiation works as documented
         client = AWDBClient(timeout=30)
         assert client.timeout == 30
-        assert hasattr(client, 'get_stations')
-        assert hasattr(client, 'get_station_data')
+        assert hasattr(client, "get_stations")
+        assert hasattr(client, "get_station_data")
 
         # Test context manager usage
         async with client:
-            assert hasattr(client, '_client')
+            assert hasattr(client, "_client")
 
-    @patch('soildb.awdb.client.AWDBClient._make_request')
+    @patch("soildb.awdb.client.AWDBClient._make_request")
     @pytest.mark.asyncio
     async def test_get_stations_docstring_examples(self, mock_request):
         """Test get_stations method examples from docstring."""
@@ -51,7 +51,7 @@ class TestAWDBDocumentationValidation:
                 "elevation": 6170.0,
                 "networkCode": "SNTL",
                 "state": "CA",
-                "county": "Modoc"
+                "county": "Modoc",
             }
         ]
         mock_request.return_value = mock_stations
@@ -59,24 +59,22 @@ class TestAWDBDocumentationValidation:
         client = AWDBClient()
 
         # Test basic station retrieval
-        stations = await client.get_stations(network_codes=['SNTL'])
+        stations = await client.get_stations(network_codes=["SNTL"])
         assert len(stations) == 1
         assert stations[0].station_triplet == "301:CA:SNTL"
         assert stations[0].network_code == "SNTL"
 
         # Test with state filtering
-        stations = await client.get_stations(state_codes=['CA'])
+        stations = await client.get_stations(state_codes=["CA"])
         assert len(stations) == 1
 
         # Test with multiple parameters
         stations = await client.get_stations(
-            network_codes=['SNTL'],
-            state_codes=['CA'],
-            active_only=True
+            network_codes=["SNTL"], state_codes=["CA"], active_only=True
         )
         assert len(stations) == 1
 
-    @patch('soildb.awdb.client.AWDBClient._make_request')
+    @patch("soildb.awdb.client.AWDBClient._make_request")
     @pytest.mark.asyncio
     async def test_get_station_data_docstring_examples(self, mock_request):
         """Test get_station_data method examples from docstring."""
@@ -89,17 +87,13 @@ class TestAWDBDocumentationValidation:
                         "stationElement": {
                             "elementCode": "TAVG",
                             "ordinal": 1,
-                            "durationName": "DAILY"
+                            "durationName": "DAILY",
                         },
                         "values": [
-                            {
-                                "date": "2023-01-01",
-                                "value": 15.5,
-                                "qcFlag": "V"
-                            }
-                        ]
+                            {"date": "2023-01-01", "value": 15.5, "qcFlag": "V"}
+                        ],
                     }
-                ]
+                ],
             }
         ]
         mock_request.return_value = mock_data
@@ -111,7 +105,7 @@ class TestAWDBDocumentationValidation:
             station_triplet="301:CA:SNTL",
             elements="TAVG",
             start_date="2023-01-01",
-            end_date="2023-01-31"
+            end_date="2023-01-31",
         )
 
         assert len(data) == 1
@@ -125,7 +119,7 @@ class TestAWDBDocumentationValidation:
             start_date="2023-01-01",
             end_date="2023-01-31",
             duration="DAILY",
-            return_flags=True
+            return_flags=True,
         )
 
         assert len(data) == 1
@@ -138,14 +132,19 @@ class TestAWDBDocumentationValidation:
         try:
             # This would normally make API calls, but we're just testing parameter handling
             # The actual call would be tested in integration tests
-            assert hasattr(client, 'find_nearby_stations')
+            assert hasattr(client, "find_nearby_stations")
 
             # Test that method signature matches documentation
             sig = inspect.signature(client.find_nearby_stations)
             params = list(sig.parameters.keys())
 
-            expected_params = ['latitude', 'longitude', 'max_distance_km',
-                             'network_codes', 'limit']
+            expected_params = [
+                "latitude",
+                "longitude",
+                "max_distance_km",
+                "network_codes",
+                "limit",
+            ]
             for param in expected_params:
                 assert param in params, f"Missing parameter: {param}"
 
@@ -156,14 +155,23 @@ class TestAWDBDocumentationValidation:
         """Test that PROPERTY_ELEMENT_MAP documentation is accurate."""
         # Test that all documented properties exist
         expected_properties = [
-            'soil_moisture', 'soil_temp', 'precipitation', 'air_temp',
-            'snow_water_equivalent', 'snow_depth', 'wind_speed',
-            'wind_direction', 'relative_humidity', 'solar_radiation'
+            "soil_moisture",
+            "soil_temp",
+            "precipitation",
+            "air_temp",
+            "snow_water_equivalent",
+            "snow_depth",
+            "wind_speed",
+            "wind_direction",
+            "relative_humidity",
+            "solar_radiation",
         ]
 
         for prop in expected_properties:
             assert prop in PROPERTY_ELEMENT_MAP, f"Missing property: {prop}"
-            assert isinstance(PROPERTY_ELEMENT_MAP[prop], str), f"Invalid element for {prop}"
+            assert isinstance(PROPERTY_ELEMENT_MAP[prop], str), (
+                f"Invalid element for {prop}"
+            )
 
         # Test that all properties have units
         for prop in PROPERTY_ELEMENT_MAP.keys():
@@ -176,8 +184,13 @@ class TestAWDBDocumentationValidation:
         sig = inspect.signature(get_nearby_stations)
         params = list(sig.parameters.keys())
 
-        expected_params = ['latitude', 'longitude', 'max_distance_km',
-                          'network_codes', 'limit']
+        expected_params = [
+            "latitude",
+            "longitude",
+            "max_distance_km",
+            "network_codes",
+            "limit",
+        ]
         for param in expected_params:
             assert param in params, f"get_nearby_stations missing parameter: {param}"
 
@@ -185,12 +198,22 @@ class TestAWDBDocumentationValidation:
         sig = inspect.signature(get_monitoring_station_data)
         params = list(sig.parameters.keys())
 
-        expected_params = ['latitude', 'longitude', 'property_name', 'start_date',
-                          'end_date', 'max_distance_km', 'height_depth_inches', 'network_codes']
+        expected_params = [
+            "latitude",
+            "longitude",
+            "property_name",
+            "start_date",
+            "end_date",
+            "max_distance_km",
+            "height_depth_inches",
+            "network_codes",
+        ]
         for param in expected_params:
-            assert param in params, f"get_monitoring_station_data missing parameter: {param}"
+            assert param in params, (
+                f"get_monitoring_station_data missing parameter: {param}"
+            )
 
-    @patch('soildb.awdb.convenience.AWDBClient')
+    @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
     async def test_convenience_function_property_validation(self, mock_client_class):
         """Test that convenience functions validate properties correctly."""
@@ -206,9 +229,9 @@ class TestAWDBDocumentationValidation:
             await get_monitoring_station_data(
                 latitude=40.0,
                 longitude=-120.0,
-                property_name='invalid_property',
-                start_date='2023-01-01',
-                end_date='2023-01-31'
+                property_name="invalid_property",
+                start_date="2023-01-01",
+                end_date="2023-01-31",
             )
 
         # Test valid property (should get past validation)
@@ -216,9 +239,9 @@ class TestAWDBDocumentationValidation:
             await get_monitoring_station_data(
                 latitude=40.0,
                 longitude=-120.0,
-                property_name='air_temp',
-                start_date='2023-01-01',
-                end_date='2023-01-31'
+                property_name="air_temp",
+                start_date="2023-01-01",
+                end_date="2023-01-31",
             )
         except Exception as e:
             # Should fail on station lookup, not property validation
@@ -237,7 +260,7 @@ class TestAWDBDocumentationValidation:
             # Check structure of returned variables if any exist
             for var in variables:
                 assert isinstance(var, dict)
-                required_keys = ['property_name', 'element_code', 'unit', 'description']
+                required_keys = ["property_name", "element_code", "unit", "description"]
                 for key in required_keys:
                     assert key in var, f"Variable missing key: {key}"
 
@@ -252,13 +275,19 @@ class TestAWDBDocumentationValidation:
             elevation=1000.0,
             network_code="TEST",
             state="CA",
-            county="Test County"
+            county="Test County",
         )
 
         # Test that all expected attributes exist
         expected_attrs = [
-            'station_triplet', 'name', 'latitude', 'longitude', 'elevation',
-            'network_code', 'state', 'county'
+            "station_triplet",
+            "name",
+            "latitude",
+            "longitude",
+            "elevation",
+            "network_code",
+            "state",
+            "county",
         ]
 
         for attr in expected_attrs:
@@ -266,14 +295,14 @@ class TestAWDBDocumentationValidation:
 
         # Test TimeSeriesDataPoint model
         data_point = TimeSeriesDataPoint(
-            timestamp="2023-01-01T00:00:00",
-            value=15.5,
-            flags=['QC:V']
+            timestamp="2023-01-01T00:00:00", value=15.5, flags=["QC:V"]
         )
 
-        expected_attrs = ['timestamp', 'value', 'flags']
+        expected_attrs = ["timestamp", "value", "flags"]
         for attr in expected_attrs:
-            assert hasattr(data_point, attr), f"TimeSeriesDataPoint missing attribute: {attr}"
+            assert hasattr(data_point, attr), (
+                f"TimeSeriesDataPoint missing attribute: {attr}"
+            )
 
     def test_error_handling_documentation(self):
         """Test that error classes are properly documented."""
@@ -349,13 +378,13 @@ class TestAWDBUsagePatternValidation:
 
         # Step 1: Find stations in an area
         # (We can't test this without API calls, but we can validate the method exists)
-        assert hasattr(client, 'find_nearby_stations')
+        assert hasattr(client, "find_nearby_stations")
 
         # Step 2: Get detailed station information
-        assert hasattr(client, 'get_stations')
+        assert hasattr(client, "get_stations")
 
         # Step 3: Check what data is available
-        assert hasattr(client, 'get_station_data')
+        assert hasattr(client, "get_station_data")
 
         # Validate method signatures
         nearby_sig = inspect.signature(client.find_nearby_stations)
@@ -363,10 +392,10 @@ class TestAWDBUsagePatternValidation:
         data_sig = inspect.signature(client.get_station_data)
 
         # Check that parameters make sense for the workflow
-        assert 'latitude' in nearby_sig.parameters
-        assert 'longitude' in nearby_sig.parameters
-        assert 'network_codes' in stations_sig.parameters
-        assert 'station_triplet' in data_sig.parameters
+        assert "latitude" in nearby_sig.parameters
+        assert "longitude" in nearby_sig.parameters
+        assert "network_codes" in stations_sig.parameters
+        assert "station_triplet" in data_sig.parameters
 
     def test_data_analysis_workflow(self):
         """Test typical data analysis workflow."""
@@ -378,7 +407,7 @@ class TestAWDBUsagePatternValidation:
             TimeSeriesDataPoint(
                 timestamp=datetime(2023, 1, i),
                 value=float(15 + i),
-                qc_flag='V' if i % 3 != 0 else 'E'  # Mix of valid and estimated
+                qc_flag="V" if i % 3 != 0 else "E",  # Mix of valid and estimated
             )
             for i in range(1, 31)  # 30 days
         ]
@@ -386,7 +415,7 @@ class TestAWDBUsagePatternValidation:
         # Test typical analysis operations
 
         # 1. Filter to good quality data
-        good_data = [dp for dp in data_points if dp.qc_flag == 'V']
+        good_data = [dp for dp in data_points if dp.qc_flag == "V"]
         assert len(good_data) > 0
 
         # 2. Extract values
@@ -410,14 +439,14 @@ class TestAWDBUsagePatternValidation:
         """Test workflow for processing data from multiple stations."""
         # Simulate data from multiple stations
         stations_data = {
-            'Station_A': [
-                TimeSeriesDataPoint(timestamp="2023-01-01", value=15.0, qc_flag='V'),
-                TimeSeriesDataPoint(timestamp="2023-01-02", value=16.0, qc_flag='V'),
+            "Station_A": [
+                TimeSeriesDataPoint(timestamp="2023-01-01", value=15.0, qc_flag="V"),
+                TimeSeriesDataPoint(timestamp="2023-01-02", value=16.0, qc_flag="V"),
             ],
-            'Station_B': [
-                TimeSeriesDataPoint(timestamp="2023-01-01", value=20.0, qc_flag='V'),
-                TimeSeriesDataPoint(timestamp="2023-01-02", value=21.0, qc_flag='V'),
-            ]
+            "Station_B": [
+                TimeSeriesDataPoint(timestamp="2023-01-01", value=20.0, qc_flag="V"),
+                TimeSeriesDataPoint(timestamp="2023-01-02", value=21.0, qc_flag="V"),
+            ],
         }
 
         # Test bulk processing operations
@@ -430,10 +459,10 @@ class TestAWDBUsagePatternValidation:
 
             if values:
                 station_stats[station_name] = {
-                    'count': len(values),
-                    'mean': sum(values) / len(values),
-                    'min': min(values),
-                    'max': max(values)
+                    "count": len(values),
+                    "mean": sum(values) / len(values),
+                    "min": min(values),
+                    "max": max(values),
                 }
 
         # Validate bulk processing results
@@ -441,9 +470,9 @@ class TestAWDBUsagePatternValidation:
         assert len(station_stats) == 2
 
         for stats in station_stats.values():
-            assert 'count' in stats
-            assert 'mean' in stats
-            assert stats['count'] > 0
+            assert "count" in stats
+            assert "mean" in stats
+            assert stats["count"] > 0
 
     @pytest.mark.asyncio
     async def test_error_recovery_workflow(self, client):
@@ -456,7 +485,7 @@ class TestAWDBUsagePatternValidation:
                 station_triplet="INVALID:XX:TEST",
                 elements="TAVG",
                 start_date="2023-01-01",
-                end_date="2023-01-31"
+                end_date="2023-01-31",
             )
             # If we get here, the API accepted it (unexpected)
             assert False, "Should have failed with invalid station"
@@ -470,7 +499,7 @@ class TestAWDBUsagePatternValidation:
                 station_triplet="301:CA:SNTL",
                 elements="TAVG",
                 start_date="invalid-date",
-                end_date="2023-01-31"
+                end_date="2023-01-31",
             )
             assert False, "Should have failed with invalid date"
         except Exception as e:
@@ -482,7 +511,7 @@ class TestAWDBUsagePatternValidation:
                 station_triplet="301:CA:SNTL",
                 elements="INVALID_ELEMENT",
                 start_date="2023-01-01",
-                end_date="2023-01-31"
+                end_date="2023-01-31",
             )
             # This might succeed if the API accepts it, or fail
             # Either way, it should not crash the client
@@ -497,18 +526,19 @@ class TestAWDBUsagePatternValidation:
         client = AWDBClient()
 
         # Test that async methods exist and are callable
-        assert hasattr(client, 'get_stations')  # All methods are now async
-        assert hasattr(client, 'get_station_data')
+        assert hasattr(client, "get_stations")  # All methods are now async
+        assert hasattr(client, "get_station_data")
 
         # Test method signatures
         import inspect
+
         assert inspect.iscoroutinefunction(client.get_stations)
         assert inspect.iscoroutinefunction(client.get_station_data)
 
         # Test async context management
         async with client:
             # Test that we can call async methods in context
-            stations = await client.get_stations(network_codes=['SCAN'], limit=1)
+            stations = await client.get_stations(network_codes=["SCAN"], limit=1)
             assert isinstance(stations, list)
 
     @pytest.mark.asyncio
@@ -517,14 +547,14 @@ class TestAWDBUsagePatternValidation:
         # Test different client configurations
         configs = [
             {},
-            {'timeout': 30},
-            {'timeout': 120},
+            {"timeout": 30},
+            {"timeout": 120},
         ]
 
         for config in configs:
             client = AWDBClient(**config)
-            assert client.timeout == config.get('timeout', 60)  # Default is 60
+            assert client.timeout == config.get("timeout", 60)  # Default is 60
 
             # Test context manager with different configs
             async with client:
-                assert client.timeout == config.get('timeout', 60)
+                assert client.timeout == config.get("timeout", 60)

@@ -25,7 +25,12 @@ class TestAWDBSoilDBIntegration:
     def test_property_element_map_compatibility(self, awdb_client):
         """Test that AWDB element mapping works with existing convenience functions."""
         # Test that all properties in PROPERTY_ELEMENT_MAP can be used with AWDB
-        test_properties = ['air_temperature', 'precipitation', 'snow_depth', 'soil_moisture']
+        test_properties = [
+            "air_temperature",
+            "precipitation",
+            "snow_depth",
+            "soil_moisture",
+        ]
 
         for prop in test_properties:
             if prop in PROPERTY_ELEMENT_MAP:
@@ -61,11 +66,17 @@ class TestAWDBSoilDBIntegration:
             huc="180200021403",
             data_time_zone=-8,
             begin_date="1980-10-01",
-            end_date="2100-01-01"
+            end_date="2100-01-01",
         )
 
         # Test that station has all expected attributes
-        required_attrs = ['station_triplet', 'name', 'latitude', 'longitude', 'network_code']
+        required_attrs = [
+            "station_triplet",
+            "name",
+            "latitude",
+            "longitude",
+            "network_code",
+        ]
         for attr in required_attrs:
             assert hasattr(station, attr), f"Station missing required attribute: {attr}"
             value = getattr(station, attr)
@@ -86,38 +97,42 @@ class TestAWDBSoilDBIntegration:
             TimeSeriesDataPoint(
                 timestamp=datetime(2023, 1, 1),
                 value=15.5,
-                flags=['QC:V'],
-                qc_flag='V',
+                flags=["QC:V"],
+                qc_flag="V",
                 qa_flag=None,
                 orig_value=15.7,
-                orig_qc_flag='E',
+                orig_qc_flag="E",
                 average=15.3,
-                median=15.5
+                median=15.5,
             ),
             TimeSeriesDataPoint(
                 timestamp=datetime(2023, 1, 2),
                 value=None,  # Missing data
                 flags=[],
                 qc_flag=None,
-                qa_flag=None
+                qa_flag=None,
             ),
             TimeSeriesDataPoint(
                 timestamp=datetime(2023, 1, 3),
                 value=16.2,
-                flags=['QC:E', 'QA:A'],
-                qc_flag='E',
-                qa_flag='A'
-            )
+                flags=["QC:E", "QA:A"],
+                qc_flag="E",
+                qa_flag="A",
+            ),
         ]
 
         # Test data point structure
         for i, dp in enumerate(data_points):
-            assert isinstance(dp.timestamp, datetime), f"Data point {i} timestamp should be datetime"
+            assert isinstance(dp.timestamp, datetime), (
+                f"Data point {i} timestamp should be datetime"
+            )
             assert isinstance(dp.flags, list), f"Data point {i} flags should be list"
 
             # Value can be None for missing data
             if dp.value is not None:
-                assert isinstance(dp.value, (int, float)), f"Data point {i} value should be numeric"
+                assert isinstance(dp.value, (int, float)), (
+                    f"Data point {i} value should be numeric"
+                )
 
         # Test that data can be processed like typical SoilDB response data
         valid_values = [dp.value for dp in data_points if dp.value is not None]
@@ -126,9 +141,11 @@ class TestAWDBSoilDBIntegration:
         # Test statistical calculations
         if len(valid_values) > 1:
             avg_value = sum(valid_values) / len(valid_values)
-            assert isinstance(avg_value, (int, float)), "Average calculation should work"
+            assert isinstance(avg_value, (int, float)), (
+                "Average calculation should work"
+            )
 
-    @patch('soildb.awdb.client.AWDBClient._make_request')
+    @patch("soildb.awdb.client.AWDBClient._make_request")
     def test_awdb_client_with_mocked_responses(self, mock_request, awdb_client):
         """Test AWDB client behavior with controlled mock responses."""
         # Mock station response
@@ -141,14 +158,15 @@ class TestAWDBSoilDBIntegration:
                 "elevation": 6170.0,
                 "networkCode": "SNTL",
                 "state": "CA",
-                "county": "Modoc"
+                "county": "Modoc",
             }
         ]
         mock_request.return_value = mock_stations
 
         # Test station retrieval
         import asyncio
-        stations = asyncio.run(awdb_client.get_stations(network_codes=['SNTL']))
+
+        stations = asyncio.run(awdb_client.get_stations(network_codes=["SNTL"]))
         assert len(stations) == 1
         assert stations[0].station_triplet == "301:CA:SNTL"
         assert stations[0].network_code == "SNTL"
@@ -162,30 +180,33 @@ class TestAWDBSoilDBIntegration:
                         "stationElement": {
                             "elementCode": "TAVG",
                             "ordinal": 1,
-                            "durationName": "DAILY"
+                            "durationName": "DAILY",
                         },
                         "values": [
                             {
                                 "date": "2023-01-01",
                                 "value": 15.5,
                                 "qcFlag": "V",
-                                "qaFlag": "A"
+                                "qaFlag": "A",
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             }
         ]
         mock_request.return_value = mock_data
 
         # Test data retrieval
         import asyncio
-        data = asyncio.run(awdb_client.get_station_data(
-            station_triplet="301:CA:SNTL",
-            elements="TAVG",
-            start_date="2023-01-01",
-            end_date="2023-01-31"
-        ))
+
+        data = asyncio.run(
+            awdb_client.get_station_data(
+                station_triplet="301:CA:SNTL",
+                elements="TAVG",
+                start_date="2023-01-01",
+                end_date="2023-01-31",
+            )
+        )
 
         assert len(data) == 1
         assert data[0].value == 15.5
@@ -220,8 +241,8 @@ class TestAWDBSoilDBIntegration:
             TimeSeriesDataPoint(
                 timestamp=datetime(2023, 1, 1) + timedelta(days=i),
                 value=15.0 + i * 0.5,
-                flags=['QC:V'],
-                qc_flag='V'
+                flags=["QC:V"],
+                qc_flag="V",
             )
             for i in range(30)  # 30 days of data
         ]
@@ -267,19 +288,28 @@ class TestAWDBSoilDBIntegration:
             # Test parameter validation by calling with valid parameters
             # This should work or raise a clear error
             import asyncio
-            result = asyncio.run(get_nearby_stations(
-                latitude=40.0,
-                longitude=-120.0,
-                max_distance_km=10.0,
-                network_codes=['SCAN'],
-                limit=3
-            ))
+
+            result = asyncio.run(
+                get_nearby_stations(
+                    latitude=40.0,
+                    longitude=-120.0,
+                    max_distance_km=10.0,
+                    network_codes=["SCAN"],
+                    limit=3,
+                )
+            )
             # If we get here, it should return a list
             assert isinstance(result, list)
             if len(result) > 0:
                 # Check structure of first result
                 station = result[0]
-                required_keys = ['station_triplet', 'name', 'latitude', 'longitude', 'distance_km']
+                required_keys = [
+                    "station_triplet",
+                    "name",
+                    "latitude",
+                    "longitude",
+                    "distance_km",
+                ]
                 for key in required_keys:
                     assert key in station, f"Station missing required key: {key}"
 
@@ -290,17 +320,26 @@ class TestAWDBSoilDBIntegration:
         # Test get_monitoring_station_data interface
         try:
             import asyncio
-            result = asyncio.run(get_monitoring_station_data(
-                latitude=40.0,
-                longitude=-120.0,
-                property_name='air_temp',
-                start_date='2023-01-01',
-                end_date='2023-01-31',
-                max_distance_km=50.0
-            ))
+
+            result = asyncio.run(
+                get_monitoring_station_data(
+                    latitude=40.0,
+                    longitude=-120.0,
+                    property_name="air_temp",
+                    start_date="2023-01-01",
+                    end_date="2023-01-31",
+                    max_distance_km=50.0,
+                )
+            )
             # Should return a dictionary with expected structure
             assert isinstance(result, dict)
-            required_keys = ['site_id', 'site_name', 'latitude', 'longitude', 'data_points']
+            required_keys = [
+                "site_id",
+                "site_name",
+                "latitude",
+                "longitude",
+                "data_points",
+            ]
             for key in required_keys:
                 assert key in result, f"Result missing required key: {key}"
 
@@ -315,20 +354,21 @@ class TestAWDBSoilDBIntegration:
         client = AWDBClient()
 
         # Test async method signatures (don't actually call to avoid API hits)
-        assert hasattr(client, 'get_stations')  # All methods are now async
-        assert hasattr(client, 'get_station_data')
-        assert hasattr(client, 'get_forecasts')
-        assert hasattr(client, 'get_reference_data')
+        assert hasattr(client, "get_stations")  # All methods are now async
+        assert hasattr(client, "get_station_data")
+        assert hasattr(client, "get_forecasts")
+        assert hasattr(client, "get_reference_data")
 
         # Test that methods are actually coroutines
         import inspect
+
         assert inspect.iscoroutinefunction(client.get_stations)
         assert inspect.iscoroutinefunction(client.get_station_data)
 
         # Test async context management
         async with client:
             # Test that we can call async methods in context
-            stations = await client.get_stations(network_codes=['SCAN'], limit=1)
+            stations = await client.get_stations(network_codes=["SCAN"], limit=1)
             assert isinstance(stations, list)
 
     @pytest.mark.asyncio
@@ -337,14 +377,15 @@ class TestAWDBSoilDBIntegration:
         # Test that client can be used in with statement
         async with awdb_client:
             # Should be able to access attributes
-            assert hasattr(awdb_client, 'timeout')
-            assert hasattr(awdb_client, '_client')
+            assert hasattr(awdb_client, "timeout")
+            assert hasattr(awdb_client, "_client")
 
         # After context manager, client should be closed
         # (This is hard to test directly, but at least verify no exceptions)
 
     def test_data_pipeline_compatibility(self):
         """Test that AWDB data fits into typical data processing pipelines."""
+
         # Create a mock data processing pipeline
         def process_environmental_data(data_points):
             """Mock environmental data processing function."""
@@ -354,10 +395,10 @@ class TestAWDBSoilDBIntegration:
                 if dp.value is not None and dp.value > 0:
                     # Simulate some processing
                     processed = {
-                        'timestamp': dp.timestamp.isoformat(),
-                        'value': dp.value,
-                        'quality': 'good' if dp.qc_flag == 'V' else 'suspect',
-                        'flags': dp.flags
+                        "timestamp": dp.timestamp.isoformat(),
+                        "value": dp.value,
+                        "quality": "good" if dp.qc_flag == "V" else "suspect",
+                        "flags": dp.flags,
                     }
                     results.append(processed)
 
@@ -368,8 +409,8 @@ class TestAWDBSoilDBIntegration:
             TimeSeriesDataPoint(
                 timestamp=datetime(2023, 1, i),
                 value=float(i * 10),
-                qc_flag='V' if i % 2 == 0 else 'E',
-                flags=['QC:V'] if i % 2 == 0 else ['QC:E']
+                qc_flag="V" if i % 2 == 0 else "E",
+                flags=["QC:V"] if i % 2 == 0 else ["QC:E"],
             )
             for i in range(1, 11)  # 10 days
         ]
@@ -379,13 +420,13 @@ class TestAWDBSoilDBIntegration:
 
         # Verify pipeline output
         assert len(processed) == len(test_data)
-        assert all('timestamp' in p for p in processed)
-        assert all('value' in p for p in processed)
-        assert all('quality' in p for p in processed)
+        assert all("timestamp" in p for p in processed)
+        assert all("value" in p for p in processed)
+        assert all("quality" in p for p in processed)
 
         # Check quality classification
-        good_quality = [p for p in processed if p['quality'] == 'good']
-        suspect_quality = [p for p in processed if p['quality'] == 'suspect']
+        good_quality = [p for p in processed if p["quality"] == "good"]
+        suspect_quality = [p for p in processed if p["quality"] == "suspect"]
 
         assert len(good_quality) > 0
         assert len(suspect_quality) > 0

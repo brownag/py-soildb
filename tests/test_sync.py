@@ -2,7 +2,6 @@
 Tests for synchronous wrapper functionality.
 """
 
-
 import pytest
 
 import soildb
@@ -15,16 +14,16 @@ class TestSyncWrappers:
     def test_sync_attribute_exists(self):
         """Test that sync attribute exists on functions that should have it."""
         # Test convenience functions
-        assert hasattr(soildb.get_sacatalog, 'sync')
-        assert hasattr(soildb.get_mapunit_by_point, 'sync')
-        assert hasattr(soildb.get_mapunit_by_areasymbol, 'sync')
+        assert hasattr(soildb.get_sacatalog, "sync")
+        assert hasattr(soildb.get_mapunit_by_point, "sync")
+        assert hasattr(soildb.get_mapunit_by_areasymbol, "sync")
 
         # Test fetch functions
-        assert hasattr(soildb.fetch_by_keys, 'sync')
-        assert hasattr(soildb.fetch_component_by_mukey, 'sync')
+        assert hasattr(soildb.fetch_by_keys, "sync")
+        assert hasattr(soildb.fetch_component_by_mukey, "sync")
 
         # Test high-level functions
-        assert hasattr(soildb.fetch_mapunit_struct_by_point, 'sync')
+        assert hasattr(soildb.fetch_mapunit_struct_by_point, "sync")
 
     def test_sync_is_callable(self):
         """Test that sync attributes are callable."""
@@ -53,6 +52,7 @@ class TestSyncWrappers:
             # Close client properly without asyncio.run if loop is closed
             try:
                 import asyncio
+
                 asyncio.run(client.close())
             except RuntimeError:
                 # Event loop is closed, close synchronously if possible
@@ -73,14 +73,14 @@ class TestSyncWrappers:
         """Test that sync works with custom parameters like columns."""
         # Test get_sacatalog with custom columns
         try:
-            result = soildb.get_sacatalog.sync(columns=['areasymbol', 'areaname'])
+            result = soildb.get_sacatalog.sync(columns=["areasymbol", "areaname"])
             assert isinstance(result, soildb.SDAResponse)
             assert len(result) > 0
 
             # Check that custom columns are present
             df = result.to_pandas()
-            assert 'areasymbol' in df.columns
-            assert 'areaname' in df.columns
+            assert "areasymbol" in df.columns
+            assert "areaname" in df.columns
         except (soildb.SDAConnectionError, soildb.SDAQueryError):
             # Network errors are expected in tests
             pass
@@ -88,13 +88,15 @@ class TestSyncWrappers:
     def test_sync_with_saverest_column(self):
         """Test that sync works with saverest column specifically."""
         try:
-            result = soildb.get_sacatalog.sync(columns=['areasymbol', 'areaname', 'saversion', 'saverest'])
+            result = soildb.get_sacatalog.sync(
+                columns=["areasymbol", "areaname", "saversion", "saverest"]
+            )
             assert isinstance(result, soildb.SDAResponse)
             assert len(result) > 0
 
             # Check that saverest column is present
             df = result.to_pandas()
-            assert 'saverest' in df.columns
+            assert "saverest" in df.columns
         except (soildb.SDAConnectionError, soildb.SDAQueryError):
             # Network errors are expected in tests
             pass
@@ -113,7 +115,9 @@ class TestSyncWrappers:
         """Test sync bulk fetching functionality."""
         try:
             # Use a small known mukey for testing
-            result = soildb.fetch_component_by_mukey.sync([408333], columns=['mukey', 'cokey', 'compname'])
+            result = soildb.fetch_component_by_mukey.sync(
+                [408333], columns=["mukey", "cokey", "compname"]
+            )
             assert isinstance(result, soildb.SDAResponse)
             assert len(result) >= 0
         except (soildb.SDAConnectionError, soildb.SDAQueryError):
