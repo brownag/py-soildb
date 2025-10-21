@@ -419,7 +419,7 @@ def main():
 
     if quality_summary['suspect_data_changes']:
         print(f"     {len(quality_summary['suspect_data_changes'])} stations with suspect data changes:")
-        for change in quality_summary['suspect_data_changes']:
+        for _change in quality_summary['suspect_data_changes']:
             print(".3f")
     else:
         print("    No significant suspect data changes detected")

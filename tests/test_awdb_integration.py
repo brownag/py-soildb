@@ -37,13 +37,6 @@ class TestAWDBSoilDBIntegration:
                 # (Don't actually make the request, just validate construction)
                 try:
                     # This should not raise an exception during parameter validation
-                    params = {
-                        "stationTriplets": "TEST:ST:NET",
-                        "elements": element,
-                        "beginDate": "2023-01-01",
-                        "endDate": "2023-01-31",
-                        "duration": "DAILY"
-                    }
                     # If we get here, the parameters are valid
                     assert True, f"Parameters for {prop} are valid"
 
