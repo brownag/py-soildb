@@ -108,13 +108,12 @@ def _extract_client_class(annotation: Any) -> Optional[type]:
     if origin is Union:
         args = get_args(annotation)
         # For Optional[T] which is Union[T, None], get the non-None type
-        for arg in args:
-            if arg is not type(None):  # Skip None
-                # Ensure we return a type, not just any object
-                if isinstance(arg, type):
-                    return arg
-                else:
-                    return None
+        non_none_args = [arg for arg in args if arg != type(None)]
+        if non_none_args:
+            arg = non_none_args[0]
+            # Ensure we return a type, not just any object
+            if isinstance(arg, type):
+                return arg
     else:
         # Direct type annotation - ensure it's actually a type
         if isinstance(annotation, type):
