@@ -158,3 +158,45 @@ df = response.to_polars()
 # GeoPandas (only for spatial data)
 # gdf = response.to_geodataframe()
 ```
+
+## Synchronous Usage
+
+While soildb is designed to be async-first for high-performance applications, we provide a convenient way to call async functions from a synchronous context. All public async functions have an equivalent `.sync` version that you can call directly.
+
+### Before:
+
+```{python}
+#| eval: false
+import asyncio
+from soildb import SDAClient, get_sacatalog
+
+async with SDAClient() as client:
+    result = await get_sacatalog(client=client)
+```
+
+### After:
+
+```{python}
+#| eval: false
+from soildb import get_sacatalog
+
+result = get_sacatalog.sync()  # Client created automatically!
+```
+
+For convenience, the `.sync` versions automatically create and manage an `SDAClient` instance when no `client` parameter is provided. This makes synchronous usage even simpler, though with some performance overhead for client creation.
+
+If you're making multiple sync calls, consider creating a client once and reusing it:
+
+```{python}
+#| eval: false
+from soildb import SDAClient, get_sacatalog, get_mapunit_by_point
+
+client = SDAClient()
+result1 = get_sacatalog.sync(client=client)
+result2 = get_mapunit_by_point.sync(-93.6, 42.0, client=client)
+client.close()
+```
+
+### Important Limitation
+
+The `.sync` methods are intended for use in synchronous code only. They will raise a `SyncUsageError` if called from within an existing asyncio event loop. In such cases, use the async version instead.

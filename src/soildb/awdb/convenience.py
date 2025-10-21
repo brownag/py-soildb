@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from .client import AWDBClient
 from .exceptions import AWDBError
 from .models import TimeSeriesDataPoint
+from ..utils import add_sync_version
 
 # Mapping from property names to AWDB element codes
 # Note: Some properties can have height/depth specifications in format elementCode:heightDepth:ordinal
@@ -143,6 +144,7 @@ PROPERTY_UNITS = {
 }
 
 
+@add_sync_version
 async def get_nearby_stations(
     latitude: float,
     longitude: float,
@@ -197,6 +199,7 @@ async def get_nearby_stations(
         return result
 
 
+@add_sync_version
 async def find_stations_by_criteria(
     network_codes: Optional[List[str]] = None,
     state_codes: Optional[List[str]] = None,
@@ -332,6 +335,7 @@ def build_soil_element_string(element_code: str, height_depth_inches: int, ordin
     return f"{element_code}:{height_depth_inches}:{ordinal}"
 
 
+@add_sync_version
 async def get_station_sensor_heights(station_triplet: str, property_name: str) -> List[Dict]:
     """
     Get available sensor heights/depths for a specific station and property.
@@ -385,6 +389,7 @@ async def get_station_sensor_heights(station_triplet: str, property_name: str) -
         return sensors
 
 
+@add_sync_version
 async def get_station_soil_depths(station_triplet: str, property_name: str = "soil_moisture") -> List[Dict]:
     """
     Get available soil depths for a specific station and property.
@@ -400,6 +405,7 @@ async def get_station_soil_depths(station_triplet: str, property_name: str = "so
     return await get_station_sensor_heights(station_triplet, property_name)
 
 
+@add_sync_version
 async def get_soil_moisture_data(
     station_triplet: str,
     depths_inches: Optional[List[int]] = None,
@@ -499,6 +505,7 @@ async def get_soil_moisture_data(
         return result
 
 
+@add_sync_version
 async def get_monitoring_station_data(
     latitude: float,
     longitude: float,
@@ -659,6 +666,7 @@ async def get_monitoring_station_data(
         return result
 
 
+@add_sync_version
 async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> str:
     """
     Get the unit for an element from the AWDB API reference data.
@@ -681,6 +689,7 @@ async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> s
         return ''
 
 
+@add_sync_version
 async def get_station_sensor_metadata(station_triplet: str) -> Dict:
     """
     Get comprehensive sensor metadata for a station.
@@ -742,6 +751,7 @@ async def get_station_sensor_metadata(station_triplet: str) -> Dict:
         }
 
 
+@add_sync_version
 async def list_available_variables(station_triplet: str) -> List[Dict]:
     """
     List available variables/measured elements for a specific station.
