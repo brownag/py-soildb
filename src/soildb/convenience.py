@@ -11,8 +11,10 @@ from .response import SDAResponse
 from .sanitization import sanitize_sql_string
 from .schema_system import SCHEMAS
 from .spatial import spatial_query
+from .utils import add_sync_version
 
 
+@add_sync_version
 async def get_mapunit_by_areasymbol(
     areasymbol: str,
     columns: Optional[list[str]] = None,
@@ -70,6 +72,7 @@ async def get_mapunit_by_areasymbol(
     return response
 
 
+@add_sync_version
 async def get_mapunit_by_point(
     longitude: float,
     latitude: float,
@@ -100,6 +103,7 @@ async def get_mapunit_by_point(
     return await spatial_query(wkt_point, table="mupolygon", what=what, client=client)
 
 
+@add_sync_version
 async def get_mapunit_by_bbox(
     min_x: float,
     min_y: float,
@@ -132,6 +136,7 @@ async def get_mapunit_by_bbox(
     return await client.execute(query)
 
 
+@add_sync_version
 async def get_sacatalog(
     columns: Optional[list[str]] = None, client: Optional[SDAClient] = None
 ) -> "SDAResponse":
@@ -170,6 +175,7 @@ async def get_sacatalog(
     return await client.execute(query)
 
 
+@add_sync_version
 async def get_lab_pedons_by_bbox(
     min_x: float,
     min_y: float,
@@ -202,6 +208,7 @@ async def get_lab_pedons_by_bbox(
     return await fetch_pedons_by_bbox(bbox, columns, client=client)  # type: ignore
 
 
+@add_sync_version
 async def get_lab_pedon_by_id(
     pedon_id: str,
     columns: Optional[list[str]] = None,
