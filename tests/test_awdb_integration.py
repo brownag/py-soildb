@@ -4,13 +4,14 @@ Integration tests for AWDB client with existing SoilDB systems.
 Tests compatibility between AWDB client and other SoilDB modules.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
+from unittest.mock import patch
+
+import pytest
 
 from soildb.awdb.client import AWDBClient
-from soildb.awdb.models import StationInfo, TimeSeriesDataPoint
 from soildb.awdb.convenience import PROPERTY_ELEMENT_MAP
+from soildb.awdb.models import StationInfo, TimeSeriesDataPoint
 
 
 class TestAWDBSoilDBIntegration:
@@ -200,7 +201,7 @@ class TestAWDBSoilDBIntegration:
 
     def test_error_handling_integration(self, awdb_client):
         """Test that AWDB errors integrate properly with SoilDB error handling."""
-        from soildb.awdb.exceptions import AWDBQueryError, AWDBConnectionError
+        from soildb.awdb.exceptions import AWDBConnectionError, AWDBQueryError
 
         # Test that AWDB exceptions can be caught as general SoilDB errors
         try:
@@ -263,7 +264,10 @@ class TestAWDBSoilDBIntegration:
     def test_convenience_function_integration(self, awdb_client):
         """Test integration with AWDB convenience functions."""
         # Test that convenience functions work with client
-        from soildb.awdb.convenience import get_nearby_stations, get_monitoring_station_data
+        from soildb.awdb.convenience import (
+            get_monitoring_station_data,
+            get_nearby_stations,
+        )
 
         # Test get_nearby_stations interface
         try:
