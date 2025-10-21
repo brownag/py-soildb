@@ -17,6 +17,7 @@ from soildb.awdb.convenience import (
     get_nearby_stations,
     list_available_variables,
 )
+from soildb.awdb.exceptions import AWDBError
 from soildb.awdb.models import StationInfo, TimeSeriesDataPoint
 
 
@@ -201,7 +202,7 @@ class TestAWDBDocumentationValidation:
         mock_client.find_nearby_stations.return_value = []
 
         # Test invalid property
-        with pytest.raises(Exception):  # Should raise AWDBError
+        with pytest.raises(AWDBError):  # Should raise AWDBError
             await get_monitoring_station_data(
                 latitude=40.0,
                 longitude=-120.0,

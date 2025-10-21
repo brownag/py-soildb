@@ -356,11 +356,10 @@ class TestAWDBPerformanceBenchmarking:
                             duration="DAILY"
                         )
                         successes += 1
-                        data_points = len(data) if data else 0
+                        len(data) if data else 0
 
                     except Exception as e:
                         failures += 1
-                        data_points = 0
                         if "rate limit" in str(e).lower():
                             print(f"  Rate limit hit on request {i+1}")
 

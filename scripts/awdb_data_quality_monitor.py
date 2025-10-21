@@ -201,7 +201,7 @@ class DataQualityMonitor:
                                 try:
                                     # Assume it's already a valid datetime string
                                     point.timestamp = datetime.fromisoformat(point.timestamp)
-                                except:
+                                except Exception:
                                     # Last resort: create a dummy datetime to avoid crashes
                                     point.timestamp = datetime.now()
                         elif not isinstance(point.timestamp, datetime):
@@ -555,7 +555,7 @@ class DataQualityMonitor:
                         if isinstance(point.timestamp, str):
                             try:
                                 point.timestamp = datetime.fromisoformat(point.timestamp.replace('Z', '+00:00'))
-                            except:
+                            except Exception:
                                 point.timestamp = datetime.now()
 
                     # Analyze quality metrics for this depth
@@ -633,7 +633,7 @@ class DataQualityMonitor:
                             if isinstance(point.timestamp, str):
                                 try:
                                     point.timestamp = datetime.fromisoformat(point.timestamp.replace('Z', '+00:00'))
-                                except:
+                                except Exception:
                                     point.timestamp = datetime.now()
 
                         # Analyze quality metrics for this depth

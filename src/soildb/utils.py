@@ -85,7 +85,7 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
 def _extract_client_class(annotation: Any) -> Optional[type]:
     """
     Extract the client class from a type annotation.
-    
+
     Handles cases like:
     - Optional[SDAClient] -> SDAClient
     - SDAClient -> SDAClient
