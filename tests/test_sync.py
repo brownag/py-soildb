@@ -2,8 +2,8 @@
 Tests for synchronous wrapper functionality.
 """
 
+
 import pytest
-from unittest.mock import patch
 
 import soildb
 from soildb import SDAClient, SyncUsageError
@@ -18,11 +18,11 @@ class TestSyncWrappers:
         assert hasattr(soildb.get_sacatalog, 'sync')
         assert hasattr(soildb.get_mapunit_by_point, 'sync')
         assert hasattr(soildb.get_mapunit_by_areasymbol, 'sync')
-        
+
         # Test fetch functions
         assert hasattr(soildb.fetch_by_keys, 'sync')
         assert hasattr(soildb.fetch_component_by_mukey, 'sync')
-        
+
         # Test high-level functions
         assert hasattr(soildb.fetch_mapunit_struct_by_point, 'sync')
 
@@ -76,7 +76,7 @@ class TestSyncWrappers:
             result = soildb.get_sacatalog.sync(columns=['areasymbol', 'areaname'])
             assert isinstance(result, soildb.SDAResponse)
             assert len(result) > 0
-            
+
             # Check that custom columns are present
             df = result.to_pandas()
             assert 'areasymbol' in df.columns
@@ -91,7 +91,7 @@ class TestSyncWrappers:
             result = soildb.get_sacatalog.sync(columns=['areasymbol', 'areaname', 'saversion', 'saverest'])
             assert isinstance(result, soildb.SDAResponse)
             assert len(result) > 0
-            
+
             # Check that saverest column is present
             df = result.to_pandas()
             assert 'saverest' in df.columns
@@ -123,12 +123,12 @@ class TestSyncWrappers:
     def test_sync_no_client_param(self):
         """Test that functions without client param don't get automatic client."""
         from soildb.utils import add_sync_version
-        
+
         async def dummy_func(x, y):
             return x + y
-            
+
         sync_func = add_sync_version(dummy_func)
-        
+
         # Should work without issues (no client creation)
         result = sync_func.sync(1, 2)
         assert result == 3

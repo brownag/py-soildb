@@ -2,13 +2,11 @@
 High-level convenience functions for AWDB data access.
 """
 
-import asyncio
-from typing import Dict, List, Optional, Any, cast
+from typing import Any, Dict, List, Optional
 
+from ..utils import add_sync_version
 from .client import AWDBClient
 from .exceptions import AWDBError
-from .models import TimeSeriesDataPoint
-from ..utils import add_sync_version
 
 # Mapping from property names to AWDB element codes
 # Note: Some properties can have height/depth specifications in format elementCode:heightDepth:ordinal

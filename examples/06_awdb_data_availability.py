@@ -19,14 +19,13 @@ For demonstration purposes, this script shows the structure and approach.
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from collections import defaultdict
 import json
+from collections import defaultdict
+from datetime import datetime
+from typing import Any, Dict, List
 
 from soildb.awdb.client import AWDBClient
 from soildb.awdb.models import StationInfo
-
 
 # Key variables to assess (focused on air temperature and snow depth)
 VARIABLES = {
@@ -69,7 +68,7 @@ async def get_days_with_data(client: AWDBClient, station_triplet: str,
                 if data and len(data) > 0:
                     days_with_data[element][year] = len(data)
 
-            except Exception as e:
+            except Exception:
                 # Skip this element/year combination if there's an error
                 continue
 
@@ -152,8 +151,8 @@ async def main():
     start_year = end_year - 29  # 30 years back
 
     print(f"Assessment Period: {start_year} - {end_year} ({end_year - start_year + 1} years)")
-    print(f"Resolution: Daily data (full year for each year)")
-    print(f"Processing: 1 station at a time")
+    print("Resolution: Daily data (full year for each year)")
+    print("Processing: 1 station at a time")
     print(f"Variables: {', '.join([v['name'] for v in VARIABLES.values()])}")
     print()
 

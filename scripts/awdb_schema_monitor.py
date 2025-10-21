@@ -6,19 +6,18 @@ Monitors for changes in AWDB API response schemas and data quality flags.
 Useful for detecting when historical data quality changes or API schema updates occur.
 """
 
-import sys
-import json
 import hashlib
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from pathlib import Path
+import json
 import sqlite3
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
 
 from soildb.awdb.client import AWDBClient
-from soildb.awdb.exceptions import AWDBError
 
 
 class SchemaMonitor:

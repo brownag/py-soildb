@@ -3,7 +3,7 @@
 import asyncio
 import sys
 import time
-from typing import Optional
+
 
 # Add profiling decorator
 def profile_async(name: str):
@@ -28,12 +28,12 @@ def profile_async(name: str):
 # Patch the soildb functions to add profiling
 async def main():
     """Test with profiling."""
-    from soildb.client import SDAClient
     from soildb import (
-        get_mapunit_by_point,
-        fetch_component_by_mukey,
         fetch_chorizon_by_cokey,
+        fetch_component_by_mukey,
+        get_mapunit_by_point,
     )
+    from soildb.client import SDAClient
 
     # Wrap the functions with profiling
     original_get_mapunit = get_mapunit_by_point
@@ -50,10 +50,10 @@ async def main():
     latitude = 41.5
     longitude = -93.5
 
-    print(f"\n=== Testing individual components ===\n", file=sys.stderr)
+    print("\n=== Testing individual components ===\n", file=sys.stderr)
 
     # Step 1: Get map unit
-    print(f"Step 1: Getting map unit...", file=sys.stderr)
+    print("Step 1: Getting map unit...", file=sys.stderr)
     mu_response = await get_mapunit_by_point_profiled(longitude, latitude, client=client)
     mu_df = mu_response.to_pandas()
 
@@ -123,14 +123,14 @@ async def main():
     print(f"Found {len(horizons_df)} horizons", file=sys.stderr)
 
     # Step 4: Group by cokey
-    print(f"\nStep 4: Grouping horizons by cokey...", file=sys.stderr)
+    print("\nStep 4: Grouping horizons by cokey...", file=sys.stderr)
     horizons_df["cokey"] = horizons_df["cokey"].astype(str)
 
     for cokey, comp_horizons_df in horizons_df.groupby("cokey"):
         print(f"  Component {cokey}: {len(comp_horizons_df)} horizons", file=sys.stderr)
 
         # Try iterating rows (this might be where it hangs)
-        print(f"    Iterating rows...", file=sys.stderr)
+        print("    Iterating rows...", file=sys.stderr)
         for idx, h_row in comp_horizons_df.iterrows():
             # Check property access
             for prop in ["claytotal_r", "sandtotal_r", "om_r", "ph1to1h2o_r"]:
@@ -138,7 +138,7 @@ async def main():
                     val = h_row[prop]
                     print(f"      {prop} = {val}", file=sys.stderr)
 
-    print(f"\n=== All steps completed successfully ===\n", file=sys.stderr)
+    print("\n=== All steps completed successfully ===\n", file=sys.stderr)
     await client.close()
 
 

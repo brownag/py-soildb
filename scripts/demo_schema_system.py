@@ -4,9 +4,13 @@ Demonstration of the schema-driven column mapping system.
 """
 
 import pandas as pd
+
 from soildb.schema_system import (
-    SCHEMAS, create_dynamic_dataclass, get_schema,
-    add_column_to_schema, ColumnSchema
+    SCHEMAS,
+    ColumnSchema,
+    add_column_to_schema,
+    create_dynamic_dataclass,
+    get_schema,
 )
 
 

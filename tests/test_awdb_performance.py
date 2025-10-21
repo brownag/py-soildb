@@ -7,11 +7,10 @@ Tests bulk data retrieval, rate limiting, and performance characteristics.
 import asyncio
 import time
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+
 import pytest
 
 from soildb.awdb.client import AWDBClient
-from soildb.awdb.models import StationInfo
 
 
 class TestAWDBPerformance:
@@ -182,8 +181,9 @@ class TestAWDBPerformance:
     async def test_memory_usage_patterns(self, client):
         """Test memory usage with different data volumes."""
         try:
-            import psutil
             import os
+
+            import psutil
         except ImportError:
             pytest.skip("psutil not available for memory benchmarking")
 

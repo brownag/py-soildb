@@ -10,11 +10,12 @@ This example demonstrates the enhanced AWDB client with:
 """
 
 import asyncio
-from soildb.awdb.client import AWDBClient
-from soildb.awdb.models import TimeSeriesDataPoint
+
 from soildb.awdb.convenience import (
-    get_nearby_stations, get_monitoring_station_data,
-    find_stations_by_criteria, list_available_variables
+    find_stations_by_criteria,
+    get_monitoring_station_data,
+    get_nearby_stations,
+    list_available_variables,
 )
 
 
@@ -42,7 +43,11 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
             print(f"\nTrying station: {station.name} ({station.station_triplet})")
 
             # Get the element code for this property
-            from soildb.awdb.convenience import PROPERTY_ELEMENT_MAP, SOIL_PROPERTIES, build_soil_element_string
+            from soildb.awdb.convenience import (
+                PROPERTY_ELEMENT_MAP,
+                SOIL_PROPERTIES,
+                build_soil_element_string,
+            )
             if property_name not in PROPERTY_ELEMENT_MAP:
                 print(f"Unknown property: {property_name}")
                 continue
@@ -257,7 +262,11 @@ async def fetch_soil_moisture_example(client):
     """
     Demonstrate soil moisture data retrieval using proper API format.
     """
-    from soildb.awdb.convenience import get_station_soil_depths, get_soil_moisture_data, get_monitoring_station_data
+    from soildb.awdb.convenience import (
+        get_monitoring_station_data,
+        get_soil_moisture_data,
+        get_station_soil_depths,
+    )
 
     station_triplet = "2057:AL:SCAN"
 
@@ -352,7 +361,7 @@ async def fetch_data_for_known_station(client, station_triplet, element_code, de
             print(f" Successfully fetched {len(raw_data)} data points")
             print(f"   Sample: {raw_data[0]}")
         else:
-            print(f"   No data available for date range")
+            print("   No data available for date range")
 
     except Exception as e:
         print(f" Error fetching data: {e}")
@@ -381,7 +390,11 @@ def fetch_and_print_data(client, network_code, property_name, start_date="2023-0
             print(f"\nTrying station: {station.name} ({station.station_triplet})")
 
             # Get the element code for this property
-            from soildb.awdb.convenience import PROPERTY_ELEMENT_MAP, SOIL_PROPERTIES, build_soil_element_string
+            from soildb.awdb.convenience import (
+                PROPERTY_ELEMENT_MAP,
+                SOIL_PROPERTIES,
+                build_soil_element_string,
+            )
             if property_name not in PROPERTY_ELEMENT_MAP:
                 print(f"Unknown property: {property_name}")
                 continue
