@@ -184,8 +184,11 @@ class TestAWDBPerformance:
     @pytest.mark.asyncio
     async def test_memory_usage_patterns(self, client):
         """Test memory usage with different data volumes."""
-        import psutil
-        import os
+        try:
+            import psutil
+            import os
+        except ImportError:
+            pytest.skip("psutil not available for memory benchmarking")
 
         test_station = "301:CA:SNTL"
         process = psutil.Process(os.getpid())
