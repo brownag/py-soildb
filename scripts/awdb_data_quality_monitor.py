@@ -1049,7 +1049,7 @@ async def main():
         if report['availability_summary']:
             print("\n Sample availability data:")
             for item in report['availability_summary'][:3]:
-                print(".1%")
+                print(f"   {item.get('station', 'Unknown')}: {item.get('avg_monthly_completeness', 0):.1%}")
 
 if __name__ == "__main__":
     try:
