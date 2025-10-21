@@ -357,7 +357,8 @@ class SDAResponse:
             result.errors.extend(base_validation.errors)
             result.warnings.extend(base_validation.warnings)
             result.metadata.update(base_validation.metadata)
-            result.data_quality_score = base_validation.data_quality_score
+            # Adjust score to account for base validation issues
+            result.data_quality_score = max(0.0, result.data_quality_score - 0.2 * len(base_validation.errors) - 0.05 * len(base_validation.warnings))
 
         # Mapunit-specific validations
         required_columns = ["mukey", "musym", "muname"]
@@ -369,17 +370,12 @@ class SDAResponse:
                 result.add_error(f"Missing required mapunit columns: {missing_cols}")
 
             # Check for data in key columns
-            if hasattr(response_data, "data") and response_data.data:
+            if hasattr(response_data, "data") and response_data.data and "mukey" in response_data.columns:
                 empty_mukeys = sum(
                     1
                     for row in response_data.data
                     if not row
-                    or str(
-                        row[response_data.columns.index("mukey")]
-                        if "mukey" in response_data.columns
-                        else ""
-                    ).strip()
-                    == ""
+                    or str(row[response_data.columns.index("mukey")]).strip() == ""
                 )
                 if empty_mukeys > 0:
                     result.add_warning(
@@ -400,7 +396,8 @@ class SDAResponse:
             result.errors.extend(base_validation.errors)
             result.warnings.extend(base_validation.warnings)
             result.metadata.update(base_validation.metadata)
-            result.data_quality_score = base_validation.data_quality_score
+            # Adjust score to account for base validation issues
+            result.data_quality_score = max(0.0, result.data_quality_score - 0.2 * len(base_validation.errors) - 0.05 * len(base_validation.warnings))
 
         # Pedon-specific validations
         required_columns = ["pedon_id", "site_id"]
@@ -1007,7 +1004,8 @@ class SDAResponse:
 
         if horizons_df.empty:
             logger.warning("Converting empty SDA response to SoilProfileCollection")
-            # Create empty SoilProfileCollection
+            # For empty DataFrames, we skip column validation since there are no columns to validate.
+            # The site_data parameter is passed through as-is, assuming the caller has validated it.
             return SoilProfileCollection(
                 horizons=horizons_df,
                 site=site_data,
