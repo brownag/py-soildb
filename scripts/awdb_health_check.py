@@ -10,13 +10,12 @@ import asyncio
 import sys
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Any, Dict
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
 
 from soildb.awdb.client import AWDBClient
-from soildb.awdb.exceptions import AWDBError
 
 
 async def check_basic_connectivity() -> Dict[str, Any]:

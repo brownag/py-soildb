@@ -4,20 +4,20 @@ Documentation and example validation tests for AWDB client.
 Tests that docstring examples work and documentation is accurate.
 """
 
-import doctest
 import inspect
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, Mock, AsyncMock
 
 from soildb.awdb.client import AWDBClient
-from soildb.awdb.models import StationInfo, TimeSeriesDataPoint
 from soildb.awdb.convenience import (
-    get_nearby_stations,
-    get_monitoring_station_data,
-    list_available_variables,
     PROPERTY_ELEMENT_MAP,
-    PROPERTY_UNITS
+    PROPERTY_UNITS,
+    get_monitoring_station_data,
+    get_nearby_stations,
+    list_available_variables,
 )
+from soildb.awdb.models import StationInfo, TimeSeriesDataPoint
 
 
 class TestAWDBDocumentationValidation:
@@ -276,7 +276,11 @@ class TestAWDBDocumentationValidation:
 
     def test_error_handling_documentation(self):
         """Test that error classes are properly documented."""
-        from soildb.awdb.exceptions import AWDBError, AWDBQueryError, AWDBConnectionError
+        from soildb.awdb.exceptions import (
+            AWDBConnectionError,
+            AWDBError,
+            AWDBQueryError,
+        )
 
         # Test that error classes can be instantiated
         try:
@@ -366,8 +370,8 @@ class TestAWDBUsagePatternValidation:
     def test_data_analysis_workflow(self):
         """Test typical data analysis workflow."""
         # Create sample data as would be returned by AWDB
-        from datetime import datetime, timedelta
         import statistics
+        from datetime import datetime
 
         data_points = [
             TimeSeriesDataPoint(

@@ -8,18 +8,17 @@ data availability indices that need periodic re-indexing.
 """
 
 import asyncio
-import sys
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Tuple
-from pathlib import Path
 import sqlite3
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
 
 from soildb.awdb.client import AWDBClient
-from soildb.awdb.exceptions import AWDBError
 
 
 class DataQualityMonitor:
@@ -214,7 +213,7 @@ class DataQualityMonitor:
                     else:
                         # If no timestamp attribute, create one
                         point.timestamp = datetime.now()
-                print(f"    Timestamp processing complete")
+                print("    Timestamp processing complete")
 
                 if not data:
                     print(f"  {element}: No data available")
@@ -223,7 +222,7 @@ class DataQualityMonitor:
                 # Analyze quality metrics
                 print(f"    Analyzing quality metrics for {len(data)} points...")
                 quality_metrics = self._analyze_quality_metrics(data, element_code)
-                print(f"    Quality analysis complete")
+                print("    Quality analysis complete")
 
                 # Store snapshot
                 self._store_quality_snapshot(
@@ -232,7 +231,7 @@ class DataQualityMonitor:
                 )
 
                 # Check for quality changes
-                print(f"    Checking for quality changes...")
+                print("    Checking for quality changes...")
                 try:
                     alerts = self._check_quality_changes(
                         station_triplet, element_code, quality_metrics
@@ -601,12 +600,12 @@ class DataQualityMonitor:
 
                     print(f"    SMS {depth_inches}\": {len(data)} points, completeness: {quality_metrics['data_completeness']:.1%}")
 
-                except Exception as e:
+                except Exception:
                     # Skip combinations that don't exist
                     continue
         else:
             # Fallback: try typical depths if no sensor config available
-            print(f"    No sensor configuration found, trying typical SCAN depths...")
+            print("    No sensor configuration found, trying typical SCAN depths...")
             typical_depths = [2, 4, 8, 20, 40]  # inches
             max_ordinals = 3  # Allow for duplicates/triplicates
 
@@ -679,7 +678,7 @@ class DataQualityMonitor:
 
                         print(f"    SMS {depth_inches}\": {len(data)} points, completeness: {quality_metrics['data_completeness']:.1%}")
 
-                    except Exception as e:
+                    except Exception:
                         # Skip combinations that don't exist
                         continue
 

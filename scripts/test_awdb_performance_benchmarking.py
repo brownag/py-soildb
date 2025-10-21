@@ -5,10 +5,9 @@ Provides detailed performance metrics and benchmarking capabilities.
 """
 
 import asyncio
-import time
 import statistics
-from collections import defaultdict
-from typing import Dict, List, Any
+import time
+
 import pytest
 
 from soildb.awdb.client import AWDBClient
@@ -258,8 +257,9 @@ class TestAWDBPerformanceBenchmarking:
     async def test_memory_usage_during_large_operations(self, client):
         """Benchmark memory usage during large data operations."""
         try:
-            import psutil
             import os
+
+            import psutil
         except ImportError:
             pytest.skip("psutil not available for memory benchmarking")
 

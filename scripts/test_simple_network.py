@@ -1,8 +1,9 @@
 """Test simple network connectivity to SDA."""
 
 import asyncio
-import httpx
 import time
+
+import httpx
 
 
 async def test_direct_http():
@@ -27,7 +28,7 @@ async def test_direct_http():
     start = time.time()
 
     async with httpx.AsyncClient(timeout=10.0) as client:
-        print(f"Sending POST request... (timeout=10s)", flush=True)
+        print("Sending POST request... (timeout=10s)", flush=True)
         try:
             response = await client.post(url, json=request_body)
             elapsed = time.time() - start

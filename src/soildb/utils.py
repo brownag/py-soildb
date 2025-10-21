@@ -3,8 +3,16 @@ Internal utility functions for soildb.
 """
 import asyncio
 import inspect
-from functools import wraps
-from typing import Awaitable, Callable, TypeVar, get_origin, get_args, Union, Any, Optional
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Optional,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from .exceptions import SyncUsageError
 
@@ -39,7 +47,7 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
         except RuntimeError:
             # No running loop, proceed
             pass
-        
+
         temp_client = None
         # Check if the function has a 'client' parameter and it's not provided
         sig = inspect.signature(async_fn)
@@ -50,17 +58,17 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
             if client_class:
                 temp_client = client_class()
                 kwargs['client'] = temp_client
-        
+
         coro: Awaitable[R]
         if temp_client:
             coro = _call_and_cleanup(async_fn, args, kwargs, temp_client)
         else:
             coro = async_fn(*args, **kwargs)
-        
+
         try:
             # asyncio.run accepts any Awaitable since Python 3.7
             return asyncio.run(coro)  # type: ignore[arg-type]
-        except RuntimeError as e:
+        except RuntimeError:
             # Try creating a new event loop
             loop = asyncio.new_event_loop()
             try:
@@ -70,7 +78,7 @@ def add_sync_version(async_fn: Callable[..., Awaitable[R]]) -> Callable[..., Awa
                 loop.close()
 
     # Attach the synchronous wrapper to the original async function
-    setattr(async_fn, "sync", sync_wrapper)
+    async_fn.sync = sync_wrapper
     return async_fn
 
 
@@ -85,7 +93,7 @@ def _extract_client_class(annotation: Any) -> Optional[type]:
     """
     if annotation is None:
         return None
-    
+
     # Handle Union/Optional types
     origin = get_origin(annotation)
     if origin is Union:
@@ -102,5 +110,5 @@ def _extract_client_class(annotation: Any) -> Optional[type]:
         # Direct type annotation - ensure it's actually a type
         if isinstance(annotation, type):
             return annotation
-    
+
     return None
