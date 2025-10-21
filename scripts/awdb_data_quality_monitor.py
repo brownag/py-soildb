@@ -120,7 +120,7 @@ class DataQualityMonitor:
             # Use semantic property names instead of cryptic element codes
             elements = ['air_temp_avg', 'precipitation', 'snow_water_equivalent', 'snow_depth', 'soil_moisture']
 
-        print(f"🔍 Scanning quality for {station_triplet}...")
+        print(f" Scanning quality for {station_triplet}...")
 
         results = {
             'station': station_triplet,
@@ -260,7 +260,7 @@ class DataQualityMonitor:
                 print(f"  {element} ({element_code}): {len(data)} points, completeness: {quality_metrics['data_completeness']:.1%}")
 
             except Exception as e:
-                print(f"  ❌ {element}: Failed - {e}")
+                print(f"   {element}: Failed - {e}")
                 results['elements_scanned'].append({
                     'element': element,
                     'error': str(e)
@@ -816,7 +816,7 @@ class DataQualityMonitor:
     async def scan_multiple_stations(self, station_list: List[str], elements: List[str] = None,
                                 max_stations: int = 10) -> Dict[str, Any]:
         """Scan quality for multiple stations (with limit to avoid API throttling)."""
-        print(f"🔍 Scanning quality for {min(len(station_list), max_stations)} stations...")
+        print(f" Scanning quality for {min(len(station_list), max_stations)} stations...")
 
         results = {
             'stations_scanned': 0,
@@ -835,7 +835,7 @@ class DataQualityMonitor:
                 results['total_index_updates'] += station_result['availability_index_updates']
 
             except Exception as e:
-                print(f"❌ Failed to scan {station}: {e}")
+                print(f" Failed to scan {station}: {e}")
                 results['station_results'].append({
                     'station': station,
                     'error': str(e)
@@ -859,7 +859,7 @@ class DataQualityMonitor:
         Returns:
             Comprehensive scan results for the state
         """
-        print(f"🌎 Scanning all stations in {state_code}...")
+        print(f" Scanning all stations in {state_code}...")
 
         # Get all stations in the state using station triplet wildcards for better filtering
         print(f"   Fetching stations for state: {state_code}, networks: {network_codes}")
@@ -891,12 +891,12 @@ class DataQualityMonitor:
                 'stations_scanned': 0
             }
 
-        print(f"📍 Found {len(stations)} active stations in {state_code}")
+        print(f" Found {len(stations)} active stations in {state_code}")
 
         # Limit total stations if specified
         if max_stations and len(stations) > max_stations:
             stations = stations[:max_stations]
-            print(f"📊 Limiting to first {max_stations} stations")
+            print(f" Limiting to first {max_stations} stations")
 
         # Process in chunks
         all_results = {
@@ -917,7 +917,7 @@ class DataQualityMonitor:
             chunk_num = (i // chunk_size) + 1
             total_chunks = (len(station_triplets) + chunk_size - 1) // chunk_size
 
-            print(f"\n📦 Processing chunk {chunk_num}/{total_chunks} ({len(chunk)} stations)...")
+            print(f"\n Processing chunk {chunk_num}/{total_chunks} ({len(chunk)} stations)...")
 
             try:
                 chunk_result = await self.scan_multiple_stations(
@@ -935,23 +935,23 @@ class DataQualityMonitor:
                 all_results['total_index_updates'] += chunk_result['total_index_updates']
                 all_results['chunks_processed'] += 1
 
-                print(f"✅ Chunk {chunk_num} complete: {chunk_result['stations_scanned']} stations, "
+                print(f" Chunk {chunk_num} complete: {chunk_result['stations_scanned']} stations, "
                       f"{chunk_result['total_alerts']} alerts, {chunk_result['total_index_updates']} index updates")
 
             except Exception as e:
-                print(f"❌ Failed to process chunk {chunk_num}: {e}")
+                print(f" Failed to process chunk {chunk_num}: {e}")
                 all_results['chunk_results'].append({
                     'chunk_number': chunk_num,
                     'error': str(e)
                 })
 
-        print(f"\n🎯 {state_code} scan complete: {all_results['stations_scanned']}/{all_results['stations_found']} stations processed")
+        print(f"\n {state_code} scan complete: {all_results['stations_scanned']}/{all_results['stations_found']} stations processed")
         return all_results
 
 
 async def main():
     """Run data quality monitoring."""
-    print("📊 AWDB Data Quality Monitor")
+    print(" AWDB Data Quality Monitor")
     print("=" * 50)
 
     monitor = DataQualityMonitor()
@@ -966,7 +966,7 @@ async def main():
         state_code = sys.argv[2].upper()
         network_codes = sys.argv[3:] if len(sys.argv) > 3 else None
 
-        print(f"\n🌎 Scanning all stations in {state_code}...")
+        print(f"\n Scanning all stations in {state_code}...")
 
         # Scan entire state in chunks
         state_results = await monitor.scan_state_stations(
@@ -977,7 +977,7 @@ async def main():
             chunk_size=5      # Small chunks for testing
         )
 
-        print("\n📊 State scan results:")
+        print("\n State scan results:")
         print(f"   State: {state_results['state']}")
         print(f"   Stations found: {state_results['stations_found']}")
         print(f"   Stations scanned: {state_results['stations_scanned']}")
@@ -994,11 +994,11 @@ async def main():
         print(f"   Availability records: {len(report['availability_summary'])}")
 
         if report['quality_alerts']:
-            print("   ⚠️  Recent quality alerts:")
+            print("     Recent quality alerts:")
             for alert in report['quality_alerts'][:5]:  # Show first 5
                 print(f"     {alert['station']} {alert['element']}: {alert['description']}")
 
-        print(f"\n📊 Quality monitoring complete. Database updated at: {monitor.db_path}")
+        print(f"\n Quality monitoring complete. Database updated at: {monitor.db_path}")
 
     else:
         # Default: Scan a few key stations
@@ -1039,15 +1039,15 @@ async def main():
         print(f"   Availability records: {len(report['availability_summary'])}")
 
         if report['quality_alerts']:
-            print("   ⚠️  Recent quality alerts:")
+            print("     Recent quality alerts:")
             for alert in report['quality_alerts'][:3]:  # Show first 3
                 print(f"     {alert['station']} {alert['element']}: {alert['description']}")
 
-        print(f"\n📊 Quality monitoring complete. Database updated at: {monitor.db_path}")
+        print(f"\n Quality monitoring complete. Database updated at: {monitor.db_path}")
 
         # Show sample availability data
         if report['availability_summary']:
-            print("\n📈 Sample availability data:")
+            print("\n Sample availability data:")
             for item in report['availability_summary'][:3]:
                 print(".1%")
 
@@ -1056,8 +1056,8 @@ if __name__ == "__main__":
         asyncio.run(main())
 
     except KeyboardInterrupt:
-        print("\n⏹️  Quality monitoring interrupted by user")
+        print("\n  Quality monitoring interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n💥 Unexpected error: {e}")
+        print(f"\n Unexpected error: {e}")
         sys.exit(1)

@@ -45,7 +45,7 @@ async def main():
                 comp_name = record.get("compname", "Unknown")
                 hz_name = record.get("hzname", "Unknown")
                 sand = record.get("sandtotal_r", "N/A")
-                print(f"  • {comp_name} - {hz_name} (Sand: {sand}%)")
+                print(f"  - {comp_name} - {hz_name} (Sand: {sand}%)")
 
             if len(records) > 3:
                 print(f"  ... and {len(records) - 3} more records")
@@ -64,7 +64,7 @@ async def main():
             for record in mu_records[:5]:
                 musym = record.get("musym", "Unknown")
                 muname = record.get("muname", "Unknown")
-                print(f"  • {musym}: {muname}")
+                print(f"  - {musym}: {muname}")
 
             if len(mu_records) > 5:
                 print(f"  ... and {len(mu_records) - 5} more map units")

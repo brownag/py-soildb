@@ -59,10 +59,10 @@ async def main():
         bbox = metadata.bounding_box
         if any(bbox.values()):
             print("\n=== Geographic Extent ===")
-            print(f"West: {bbox['west']:.4f}°")
-            print(f"East: {bbox['east']:.4f}°")
-            print(f"North: {bbox['north']:.4f}°")
-            print(f"South: {bbox['south']:.4f}°")
+            print(f"West: {bbox['west']:.4f} degrees")
+            print(f"East: {bbox['east']:.4f} degrees")
+            print(f"North: {bbox['north']:.4f} degrees")
+            print(f"South: {bbox['south']:.4f} degrees")
 
         # Display abstract and purpose
         if metadata.abstract:

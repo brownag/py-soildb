@@ -21,7 +21,7 @@ from soildb.awdb.exceptions import AWDBError
 
 async def check_basic_connectivity() -> Dict[str, Any]:
     """Test basic API connectivity."""
-    print("🔍 Testing basic connectivity...")
+    print(" Testing basic connectivity...")
 
     try:
         async with AWDBClient(timeout=10) as client:
@@ -49,7 +49,7 @@ async def check_basic_connectivity() -> Dict[str, Any]:
 
 async def check_data_retrieval() -> Dict[str, Any]:
     """Test data retrieval functionality."""
-    print("📊 Testing data retrieval...")
+    print(" Testing data retrieval...")
 
     try:
         async with AWDBClient(timeout=15) as client:
@@ -88,7 +88,7 @@ async def check_data_retrieval() -> Dict[str, Any]:
 
 async def check_reference_data() -> Dict[str, Any]:
     """Test reference data retrieval."""
-    print("📚 Testing reference data...")
+    print(" Testing reference data...")
 
     try:
         async with AWDBClient(timeout=10) as client:
@@ -117,7 +117,7 @@ async def check_reference_data() -> Dict[str, Any]:
 
 async def run_health_check() -> Dict[str, Any]:
     """Run complete health check suite."""
-    print("🏥 AWDB API Health Check")
+    print(" AWDB API Health Check")
     print("=" * 50)
 
     results = {
@@ -139,7 +139,7 @@ async def run_health_check() -> Dict[str, Any]:
         result = await check_func()
         results['checks'][check_name] = result
 
-        status_emoji = "✅" if result['status'] == 'healthy' else "❌"
+        status_emoji = "" if result['status'] == 'healthy' else ""
         print(f"{status_emoji} {check_name}: {result['status']}")
 
         if result['response_time']:
@@ -160,15 +160,15 @@ async def run_health_check() -> Dict[str, Any]:
     # Overall status
     results['overall_status'] = 'healthy' if all_healthy else 'unhealthy'
 
-    print(f"\n{'─' * 20}")
-    overall_emoji = "✅" if all_healthy else "❌"
+    print(f"\n{'' * 20}")
+    overall_emoji = "" if all_healthy else ""
     print(f"{overall_emoji} Overall Status: {results['overall_status']}")
 
     if not all_healthy:
         print("\n  Some checks failed. Check the AWDB API status or network connectivity.")
         return results  # Don't exit in async context
     else:
-        print("\n🎉 All checks passed! AWDB API is healthy.")
+        print("\n All checks passed! AWDB API is healthy.")
 
     return results
 
@@ -185,10 +185,10 @@ async def main():
             sys.exit(1)
 
     except KeyboardInterrupt:
-        print("\n⏹️  Health check interrupted by user")
+        print("\n  Health check interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n💥 Unexpected error during health check: {e}")
+        print(f"\n Unexpected error during health check: {e}")
         sys.exit(1)
 
 

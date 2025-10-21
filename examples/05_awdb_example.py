@@ -69,17 +69,17 @@ async def fetch_and_print_data(client, network_code, property_name, start_date="
             )
 
             if raw_data:
-                print(f"✅ Successfully fetched {len(raw_data)} data points for {station.name}")
+                print(f" Successfully fetched {len(raw_data)} data points for {station.name}")
                 print(f"   Sample: {raw_data[0]}")
                 break  # Found data, stop trying other stations
             else:
                 print(f"   No data available for {station.name} in date range")
 
         except Exception as e:
-            print(f"   ❌ Failed to fetch data for {station.name}: {e}")
+            print(f"    Failed to fetch data for {station.name}: {e}")
 
     else:
-        print(f"\n❌ Could not find any {network_code} station with data for the specified criteria.")
+        print(f"\n Could not find any {network_code} station with data for the specified criteria.")
         if network_code == "SNOW":
             print("   NOTE: SNOW network data is manually collected and may not be available for all stations or date ranges.")
 
@@ -289,7 +289,7 @@ async def fetch_soil_moisture_example(client):
                     max_distance_km=100  # Allow wider search
                 )
 
-                print(f"✅ Found station: {result['site_name']} ({result['site_id']})")
+                print(f" Found station: {result['site_name']} ({result['site_id']})")
                 print(f"   Distance: {result['metadata']['distance_km']} km")
                 print(f"   Data points: {result['metadata']['n_data_points']}")
                 print(f"   Element used: {result['metadata']['element_string']}")
@@ -299,7 +299,7 @@ async def fetch_soil_moisture_example(client):
                     print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']}% volumetric moisture")
 
             except Exception as e:
-                print(f"❌ Single depth query failed: {e}")
+                print(f" Single depth query failed: {e}")
 
             # Get soil moisture data for multiple depths
             print("\n--- Multi-Depth Query (using get_soil_moisture_data) ---")
@@ -317,20 +317,20 @@ async def fetch_soil_moisture_example(client):
                 n_points = depth_data['n_data_points']
                 element = depth_data['element_string']
                 if n_points > 0:
-                    print(f"✅ Depth {depth_inches}\": {n_points} points")
+                    print(f" Depth {depth_inches}\": {n_points} points")
                     # Show sample value
                     if depth_data['data_points']:
                         sample = depth_data['data_points'][0]
                         print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']}%")
                 else:
                     error = depth_data.get('error', 'No data')
-                    print(f"❌ Depth {depth_inches}\": {error}")
+                    print(f" Depth {depth_inches}\": {error}")
 
         else:
             print("   No soil moisture sensors found")
 
     except Exception as e:
-        print(f"❌ Error in soil moisture example: {e}")
+        print(f" Error in soil moisture example: {e}")
 
 
 async def fetch_data_for_known_station(client, station_triplet, element_code, description):
@@ -349,13 +349,13 @@ async def fetch_data_for_known_station(client, station_triplet, element_code, de
         )
 
         if raw_data:
-            print(f"✅ Successfully fetched {len(raw_data)} data points")
+            print(f" Successfully fetched {len(raw_data)} data points")
             print(f"   Sample: {raw_data[0]}")
         else:
             print(f"   No data available for date range")
 
     except Exception as e:
-        print(f"❌ Error fetching data: {e}")
+        print(f" Error fetching data: {e}")
 
 
 def fetch_and_print_data(client, network_code, property_name, start_date="2023-01-01", end_date="2023-01-10", height_depth_inches=None, state_codes=None, max_stations=3):
@@ -408,7 +408,7 @@ def fetch_and_print_data(client, network_code, property_name, start_date="2023-0
             )
 
             if raw_data:
-                print(f"✅ Successfully fetched {len(raw_data)} data points for {station.name}")
+                print(f" Successfully fetched {len(raw_data)} data points for {station.name}")
                 print(f"   Sample: {raw_data[0]}")
                 break  # Found data, stop trying other stations
             else:

@@ -1302,11 +1302,11 @@ class SDAResponse:
         if self._validation_result:
             result = self._validation_result
             if not result.is_valid():
-                lines.append(f"❌ Validation: {len(result.errors)} errors")
+                lines.append(f" Validation: {len(result.errors)} errors")
             elif result.has_warnings():
-                lines.append(f"⚠️  Validation: {len(result.warnings)} warnings")
+                lines.append(f"  Validation: {len(result.warnings)} warnings")
             else:
-                lines.append("✅ Validation: OK")
+                lines.append(" Validation: OK")
 
             lines.append(f"Data Quality Score: {result.data_quality_score:.2f}")
 

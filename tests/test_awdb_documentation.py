@@ -432,7 +432,7 @@ class TestAWDBUsagePatternValidation:
                 }
 
         # Validate bulk processing results
-        assert len(all_values) == 4  # 2 stations × 2 data points each
+        assert len(all_values) == 4  # 2 stations x 2 data points each
         assert len(station_stats) == 2
 
         for stats in station_stats.values():
