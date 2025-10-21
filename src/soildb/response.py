@@ -575,7 +575,9 @@ class SDAResponse:
             if violation_rate > 0.1:  # More than 10% violations
                 result.add_error(f"Data violation rate too high: {violation_rate:.1%}")
             elif violation_rate > 0.05:  # More than 5% violations
-                result.add_warning(f"Data violation rate moderate: {violation_rate:.1%}")
+                result.add_warning(
+                    f"Data violation rate moderate: {violation_rate:.1%}"
+                )
 
         return result
 
@@ -1113,7 +1115,9 @@ class SDAResponse:
         """Get the validation result for this response."""
         if self._validation_result is None:
             self.validate_response()
-        assert self._validation_result is not None  # validate_response() should have set this
+        assert (
+            self._validation_result is not None
+        )  # validate_response() should have set this
         return self._validation_result
 
     @property

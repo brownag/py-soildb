@@ -94,7 +94,9 @@ class AWDBClient:
             elif e.response.status_code == 404:
                 raise AWDBQueryError("Station or data not found") from e
             elif e.response.status_code == 413:
-                raise AWDBQueryError("Request too large - reduce data range or parameters") from e
+                raise AWDBQueryError(
+                    "Request too large - reduce data range or parameters"
+                ) from e
             elif e.response.status_code == 429:
                 raise AWDBConnectionError("Rate limit exceeded") from e
             elif e.response.status_code >= 500:
@@ -199,7 +201,9 @@ class AWDBClient:
         if hucs:
             params["hucs"] = ",".join(hucs)
 
-        params["returnForecastPointMetadata"] = str(return_forecast_point_metadata).lower()
+        params["returnForecastPointMetadata"] = str(
+            return_forecast_point_metadata
+        ).lower()
         params["returnReservoirMetadata"] = str(return_reservoir_metadata).lower()
         params["returnStationElements"] = str(return_station_elements).lower()
         params["activeOnly"] = str(active_only).lower()
@@ -480,10 +484,12 @@ class AWDBClient:
             # Extract sample values
             sample_values = []
             for point in data[:5]:  # Limit to 5 samples
-                sample_values.append({
-                    "date": point.timestamp.date().isoformat(),
-                    "value": point.value,
-                })
+                sample_values.append(
+                    {
+                        "date": point.timestamp.date().isoformat(),
+                        "value": point.value,
+                    }
+                )
 
             return {
                 "has_data": len(data) > 0,
@@ -532,7 +538,9 @@ class AWDBClient:
         if end_publication_date:
             params["endPublicationDate"] = end_publication_date
         if exceedence_probabilities:
-            params["exceedenceProbabilities"] = ",".join(map(str, exceedence_probabilities))
+            params["exceedenceProbabilities"] = ",".join(
+                map(str, exceedence_probabilities)
+            )
         if forecast_periods:
             params["forecastPeriods"] = ",".join(forecast_periods)
 
@@ -609,7 +617,6 @@ class AWDBClient:
             raise
         except Exception as e:
             raise AWDBQueryError(f"Failed to retrieve reference data: {e}") from e
-
 
     @staticmethod
     def _haversine_distance(
