@@ -6,16 +6,20 @@ This document shows common soildb usage patterns without extensive explanation.
 
 ```{python}
 #| eval: false
-import asyncio
 import soildb
 
-# Point query
-response = await soildb.get_mapunit_by_point(-93.6, 42.0)
+# Point query (synchronous)
+response = soildb.get_mapunit_by_point.sync(-93.6, 42.0)
 df = response.to_pandas()
 
-# Area query  
-response = await soildb.get_mapunit_by_areasymbol("IA015")
+# Area query (synchronous)
+response = soildb.get_mapunit_by_areasymbol.sync("IA015")
 df = response.to_pandas()
+
+# Or async for high-performance applications
+async with soildb.SDAClient() as client:
+    response = await soildb.get_mapunit_by_point(-93.6, 42.0, client=client)
+    df = response.to_pandas()
 ```
 
 ## Spatial Queries
@@ -41,21 +45,27 @@ gdf = response.to_geodataframe()  # Requires GeoPandas
 
 ```{python}
 #| eval: false
-# Get many mukeys
-mukeys = await soildb.get_mukey_by_areasymbol(["IA015", "IA109"])
+# Get many mukeys (synchronous)
+mukeys = soildb.get_mukey_by_areasymbol.sync(["IA015", "IA109"])
 
-# Fetch map unit data
-response = await soildb.fetch_by_keys(mukeys, "mapunit")
+# Fetch map unit data (synchronous)
+response = soildb.fetch_by_keys.sync(mukeys, "mapunit")
 df = response.to_pandas()
 
-# Fetch with specific columns
-response = await soildb.fetch_by_keys(
+# Fetch with specific columns (synchronous)
+response = soildb.fetch_by_keys.sync(
     mukeys, 
     "component",
     key_column="mukey",
     columns=["cokey", "compname", "comppct_r"]
 )
 df = response.to_pandas()
+
+# Or async for concurrent processing
+async with soildb.SDAClient() as client:
+    mukeys = await soildb.get_mukey_by_areasymbol(["IA015", "IA109"], client=client)
+    response = await soildb.fetch_by_keys(mukeys, "component", key_column="mukey", client=client)
+    df = response.to_pandas()
 ```
 
 ## Custom Queries
@@ -82,6 +92,15 @@ async with soildb.SDAClient() as client:
 ```{python}
 #| eval: false
 try:
+    # Synchronous usage
+    response = soildb.get_mapunit_by_point.sync(-93.6, 42.0)
+except soildb.SDAConnectionError:
+    print("SDA service unavailable")
+except soildb.SDAQueryError as e:
+    print(f"Query error: {e}")
+
+# Or async usage
+try:
     async with soildb.SDAClient() as client:
         response = await soildb.get_mapunit_by_point(-93.6, 42.0, client=client)
 except soildb.SDAConnectionError:
@@ -94,9 +113,9 @@ except soildb.SDAQueryError as e:
 
 ```{python}
 #| eval: false
-# Fetch structured objects with default columns
-map_unit = await soildb.fetch_mapunit_struct_by_point(38.5, -121.5)
-pedon = await soildb.fetch_pedon_struct_by_id("S1999NY061001")
+# Fetch structured objects with default columns (synchronous)
+map_unit = soildb.fetch_mapunit_struct_by_point.sync(38.5, -121.5)
+pedon = soildb.fetch_pedon_struct_by_id.sync("S1999NY061001")
 
 # Access nested data
 for component in map_unit.components:
@@ -107,6 +126,11 @@ for component in map_unit.components:
 # Access pedon horizons
 for horizon in pedon.horizons:
     print(f"Horizon: {horizon.horizon_name}, Depth: {horizon.top_depth}-{horizon.bottom_depth}")
+
+# Or async
+async with soildb.SDAClient() as client:
+    map_unit = await soildb.fetch_mapunit_struct_by_point(38.5, -121.5, client=client)
+    pedon = await soildb.fetch_pedon_struct_by_id("S1999NY061001", client=client)
 ```
 
 ## Flexible Column Support

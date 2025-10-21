@@ -114,6 +114,56 @@ result
 For comprehensive async usage, see the [Async Programming
 Guide](docs/async.md).
 
+### Synchronous Usage
+
+For simple scripts and interactive use, soildb provides synchronous versions of all async functions:
+
+``` python
+from soildb import get_mapunit_by_areasymbol
+
+# Synchronous usage - no async/await needed!
+mapunits = get_mapunit_by_areasymbol.sync("IA109")
+df = mapunits.to_pandas()
+print(f"Found {len(df)} map units")
+df.head()
+```
+
+    Found 80 map units
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+&#10;    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+&#10;    .dataframe thead th {
+        vertical-align: right;
+    }
+</style>
+
+|  | mukey | musym | muname | mukind | muacres | areasymbol | areaname |
+|----|----|----|----|----|----|----|----|
+| 0 | 408333 | 1032 | Spicer silty clay loam, 0 to 2 percent slopes | Consociation | 1834 | IA109 | Kossuth County, Iowa |
+| 1 | 408334 | 107 | Webster clay loam, 0 to 2 percent slopes | Consociation | 46882 | IA109 | Kossuth County, Iowa |
+| 2 | 408335 | 108 | Wadena loam, 0 to 2 percent slopes | Consociation | 807 | IA109 | Kossuth County, Iowa |
+| 3 | 408336 | 108B | Wadena loam, 2 to 6 percent slopes | Consociation | 1103 | IA109 | Kossuth County, Iowa |
+| 4 | 408337 | 1133 | Colo silty clay loam, channeled, 0 to 2 percen... | Consociation | 1403 | IA109 | Kossuth County, Iowa |
+
+</div>
+
+The `.sync` methods automatically manage SDA client connections for you. For multiple calls, consider reusing a client:
+
+``` python
+from soildb import SDAClient, get_mapunit_by_areasymbol
+
+client = SDAClient()
+mapunits1 = get_mapunit_by_areasymbol.sync("IA109", client=client)
+mapunits2 = get_mapunit_by_areasymbol.sync("IA113", client=client)
+client.close()
+```
+
 ### Convenience Functions
 
 soildb provides several high-level functions for common tasks:
@@ -161,34 +211,35 @@ soildb also offers support for queries by location via
 spatial and tabular types of results.
 
 ``` python
+from soildb import spatial_query
+
+# Point query (synchronous)
+response = spatial_query.sync(
+    geometry="POINT (-93.6 42.0)",
+    table="mupolygon",
+    spatial_relation="intersects"
+)
+df = response.to_pandas()
+print(f"Point query found {len(df)} results")
+
+# Or async
 import asyncio
 
 async def spatial_query_example():
     from soildb import spatial_query
     
-    # Point query
     async with soildb.SDAClient() as client:
         response = await spatial_query(
             geometry="POINT (-93.6 42.0)",
             table="mupolygon",
-            spatial_relation="intersects"
+            spatial_relation="intersects",
+            client=client
         )
         df = response.to_pandas()
         print(f"Point query found {len(df)} results")
         return df
 
-# Handle different environments
-try:
-    # Check if there's already an event loop (Jupyter, etc.)
-    loop = asyncio.get_running_loop()
-    import nest_asyncio
-    nest_asyncio.apply()
-    result = loop.run_until_complete(spatial_query_example())
-except RuntimeError:
-    # No existing loop, use asyncio.run()
-    result = asyncio.run(spatial_query_example())
-
-result
+result = asyncio.run(spatial_query_example())
 ```
 
     Point query found 1 results
@@ -219,6 +270,29 @@ concurrent requests and built-in functions that automatically handle
 pagination.
 
 ``` python
+from soildb import fetch_by_keys, get_mukey_by_areasymbol
+
+# Get mukeys for multiple areas (synchronous)
+areas = ["IA109", "IA113", "IA117"]
+all_mukeys = []
+for area in areas:
+    mukeys = get_mukey_by_areasymbol.sync([area])
+    all_mukeys.extend(mukeys)
+
+print(f"Found {len(all_mukeys)} mukeys across {len(areas)} areas")
+
+# Fetch data in chunks automatically (synchronous)
+response = fetch_by_keys.sync(
+    all_mukeys, 
+    "component", 
+    key_column="mukey", 
+    chunk_size=100,
+    columns=["mukey", "cokey", "compname", "localphase", "comppct_r"]
+)
+df = response.to_pandas()
+print(f"Fetched {len(df)} component records")
+
+# Or async
 import asyncio
 
 async def bulk_fetch_example():
@@ -253,18 +327,7 @@ async def bulk_fetch_example():
     print(f"Fetched {len(df)} component records")
     return df
 
-# Handle different environments
-try:
-    # Check if there's already an event loop (Jupyter, etc.)
-    loop = asyncio.get_running_loop()
-    import nest_asyncio
-    nest_asyncio.apply()
-    result = loop.run_until_complete(bulk_fetch_example())
-except RuntimeError:
-    # No existing loop, use asyncio.run()
-    result = asyncio.run(bulk_fetch_example())
-
-result.head(10)
+result = asyncio.run(bulk_fetch_example())
 ```
 
     Found 410 mukeys across 3 areas
