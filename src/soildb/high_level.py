@@ -382,10 +382,10 @@ async def fetch_pedon_struct_by_bbox(
         pedon = PedonData(
             pedon_key=processed["pedon_key"],
             pedon_id=processed["pedon_id"],
-            series=processed.get("series"),
+            taxonname=processed.get("taxonname"),
             latitude=processed.get("latitude"),
             longitude=processed.get("longitude"),
-            soil_classification=processed.get("soil_classification"),
+            taxclname=processed.get("taxclname"),
             extra_fields=processed.get("extra_fields", {}),
         )
         pedons.append(pedon)
@@ -473,10 +473,10 @@ async def fetch_pedon_struct_by_id(
     pedon = PedonData(
         pedon_key=processed["pedon_key"],
         pedon_id=processed["pedon_id"],
-        series=processed.get("series"),
+        taxonname=processed.get("taxonname"),
         latitude=processed.get("latitude"),
         longitude=processed.get("longitude"),
-        soil_classification=processed.get("soil_classification"),
+        taxclname=processed.get("taxclname"),
         extra_fields=processed.get("extra_fields", {}),
     )
 

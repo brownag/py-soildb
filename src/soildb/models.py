@@ -32,12 +32,12 @@ class PedonData:
 
     pedon_key: str  # Primary key
     pedon_id: str  # User pedon ID
-    series: Optional[str] = None  # Soil series name
+    taxonname: Optional[str] = None  # Soil taxonomic name (series or higher level)
     # Location
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     # Classification
-    soil_classification: Optional[str] = None  # Full soil classification
+    taxclname: Optional[str] = None  # Full taxonomic class name
     # Horizons
     horizons: List[Any] = field(default_factory=list)
     # --- ADDED ---
