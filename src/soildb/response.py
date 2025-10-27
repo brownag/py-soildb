@@ -1002,18 +1002,6 @@ class SDAResponse:
 
         horizons_df = self.to_pandas()
 
-        if horizons_df.empty:
-            logger.warning("Converting empty SDA response to SoilProfileCollection")
-            # For empty DataFrames, we skip column validation since there are no columns to validate.
-            # The site_data parameter is passed through as-is, assuming the caller has validated it.
-            return SoilProfileCollection(
-                horizons=horizons_df,
-                site=site_data,
-                idname=site_id_col,
-                hzidname=hz_id_col,
-                depthcols=(hz_top_col, hz_bot_col),
-            )
-
         required_cols = [hz_id_col, site_id_col, hz_top_col, hz_bot_col]
         missing_cols = [col for col in required_cols if col not in horizons_df.columns]
 
