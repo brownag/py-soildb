@@ -56,13 +56,12 @@ from typing import Any, List, Optional, Union
 import pandas as pd
 
 from . import (
-    fetch_chorizon_by_cokey,
-    fetch_component_by_mukey,
     fetch_pedon_horizons,
     get_lab_pedon_by_id,
     get_lab_pedons_by_bbox,
     get_mapunit_by_point,
 )
+from .fetch import fetch_by_keys
 from .client import SDAClient
 from .schema_system import (  # type: ignore
     AggregateHorizon,
@@ -256,8 +255,10 @@ async def fetch_mapunit_struct_by_point(
         raise ValueError("Component schema not found")
 
     comp_columns = component_columns or comp_schema.get_default_columns()
-    comp_response = await fetch_component_by_mukey(
+    comp_response = await fetch_by_keys(
         mukey,
+        "component",
+        "mukey",
         columns=comp_columns,
         client=client,
     )
@@ -338,8 +339,10 @@ async def fetch_mapunit_struct_by_point(
         hz_columns.insert(0, "cokey")
 
     horizons_df = (
-        await fetch_chorizon_by_cokey(
+        await fetch_by_keys(
             all_cokeys,
+            "chorizon",
+            "cokey",
             columns=hz_columns,
             client=client,
         )

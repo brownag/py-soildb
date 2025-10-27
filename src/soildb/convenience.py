@@ -1,12 +1,13 @@
 """
-Utility functions that add value beyond basic QueryBuilder usage.
+Utility functions that add value beyond basic query building.
 """
 
 from typing import Optional
 
 from .client import SDAClient
 from .fetch import fetch_pedons_by_bbox
-from .query import ColumnSets, Query, QueryBuilder
+from . import query_templates
+from .query import ColumnSets, Query
 from .response import SDAResponse
 from .sanitization import sanitize_sql_string
 from .spatial import spatial_query
@@ -40,7 +41,7 @@ async def get_mapunit_by_areasymbol(
     if client is None:
         raise TypeError("client parameter is required")
 
-    query = QueryBuilder.mapunits_by_legend(areasymbol, columns)
+    query = query_templates.query_mapunits_by_legend(areasymbol, columns)
     response = await client.execute(query)
 
     return response
@@ -106,7 +107,7 @@ async def get_mapunit_by_bbox(
     if client is None:
         raise TypeError("client parameter is required")
 
-    query = QueryBuilder.mapunits_intersecting_bbox(min_x, min_y, max_x, max_y, columns)
+    query = query_templates.query_mapunits_intersecting_bbox(min_x, min_y, max_x, max_y, columns)
     return await client.execute(query)
 
 
@@ -145,7 +146,7 @@ async def get_sacatalog(
     if client is None:
         raise TypeError("client parameter is required")
 
-    query = QueryBuilder.available_survey_areas(columns)
+    query = query_templates.query_available_survey_areas(columns)
     return await client.execute(query)
 
 
@@ -206,7 +207,7 @@ async def get_lab_pedon_by_id(
         raise TypeError("client parameter is required")
 
     # First try as pedon_key
-    query = QueryBuilder.pedon_by_pedon_key(pedon_id, columns)
+    query = query_templates.query_pedon_by_pedon_key(pedon_id, columns)
     response = await client.execute(query)
 
     if not response.is_empty():

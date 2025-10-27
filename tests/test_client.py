@@ -1,7 +1,7 @@
 import pytest
 
 from soildb.client import SDAClient
-from soildb.query import QueryBuilder
+from soildb import query_templates
 
 
 @pytest.mark.asyncio
@@ -20,7 +20,7 @@ async def test_execute_sql():
 @pytest.mark.integration
 @pytest.mark.timeout(10)
 async def test_query_builder_sql():
-    query = QueryBuilder.from_sql("SELECT TOP 1 areasymbol, areaname FROM sacatalog")
+    query = query_templates.query_from_sql("SELECT TOP 1 areasymbol, areaname FROM sacatalog")
     async with SDAClient() as client:
         result = await client.execute(query)
         assert len(result) == 1

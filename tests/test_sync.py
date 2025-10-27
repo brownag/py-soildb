@@ -20,7 +20,7 @@ class TestSyncWrappers:
 
         # Test fetch functions
         assert hasattr(soildb.fetch_by_keys, "sync")
-        assert hasattr(soildb.fetch_component_by_mukey, "sync")
+        assert hasattr(soildb.fetch_pedons_by_bbox, "sync")
 
         # Test high-level functions
         assert hasattr(soildb.fetch_mapunit_struct_by_point, "sync")
@@ -33,8 +33,13 @@ class TestSyncWrappers:
     @pytest.mark.asyncio
     async def test_sync_in_async_context_raises_error(self):
         """Test that calling .sync from async context raises RuntimeError."""
-        with pytest.raises(RuntimeError, match="event loop"):
-            soildb.get_sacatalog.sync()
+        import warnings
+        with warnings.catch_warnings():
+            # Suppress the expected RuntimeWarning about unawaited coroutine
+            # when we intentionally raise an error in async context
+            warnings.filterwarnings("ignore", category=RuntimeWarning, message="coroutine.*was never awaited")
+            with pytest.raises(RuntimeError, match="event loop"):
+                soildb.get_sacatalog.sync()
 
     @pytest.mark.integration
     def test_sync_with_explicit_client(self):
@@ -104,8 +109,8 @@ class TestSyncWrappers:
         """Test sync bulk fetching functionality."""
         try:
             # Use a small known mukey for testing
-            result = soildb.fetch_component_by_mukey.sync(
-                [408333], columns=["mukey", "cokey", "compname"]
+            result = soildb.fetch_by_keys.sync(
+                [408333], "component", "mukey", columns=["mukey", "cokey", "compname"]
             )
             assert isinstance(result, soildb.SDAResponse)
             assert len(result) >= 0
