@@ -68,6 +68,20 @@ from .metadata import (
     search_metadata_by_keywords,
 )
 from .query import Query, QueryBuilder, SpatialQuery
+from .query_templates import (
+    query_available_survey_areas,
+    query_component_horizons_by_legend,
+    query_components_at_point,
+    query_components_by_legend,
+    query_from_sql,
+    query_mapunits_by_legend,
+    query_mapunits_intersecting_bbox,
+    query_pedon_by_pedon_key,
+    query_pedon_horizons_by_pedon_keys,
+    query_pedons_intersecting_bbox,
+    query_spatial_by_legend,
+    query_survey_area_boundaries,
+)
 from .response import SDAResponse
 from .spatial import (
     SpatialQueryBuilder,
@@ -89,6 +103,19 @@ __all__ = [
     "SpatialQuery",
     "QueryBuilder",
     "SDAResponse",
+    # Query template functions (replaces QueryBuilder)
+    "query_mapunits_by_legend",
+    "query_components_by_legend",
+    "query_component_horizons_by_legend",
+    "query_components_at_point",
+    "query_mapunits_intersecting_bbox",
+    "query_spatial_by_legend",
+    "query_available_survey_areas",
+    "query_survey_area_boundaries",
+    "query_from_sql",
+    "query_pedons_intersecting_bbox",
+    "query_pedon_horizons_by_pedon_keys",
+    "query_pedon_by_pedon_key",
     # AWDB (SCAN/SNOTEL) classes and functions
     "AWDBClient",
     "find_stations_by_criteria",
