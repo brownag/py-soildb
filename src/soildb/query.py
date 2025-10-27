@@ -181,7 +181,22 @@ class BaseQuery(ABC):
 
 
 class Query(BaseQuery):
-    """Builder for SQL queries against Soil Data Access."""
+    """Builder for SQL queries against Soil Data Access.
+
+    Unified query builder supporting both regular SQL queries and spatial queries.
+
+    Spatial queries can be constructed by chaining spatial filter methods:
+    - intersects_bbox(): Filter by bounding box intersection
+    - contains_point(): Filter by point containment
+    - intersects_geometry(): Filter by geometry intersection using WKT
+
+    Examples:
+        # Regular query
+        query = Query().select("mukey", "muname").from_("mapunit").where("areasymbol = 'IA109'")
+
+        # Spatial query (same Query class!)
+        query = Query().select("mukey").from_("mupolygon").contains_point(-93.5, 42.5)
+    """
 
     def __init__(self) -> None:
         self._raw_sql: Optional[str] = None
@@ -191,6 +206,9 @@ class Query(BaseQuery):
         self._join_clauses: List[str] = []
         self._order_by_clause: Optional[str] = None
         self._limit_count: Optional[int] = None
+        # Spatial query support
+        self._geometry_filter: Optional[str] = None
+        self._spatial_relationship: str = "STIntersects"
 
     @classmethod
     def from_sql(cls, sql: str) -> "Query":
@@ -306,8 +324,57 @@ class Query(BaseQuery):
         self._limit_count = count
         return self
 
+    def intersects_bbox(
+        self, min_x: float, min_y: float, max_x: float, max_y: float
+    ) -> "Query":
+        """Add a bounding box intersection filter (spatial query).
+
+        Args:
+            min_x: Minimum longitude (west bound).
+            min_y: Minimum latitude (south bound).
+            max_x: Maximum longitude (east bound).
+            max_y: Maximum latitude (north bound).
+
+        Returns:
+            Query: This Query instance for method chaining.
+        """
+        bbox_wkt = f"POLYGON(({min_x} {min_y}, {max_x} {min_y}, {max_x} {max_y}, {min_x} {max_y}, {min_x} {min_y}))"
+        self._geometry_filter = bbox_wkt
+        self._spatial_relationship = "STIntersects"
+        return self
+
+    def contains_point(self, x: float, y: float) -> "Query":
+        """Add a point containment filter (spatial query).
+
+        Args:
+            x: Longitude of the point.
+            y: Latitude of the point.
+
+        Returns:
+            Query: This Query instance for method chaining.
+        """
+        point_wkt = f"POINT({x} {y})"
+        self._geometry_filter = point_wkt
+        self._spatial_relationship = "STContains"
+        return self
+
+    def intersects_geometry(self, wkt: str) -> "Query":
+        """Add a geometry intersection filter using WKT (spatial query).
+
+        Args:
+            wkt: Well-Known Text representation of the geometry.
+
+        Returns:
+            Query: This Query instance for method chaining.
+        """
+        self._geometry_filter = wkt
+        self._spatial_relationship = "STIntersects"
+        return self
+
     def to_sql(self) -> str:
         """Build the SQL query string.
+
+        Supports both regular SQL queries and spatial queries with geometry filters.
 
         Returns:
             str: The complete SQL query string.
@@ -329,169 +396,11 @@ class Query(BaseQuery):
         for join_clause in self._join_clauses:
             sql += f" {join_clause}"
 
-        # Add WHERE conditions
-        if self._where_conditions:
-            sql += " WHERE " + " AND ".join(self._where_conditions)
-
-        # Add ORDER BY
-        if self._order_by_clause:
-            sql += f" ORDER BY {self._order_by_clause}"
-
-        return sql
-
-
-class SpatialQuery(BaseQuery):
-    """Builder for spatial queries with geometry filters."""
-
-    def __init__(self) -> None:
-        self._base_query = Query()
-        self._geometry_filter: Optional[str] = None
-        self._spatial_relationship: str = "STIntersects"
-
-    def select(self, *columns: str) -> "SpatialQuery":
-        """Set the SELECT clause.
-
-        Args:
-            *columns: Column names to select. Use "*" for all columns.
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.select(*columns)
-        return self
-
-    def from_(self, table: str) -> "SpatialQuery":
-        """Set the FROM clause.
-
-        Args:
-            table: Name of the table to query from.
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.from_(table)
-        return self
-
-    def where(self, condition: str) -> "SpatialQuery":
-        """Add a WHERE condition.
-
-        Args:
-            condition: SQL WHERE condition string.
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.where(condition)
-        return self
-
-    def inner_join(self, table: str, on_condition: str) -> "SpatialQuery":
-        """Add an INNER JOIN clause.
-
-        Args:
-            table: Name of the table to join.
-            on_condition: JOIN condition (ON clause).
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.inner_join(table, on_condition)
-        return self
-
-    def left_join(self, table: str, on_condition: str) -> "SpatialQuery":
-        """Add a LEFT JOIN clause.
-
-        Args:
-            table: Name of the table to join.
-            on_condition: JOIN condition (ON clause).
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.left_join(table, on_condition)
-        return self
-
-    def order_by(self, column: str, direction: str = "ASC") -> "SpatialQuery":
-        """Set the ORDER BY clause.
-
-        Args:
-            column: Column name to order by.
-            direction: Sort direction ("ASC" or "DESC").
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.order_by(column, direction)
-        return self
-
-    def limit(self, count: int) -> "SpatialQuery":
-        """Set the LIMIT.
-
-        Args:
-            count: Maximum number of rows to return.
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._base_query.limit(count)
-        return self
-
-    def intersects_bbox(
-        self, min_x: float, min_y: float, max_x: float, max_y: float
-    ) -> "SpatialQuery":
-        """Add a bounding box intersection filter.
-
-        Args:
-            min_x: Minimum longitude (west bound).
-            min_y: Minimum latitude (south bound).
-            max_x: Maximum longitude (east bound).
-            max_y: Maximum latitude (north bound).
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        bbox_wkt = f"POLYGON(({min_x} {min_y}, {max_x} {min_y}, {max_x} {max_y}, {min_x} {max_y}, {min_x} {min_y}))"
-        self._geometry_filter = bbox_wkt
-        self._spatial_relationship = "STIntersects"
-        return self
-
-    def contains_point(self, x: float, y: float) -> "SpatialQuery":
-        """Add a point containment filter.
-
-        Args:
-            x: Longitude of the point.
-            y: Latitude of the point.
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        point_wkt = f"POINT({x} {y})"
-        self._geometry_filter = point_wkt
-        self._spatial_relationship = "STContains"
-        return self
-
-    def intersects_geometry(self, wkt: str) -> "SpatialQuery":
-        """Add a geometry intersection filter using WKT.
-
-        Args:
-            wkt: Well-Known Text representation of the geometry.
-
-        Returns:
-            SpatialQuery: This SpatialQuery instance for method chaining.
-        """
-        self._geometry_filter = wkt
-        self._spatial_relationship = "STIntersects"
-        return self
-
-    def to_sql(self) -> str:
-        """Build the spatial SQL query string.
-
-        Returns:
-            str: The complete SQL query string with spatial filters applied.
-        """
-        base_sql = self._base_query.to_sql()
+        # Add WHERE conditions (including spatial filters if present)
+        where_parts = list(self._where_conditions)
 
         if self._geometry_filter:
-            from_clause = self._base_query._from_clause
+            from_clause = self._from_clause
             alias = None
             if " " in from_clause:
                 alias = from_clause.split(" ")[-1]
@@ -504,137 +413,140 @@ class SpatialQuery(BaseQuery):
                 f"{geom_column}.{self._spatial_relationship}"
                 f"(geometry::STGeomFromText('{self._geometry_filter}', 4326)) = 1"
             )
+            where_parts.insert(0, spatial_condition)
 
-            if " WHERE " in base_sql:
-                # Insert spatial condition at the beginning of WHERE clause
-                base_sql = base_sql.replace(
-                    " WHERE ", f" WHERE {spatial_condition} AND ", 1
-                )
-            else:
-                base_sql += f" WHERE {spatial_condition}"
+        if where_parts:
+            sql += " WHERE " + " AND ".join(where_parts)
 
-        return base_sql
+        # Add ORDER BY
+        if self._order_by_clause:
+            sql += f" ORDER BY {self._order_by_clause}"
+
+        return sql
 
 
-# Predefined query builders for common operations
+class SpatialQuery(Query):
+    """Deprecated: Use Query class directly instead.
+
+    SpatialQuery is now an alias for Query class. Both regular and spatial
+    query methods are available on the Query class itself.
+
+    All spatial methods (intersects_bbox, contains_point, intersects_geometry)
+    are now available directly on Query objects:
+
+        # Old way (still works)
+        query = SpatialQuery().select("mukey").from_("mupolygon").contains_point(-93.5, 42.5)
+
+        # New way (preferred)
+        query = Query().select("mukey").from_("mupolygon").contains_point(-93.5, 42.5)
+
+    This class is kept for backward compatibility only. It will be removed in a future version.
+    """
+
+    def __init__(self) -> None:
+        """Initialize a SpatialQuery (deprecated alias for Query)."""
+        super().__init__()
+
+
+
+
+# Deprecated: Use query_templates module functions instead
 class QueryBuilder:
-    """Factory class for common SDA query patterns."""
+    """
+    DEPRECATED: Factory class for common SDA query patterns.
+
+    This class is deprecated in favor of module-level functions in query_templates.
+    Use the query_templates module for new code:
+
+        from soildb.query_templates import (
+            query_mapunits_by_legend,
+            query_components_at_point,
+            ...
+        )
+
+    This class is kept for backward compatibility and will be removed in a future version.
+    All methods now delegate to the query_templates module functions.
+    """
 
     @staticmethod
     def mapunits_by_legend(
         areasymbol: str, columns: Optional[List[str]] = None
     ) -> Query:
-        """Get map units for a survey area by legend/area symbol."""
-        if columns is None:
-            columns = ColumnSets.MAPUNIT_BASIC + ["l.areasymbol", "l.areaname"]
+        """DEPRECATED: Use query_templates.query_mapunits_by_legend() instead."""
+        from . import query_templates
+        import warnings
 
-        return (
-            Query()
-            .select(*columns)
-            .from_("mapunit m")
-            .inner_join("legend l", "m.lkey = l.lkey")
-            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)}")
-            .order_by("m.musym")
+        warnings.warn(
+            "QueryBuilder.mapunits_by_legend() is deprecated. "
+            "Use query_templates.query_mapunits_by_legend() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return query_templates.query_mapunits_by_legend(areasymbol, columns)
 
     @staticmethod
     def components_by_legend(
         areasymbol: str, columns: Optional[List[str]] = None
     ) -> Query:
-        """Get components for a survey area."""
-        if columns is None:
-            columns = ColumnSets.COMPONENT_BASIC + [
-                "m.mukey",
-                "m.musym",
-                "m.muname",
-                "l.areasymbol",
-            ]
+        """DEPRECATED: Use query_templates.query_components_by_legend() instead."""
+        from . import query_templates
+        import warnings
 
-        return (
-            Query()
-            .select(*columns)
-            .from_("component c")
-            .inner_join("mapunit m", "c.mukey = m.mukey")
-            .inner_join("legend l", "m.lkey = l.lkey")
-            .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)}")
-            .order_by("m.musym, c.comppct_r DESC")
+        warnings.warn(
+            "QueryBuilder.components_by_legend() is deprecated. "
+            "Use query_templates.query_components_by_legend() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return query_templates.query_components_by_legend(areasymbol, columns)
 
     @staticmethod
     def component_horizons_by_legend(
         areasymbol: str, columns: Optional[List[str]] = None
     ) -> Query:
-        """Get component and horizon data for a survey area."""
-        if columns is None:
-            # Qualify chorizon columns with table alias 'h' to avoid ambiguous column errors
-            horizon_columns = [f"h.{col}" for col in ColumnSets.CHORIZON_TEXTURE]
-            columns = [
-                "m.mukey",
-                "m.musym",
-                "m.muname",
-                "c.cokey",
-                "c.compname",
-                "c.comppct_r",
-            ] + horizon_columns
+        """DEPRECATED: Use query_templates.query_component_horizons_by_legend() instead."""
+        from . import query_templates
+        import warnings
 
-        return (
-            Query()
-            .select(*columns)
-            .from_("mapunit m")
-            .inner_join("legend l", "m.lkey = l.lkey")
-            .inner_join("component c", "m.mukey = c.mukey")
-            .inner_join("chorizon h", "c.cokey = h.cokey")
-            .where(
-                f"l.areasymbol = {sanitize_sql_string(areasymbol)} AND c.majcompflag = 'Yes'"
-            )
-            .order_by("m.musym, c.comppct_r DESC, h.hzdept_r")
+        warnings.warn(
+            "QueryBuilder.component_horizons_by_legend() is deprecated. "
+            "Use query_templates.query_component_horizons_by_legend() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return query_templates.query_component_horizons_by_legend(areasymbol, columns)
 
     @staticmethod
     def components_at_point(
         longitude: float, latitude: float, columns: Optional[List[str]] = None
     ) -> SpatialQuery:
-        """Get soil component data at a specific point."""
-        if columns is None:
-            # Qualify chorizon columns with table alias 'h' to avoid ambiguous column errors
-            horizon_columns = [f"h.{col}" for col in ColumnSets.CHORIZON_TEXTURE]
-            columns = [
-                "m.mukey",
-                "m.musym",
-                "m.muname",
-                "c.compname",
-                "c.comppct_r",
-            ] + horizon_columns
+        """DEPRECATED: Use query_templates.query_components_at_point() instead."""
+        from . import query_templates
+        import warnings
 
-        return (
-            SpatialQuery()
-            .select(*columns)
-            .from_("mupolygon p")
-            .inner_join("mapunit m", "p.mukey = m.mukey")
-            .inner_join("component c", "m.mukey = c.mukey")
-            .inner_join("chorizon h", "c.cokey = h.cokey")
-            .contains_point(longitude, latitude)
-            .where("c.majcompflag = 'Yes'")
-            .order_by("c.comppct_r DESC, h.hzdept_r")
+        warnings.warn(
+            "QueryBuilder.components_at_point() is deprecated. "
+            "Use query_templates.query_components_at_point() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return query_templates.query_components_at_point(longitude, latitude, columns)
 
     @staticmethod
     def spatial_by_legend(
         areasymbol: str, columns: Optional[List[str]] = None
     ) -> SpatialQuery:
-        """Get spatial data for map units on a legend/area symbol."""
-        if columns is None:
-            columns = ColumnSets.MAPUNIT_SPATIAL + [
-                "GEOGRAPHY::STGeomFromWKB(mupolygongeo.STUnion(mupolygongeo.STStartPoint()).STAsBinary(), 4326).MakeValid().STArea() as shape_area",
-                "GEOGRAPHY::STGeomFromWKB(mupolygongeo.STUnion(mupolygongeo.STStartPoint()).STAsBinary(), 4326).MakeValid().STLength() as shape_length",
-            ]
+        """DEPRECATED: Use query_templates.query_spatial_by_legend() instead."""
+        from . import query_templates
+        import warnings
 
-        return (
-            SpatialQuery()
-            .select(*columns)
-            .from_("mupolygon")
-            .where(f"areasymbol = {sanitize_sql_string(areasymbol)}")
+        warnings.warn(
+            "QueryBuilder.spatial_by_legend() is deprecated. "
+            "Use query_templates.query_spatial_by_legend() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return query_templates.query_spatial_by_legend(areasymbol, columns)
 
     @staticmethod
     def mapunits_intersecting_bbox(
@@ -644,62 +556,65 @@ class QueryBuilder:
         max_y: float,
         columns: Optional[List[str]] = None,
     ) -> SpatialQuery:
-        """Get map units that intersect with a bounding box."""
-        if columns is None:
-            columns = [
-                "m.mukey",
-                "m.musym",
-                "m.muname",
-                "mupolygongeo.STAsText() as geometry",
-            ]
+        """DEPRECATED: Use query_templates.query_mapunits_intersecting_bbox() instead."""
+        from . import query_templates
+        import warnings
 
-        return (
-            SpatialQuery()
-            .select(*columns)
-            .from_("mupolygon p")
-            .inner_join("mapunit m", "p.mukey = m.mukey")
-            .intersects_bbox(min_x, min_y, max_x, max_y)
+        warnings.warn(
+            "QueryBuilder.mapunits_intersecting_bbox() is deprecated. "
+            "Use query_templates.query_mapunits_intersecting_bbox() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return query_templates.query_mapunits_intersecting_bbox(
+            min_x, min_y, max_x, max_y, columns
         )
 
     @staticmethod
     def available_survey_areas(
         columns: Optional[List[str]] = None, table: str = "sacatalog"
     ) -> Query:
-        """Get list of available survey areas."""
-        validate_sql_identifier(table)
+        """DEPRECATED: Use query_templates.query_available_survey_areas() instead."""
+        from . import query_templates
+        import warnings
 
-        if columns is None:
-            if table == "sacatalog":
-                columns = ["areasymbol", "areaname", "saversion"]
-            else:
-                columns = ColumnSets.LEGEND_BASIC
-
-        return Query().select(*columns).from_(table).order_by("areasymbol")
+        warnings.warn(
+            "QueryBuilder.available_survey_areas() is deprecated. "
+            "Use query_templates.query_available_survey_areas() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return query_templates.query_available_survey_areas(columns, table)
 
     @staticmethod
     def survey_area_boundaries(
         columns: Optional[List[str]] = None, table: str = "sapolygon"
     ) -> SpatialQuery:
-        """Get survey area boundary polygons."""
-        validate_sql_identifier(table)
+        """DEPRECATED: Use query_templates.query_survey_area_boundaries() instead."""
+        from . import query_templates
+        import warnings
 
-        if columns is None:
-            columns = ["areasymbol", "areaname", "sapolygongeo.STAsText() as geometry"]
-
-        return SpatialQuery().select(*columns).from_(table)
+        warnings.warn(
+            "QueryBuilder.survey_area_boundaries() is deprecated. "
+            "Use query_templates.query_survey_area_boundaries() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return query_templates.query_survey_area_boundaries(columns, table)
 
     @staticmethod
     def from_sql(query: str) -> Query:
-        """
-        Create a query from a raw SQL string.
+        """DEPRECATED: Use query_templates.query_from_sql() instead."""
+        from . import query_templates
+        import warnings
 
-        Args:
-            query: The raw SQL query string.
-
-        Returns:
-            A Query object.
-        """
-        return Query.from_sql(query)
+        warnings.warn(
+            "QueryBuilder.from_sql() is deprecated. "
+            "Use query_templates.query_from_sql() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return query_templates.query_from_sql(query)
 
     @staticmethod
     def pedons_intersecting_bbox(
@@ -713,55 +628,27 @@ class QueryBuilder:
         lon_column: str = "longitude_decimal_degrees",
         lat_column: str = "latitude_decimal_degrees",
     ) -> Query:
-        """Get pedons that intersect with a bounding box with flexible table joining.
+        """DEPRECATED: Use query_templates.query_pedons_intersecting_bbox() instead."""
+        from . import query_templates
+        import warnings
 
-        Args:
-            min_x: Minimum longitude
-            min_y: Minimum latitude
-            max_x: Maximum longitude
-            max_y: Maximum latitude
-            columns: Columns to select (defaults to basic pedon columns)
-            base_table: Base pedon/site table (default: "lab_combine_nasis_ncss")
-            related_tables: Additional tables to left join
-            lon_column: Name of the longitude column (default: "longitude_decimal_degrees")
-            lat_column: Name of the latitude column (default: "latitude_decimal_degrees")
-
-        Returns:
-            Query object ready for execution
-        """
-        if columns is None:
-            columns = ColumnSets.PEDON_BASIC + ["corr_name", "samp_name"]
-
-        # Validate column and table names (security: whitelist allowed identifiers)
-        validate_sql_identifier(lon_column)
-        validate_sql_identifier(lat_column)
-        validate_sql_identifier(base_table)
-
-        query = (
-            Query()
-            .select(*columns)
-            .from_(f"{base_table} p")
-            .where(
-                f"p.{lat_column} >= {sanitize_sql_numeric(min_y)} AND p.{lat_column} <= {sanitize_sql_numeric(max_y)}"
-            )
-            .where(
-                f"p.{lon_column} >= {sanitize_sql_numeric(min_x)} AND p.{lon_column} <= {sanitize_sql_numeric(max_x)}"
-            )
-            .where(f"p.{lat_column} IS NOT NULL AND p.{lon_column} IS NOT NULL")
+        warnings.warn(
+            "QueryBuilder.pedons_intersecting_bbox() is deprecated. "
+            "Use query_templates.query_pedons_intersecting_bbox() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-
-        # Add joins for related tables
-        if related_tables:
-            for i, table in enumerate(related_tables):
-                # Validate table name to prevent SQL injection
-                validate_sql_identifier(table)
-                alias = f"t{i}"
-                # Most pedon-related tables join on pedon_key
-                query = query.left_join(
-                    f"{table} {alias}", f"p.pedon_key = {alias}.pedon_key"
-                )
-
-        return query
+        return query_templates.query_pedons_intersecting_bbox(
+            min_x,
+            min_y,
+            max_x,
+            max_y,
+            columns,
+            base_table,
+            related_tables,
+            lon_column,
+            lat_column,
+        )
 
     @staticmethod
     def pedon_horizons_by_pedon_keys(
@@ -770,78 +657,19 @@ class QueryBuilder:
         base_table: str = "lab_layer",
         related_tables: Optional[List[str]] = None,
     ) -> Query:
-        """Get horizon data for specified pedon keys with flexible table joining.
+        """DEPRECATED: Use query_templates.query_pedon_horizons_by_pedon_keys() instead."""
+        from . import query_templates
+        import warnings
 
-        Args:
-            pedon_keys: List of pedon keys to query
-            columns: Columns to select (defaults to basic lab horizon columns)
-            base_table: Base horizon table (default: "lab_layer")
-            related_tables: Additional tables to left join (default: basic lab tables)
-
-        Returns:
-            Query object ready for execution
-        """
-        if related_tables is None:
-            related_tables = ["lab_physical_properties", "lab_chemical_properties"]
-
-        if columns is None:
-            columns = (
-                [
-                    "l.pedon_key",
-                    "l.layer_key",
-                    "l.layer_sequence",
-                    "l.hzn_top",
-                    "l.hzn_bot",
-                    "l.hzn_desgn",
-                ]
-                + ColumnSets.LAB_HORIZON_TEXTURE[5:]
-                + ColumnSets.LAB_HORIZON_CHEMICAL[5:]
-                + ColumnSets.LAB_HORIZON_PHYSICAL[5:]
-            )
-
-        # Validate table name
-        validate_sql_identifier(base_table)
-
-        # Build IN clause for pedon keys
-        keys_str = ", ".join(sanitize_sql_string_list(pedon_keys))
-
-        query = (
-            Query()
-            .select(*columns)
-            .from_(f"{base_table} l")
-            .where(f"l.pedon_key IN ({keys_str})")
-            .where("l.layer_type = 'horizon'")
+        warnings.warn(
+            "QueryBuilder.pedon_horizons_by_pedon_keys() is deprecated. "
+            "Use query_templates.query_pedon_horizons_by_pedon_keys() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-
-        # Add joins for related tables
-        # Most lab tables join on labsampnum
-        lab_join_tables = {
-            "lab_physical_properties",
-            "lab_chemical_properties",
-            "lab_calculations_including_estimates_and_default_values",
-            "lab_rosetta_key",
-            "lab_mir",
-            "lab_mineralogy_glass_count",
-            "lab_major_and_trace_elements_and_oxides",
-            "lab_xray_and_thermal",
-        }
-
-        for i, table in enumerate(related_tables):
-            # Validate table name to prevent SQL injection
-            validate_sql_identifier(table)
-            alias = f"t{i}"
-            if table in lab_join_tables:
-                # Lab tables typically join on labsampnum
-                query = query.left_join(
-                    f"{table} {alias}", f"l.labsampnum = {alias}.labsampnum"
-                )
-            else:
-                # For other tables, try pedon_key join (could be extended for other join keys)
-                query = query.left_join(
-                    f"{table} {alias}", f"l.pedon_key = {alias}.pedon_key"
-                )
-
-        return query.order_by("l.pedon_key, l.layer_sequence")
+        return query_templates.query_pedon_horizons_by_pedon_keys(
+            pedon_keys, columns, base_table, related_tables
+        )
 
     @staticmethod
     def pedon_by_pedon_key(
@@ -850,39 +678,16 @@ class QueryBuilder:
         base_table: str = "lab_combine_nasis_ncss",
         related_tables: Optional[List[str]] = None,
     ) -> Query:
-        """Get a single pedon by its pedon key with flexible table joining.
+        """DEPRECATED: Use query_templates.query_pedon_by_pedon_key() instead."""
+        from . import query_templates
+        import warnings
 
-        Args:
-            pedon_key: Pedon key to query
-            columns: Columns to select (defaults to basic pedon columns)
-            base_table: Base pedon/site table (default: "lab_combine_nasis_ncss")
-            related_tables: Additional tables to left join
-
-        Returns:
-            Query object ready for execution
-        """
-        if columns is None:
-            columns = ColumnSets.PEDON_BASIC
-
-        # Validate table name
-        validate_sql_identifier(base_table)
-
-        query = (
-            Query()
-            .select(*columns)
-            .from_(f"{base_table} p")
-            .where(f"p.pedon_key = {sanitize_sql_string(pedon_key)}")
+        warnings.warn(
+            "QueryBuilder.pedon_by_pedon_key() is deprecated. "
+            "Use query_templates.query_pedon_by_pedon_key() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-
-        # Add joins for related tables
-        if related_tables:
-            for i, table in enumerate(related_tables):
-                # Validate table name to prevent SQL injection
-                validate_sql_identifier(table)
-                alias = f"t{i}"
-                # Most pedon-related tables join on pedon_key
-                query = query.left_join(
-                    f"{table} {alias}", f"p.pedon_key = {alias}.pedon_key"
-                )
-
-        return query
+        return query_templates.query_pedon_by_pedon_key(
+            pedon_key, columns, base_table, related_tables
+        )
