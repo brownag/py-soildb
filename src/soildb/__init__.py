@@ -90,7 +90,9 @@ from .query_templates import (
 from .response import SDAResponse
 from .spatial import (
     SpatialQueryBuilder,
+    bbox_query,
     mupolygon_in_bbox,
+    point_query,
     query_featline,
     query_featpoint,
     query_mupolygon,
@@ -190,6 +192,8 @@ __all__ = [
     "fetch_pedon_struct_by_id",
     # Spatial query functions
     "spatial_query",
+    "point_query",
+    "bbox_query",
     "query_mupolygon",
     "query_sapolygon",
     "query_featpoint",
