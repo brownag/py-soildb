@@ -93,6 +93,19 @@ from .spatial import (
     sapolygon_in_bbox,
     spatial_query,
 )
+from .sync import (
+    AsyncSyncBridge,
+    fetch_component_by_comppct_r_sync,
+    fetch_component_by_mukey_sync,
+    fetch_horizon_by_cokey_sync,
+    fetch_mapunit_by_areasymbol_sync,
+    fetch_pedons_by_bbox_sync,
+    get_mapunit_by_areasymbol_sync,
+    get_mapunit_by_bbox_sync,
+    get_mapunit_by_point_sync,
+    get_sacatalog_sync,
+    list_survey_areas_sync,
+)
 
 __all__ = [
     # Core classes and base classes
@@ -142,13 +155,25 @@ __all__ = [
     "search_metadata_by_keywords",
     "filter_metadata_by_bbox",
     "get_metadata_statistics",
-    # Convenience functions
+    # Async convenience functions
     "get_mapunit_by_areasymbol",
     "get_mapunit_by_point",
     "get_mapunit_by_bbox",
     "get_lab_pedons_by_bbox",
     "get_lab_pedon_by_id",
     "get_sacatalog",
+    # Sync convenience functions (primary API for blocking calls)
+    "AsyncSyncBridge",
+    "get_mapunit_by_areasymbol_sync",
+    "get_mapunit_by_point_sync",
+    "get_mapunit_by_bbox_sync",
+    "fetch_mapunit_by_areasymbol_sync",
+    "fetch_component_by_mukey_sync",
+    "fetch_component_by_comppct_r_sync",
+    "fetch_horizon_by_cokey_sync",
+    "fetch_pedons_by_bbox_sync",
+    "list_survey_areas_sync",
+    "get_sacatalog_sync",
     # High-level functions
     "fetch_mapunit_struct_by_point",
     "fetch_pedon_struct_by_bbox",
