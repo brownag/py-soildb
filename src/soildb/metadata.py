@@ -5,6 +5,7 @@ XML metadata parsing for SSURGO survey area metadata from sacatalog.
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from functools import cached_property
 from typing import Any, Dict, List, Optional
 
 from .exceptions import SoilDBError
@@ -82,17 +83,17 @@ class SurveyMetadata:
             elem.text.strip() for elem in elements if elem.text and elem.text.strip()
         ]
 
-    @property
+    @cached_property
     def title(self) -> Optional[str]:
         """Survey area title from the metadata citation."""
         return self._find_text(".//idinfo/citation/citeinfo/title")
 
-    @property
+    @cached_property
     def publication_date(self) -> Optional[str]:
         """Publication date from citation in YYYYMMDD format."""
         return self._find_text(".//idinfo/citation/citeinfo/pubdate")
 
-    @property
+    @cached_property
     def publication_date_parsed(self) -> Optional[datetime]:
         """Publication date as datetime object."""
         pub_date = self.publication_date
@@ -106,72 +107,72 @@ class SurveyMetadata:
             except ValueError:
                 return None
 
-    @property
+    @cached_property
     def publisher(self) -> Optional[str]:
         """Publisher organization."""
         return self._find_text(".//idinfo/citation/citeinfo/pubinfo/publish")
 
-    @property
+    @cached_property
     def publish_place(self) -> Optional[str]:
         """Publication place."""
         return self._find_text(".//idinfo/citation/citeinfo/pubinfo/pubplace")
 
-    @property
+    @cached_property
     def origin(self) -> Optional[str]:
         """Originating organization."""
         return self._find_text(".//idinfo/citation/citeinfo/origin")
 
-    @property
+    @cached_property
     def abstract(self) -> Optional[str]:
         """Survey abstract/description."""
         return self._find_text(".//idinfo/descript/abstract")
 
-    @property
+    @cached_property
     def purpose(self) -> Optional[str]:
         """Survey purpose."""
         return self._find_text(".//idinfo/descript/purpose")
 
-    @property
+    @cached_property
     def online_link(self) -> Optional[str]:
         """Online link to data."""
         return self._find_text(".//idinfo/citation/citeinfo/onlink")
 
-    @property
+    @cached_property
     def access_constraints(self) -> Optional[str]:
         """Access constraints."""
         return self._find_text(".//idinfo/accconst")
 
-    @property
+    @cached_property
     def use_constraints(self) -> Optional[str]:
         """Use constraints."""
         return self._find_text(".//idinfo/useconst")
 
-    @property
+    @cached_property
     def contact_organization(self) -> Optional[str]:
         """Primary contact organization."""
         return self._find_text(".//idinfo/ptcontac/cntinfo/cntorgp/cntorg")
 
-    @property
+    @cached_property
     def contact_person(self) -> Optional[str]:
         """Primary contact person."""
         return self._find_text(".//idinfo/ptcontac/cntinfo/cntorgp/cntper")
 
-    @property
+    @cached_property
     def contact_position(self) -> Optional[str]:
         """Primary contact position."""
         return self._find_text(".//idinfo/ptcontac/cntinfo/cntpos")
 
-    @property
+    @cached_property
     def contact_email(self) -> Optional[str]:
         """Primary contact email."""
         return self._find_text(".//idinfo/ptcontac/cntinfo/cntemail")
 
-    @property
+    @cached_property
     def contact_phone(self) -> Optional[str]:
         """Primary contact phone."""
         return self._find_text(".//idinfo/ptcontac/cntinfo/cntvoice")
 
-    @property
+    @cached_property
     def bounding_box(self) -> Dict[str, Optional[float]]:
         """Geographic bounding box coordinates in decimal degrees (WGS84)."""
         return {
@@ -198,44 +199,44 @@ class SurveyMetadata:
         except (ValueError, TypeError):
             return None
 
-    @property
+    @cached_property
     def keywords(self) -> List[str]:
         """Combined list of all theme and place keywords from the metadata."""
         theme_keywords = self._find_all_text(".//idinfo/keywords/theme/themekey")
         place_keywords = self._find_all_text(".//idinfo/keywords/place/placekey")
         return theme_keywords + place_keywords
 
-    @property
+    @cached_property
     def theme_keywords(self) -> List[str]:
         """Theme-based keywords."""
         return self._find_all_text(".//idinfo/keywords/theme/themekey")
 
-    @property
+    @cached_property
     def place_keywords(self) -> List[str]:
         """Place-based keywords."""
         return self._find_all_text(".//idinfo/keywords/place/placekey")
 
-    @property
+    @cached_property
     def attribute_accuracy(self) -> Optional[str]:
         """Attribute accuracy information."""
         return self._find_text(".//dataqual/attracc/attraccr")
 
-    @property
+    @cached_property
     def logical_consistency(self) -> Optional[str]:
         """Logical consistency information."""
         return self._find_text(".//dataqual/logic")
 
-    @property
+    @cached_property
     def completeness(self) -> Optional[str]:
         """Completeness information."""
         return self._find_text(".//dataqual/complete")
 
-    @property
+    @cached_property
     def horizontal_accuracy(self) -> Optional[str]:
         """Horizontal positional accuracy."""
         return self._find_text(".//dataqual/posacc/horizpa/horizpar")
 
-    @property
+    @cached_property
     def scale_denominator(self) -> Optional[int]:
         """Map scale denominator."""
         scale_text = self._find_text(".//idinfo/citation/citeinfo/geoform")
@@ -247,17 +248,17 @@ class SurveyMetadata:
             return int(match.group(1))
         return None
 
-    @property
+    @cached_property
     def coordinate_system(self) -> Optional[str]:
         """Coordinate system name."""
         return self._find_text(".//spref/horizsys/geograph/geogunit")
 
-    @property
+    @cached_property
     def datum(self) -> Optional[str]:
         """Geodetic datum."""
         return self._find_text(".//spref/horizsys/geodetic/horizdn")
 
-    @property
+    @cached_property
     def ellipsoid(self) -> Optional[str]:
         """Reference ellipsoid."""
         return self._find_text(".//spref/horizsys/geodetic/ellips")
@@ -426,3 +427,203 @@ def extract_metadata_summary(xml_content: str) -> Dict[str, Any]:
         }
     except MetadataParseError:
         return {"error": "Failed to parse metadata"}
+
+
+def search_metadata_by_keywords(
+    metadata_list: List[SurveyMetadata], keywords: List[str], match_all: bool = False
+) -> List[SurveyMetadata]:
+    """
+    Search metadata by keywords.
+
+    Finds survey areas with metadata containing specified keywords. Can match
+    all keywords (AND logic) or any keyword (OR logic).
+
+    Args:
+        metadata_list: List of SurveyMetadata objects to search
+        keywords: List of keywords to search for (case-insensitive)
+        match_all: If True, return only metadata with ALL keywords.
+                  If False (default), return metadata with ANY keyword.
+
+    Returns:
+        Filtered list of SurveyMetadata objects matching the search
+
+    Example:
+        >>> # Get survey catalogs
+        >>> response = await get_sacatalog(client=client)
+        >>> df = response.to_pandas()
+        >>>
+        >>> # Parse metadata
+        >>> metadata_list = [
+        ...     SurveyMetadata(row['fgdcmetadata'], areasymbol=row['areasymbol'])
+        ...     for _, row in df.iterrows() if row['fgdcmetadata']
+        ... ]
+        >>>
+        >>> # Find surveys related to agricultural soils
+        >>> ag_surveys = search_metadata_by_keywords(
+        ...     metadata_list,
+        ...     ['agricultural', 'cropland'],
+        ...     match_all=False
+        ... )
+        >>> print(f"Found {len(ag_surveys)} surveys")
+    """
+    keywords_lower = [kw.lower() for kw in keywords]
+
+    results = []
+    for metadata in metadata_list:
+        metadata_keywords_lower = [kw.lower() for kw in metadata.keywords]
+
+        if match_all:
+            # All keywords must be present
+            if all(kw in metadata_keywords_lower for kw in keywords_lower):
+                results.append(metadata)
+        else:
+            # At least one keyword must be present
+            if any(kw in metadata_keywords_lower for kw in keywords_lower):
+                results.append(metadata)
+
+    return results
+
+
+def filter_metadata_by_bbox(
+    metadata_list: List[SurveyMetadata],
+    west: float,
+    south: float,
+    east: float,
+    north: float,
+) -> List[SurveyMetadata]:
+    """
+    Filter metadata by geographic bounding box.
+
+    Returns survey areas whose bounding boxes overlap with the specified area.
+
+    Args:
+        metadata_list: List of SurveyMetadata objects to filter
+        west: Minimum longitude (western bound)
+        south: Minimum latitude (southern bound)
+        east: Maximum longitude (eastern bound)
+        north: Maximum latitude (northern bound)
+
+    Returns:
+        Filtered list of SurveyMetadata objects with overlapping bounding boxes
+
+    Example:
+        >>> # Find all surveys covering Iowa
+        >>> metadata_list = [
+        ...     SurveyMetadata(row['fgdcmetadata'], areasymbol=row['areasymbol'])
+        ...     for _, row in df.iterrows() if row['fgdcmetadata']
+        ... ]
+        >>>
+        >>> iowa_surveys = filter_metadata_by_bbox(
+        ...     metadata_list,
+        ...     west=-96.64,
+        ...     south=40.37,
+        ...     east=-90.14,
+        ...     north=43.5
+        ... )
+        >>> print(f"Found {len(iowa_surveys)} surveys in Iowa")
+    """
+    results = []
+    for metadata in metadata_list:
+        bbox = metadata.bounding_box
+
+        # Check if bounding boxes overlap
+        # Boxes overlap if: box1.west < box2.east AND box1.east > box2.west
+        #                   AND box1.south < box2.north AND box1.north > box2.south
+        if (
+            bbox.get("west") is not None
+            and bbox.get("east") is not None
+            and bbox.get("south") is not None
+            and bbox.get("north") is not None
+        ):
+            if (
+                bbox["west"] < east
+                and bbox["east"] > west
+                and bbox["south"] < north
+                and bbox["north"] > south
+            ):
+                results.append(metadata)
+
+    return results
+
+
+def get_metadata_statistics(metadata_list: List[SurveyMetadata]) -> Dict[str, Any]:
+    """
+    Get aggregate statistics from a list of metadata objects.
+
+    Useful for understanding coverage and characteristics of survey areas.
+
+    Args:
+        metadata_list: List of SurveyMetadata objects
+
+    Returns:
+        Dictionary with statistics including:
+        - count: Number of surveys
+        - avg_scale: Average map scale denominator
+        - publishers: Unique publishers
+        - recent_surveys: Number of surveys published in last 10 years
+        - has_contact: Surveys with contact information
+        - avg_keywords: Average keywords per survey
+
+    Example:
+        >>> metadata_list = [
+        ...     SurveyMetadata(row['fgdcmetadata'], areasymbol=row['areasymbol'])
+        ...     for _, row in df.iterrows() if row['fgdcmetadata']
+        ... ]
+        >>>
+        >>> stats = get_metadata_statistics(metadata_list)
+        >>> print(f"Total surveys: {stats['count']}")
+        >>> print(f"Average scale: 1:{stats['avg_scale']}")
+        >>> print(f"Publishers: {stats['publishers']}")
+    """
+    if not metadata_list:
+        return {
+            "count": 0,
+            "avg_scale": None,
+            "publishers": [],
+            "recent_surveys": 0,
+            "has_contact": 0,
+            "avg_keywords": 0,
+        }
+
+    scales = []
+    publishers = set()
+    recent_count = 0
+    contact_count = 0
+    total_keywords = 0
+
+    now = datetime.now()
+
+    for metadata in metadata_list:
+        # Scale statistics
+        if metadata.scale_denominator:
+            scales.append(metadata.scale_denominator)
+
+        # Publisher statistics
+        if metadata.publisher:
+            publishers.add(metadata.publisher)
+
+        # Recent surveys (last 10 years)
+        if metadata.publication_date_parsed:
+            years_old = (now - metadata.publication_date_parsed).days / 365.25
+            if years_old < 10:
+                recent_count += 1
+
+        # Contact information
+        if metadata.contact_email or metadata.contact_phone:
+            contact_count += 1
+
+        # Keywords
+        total_keywords += len(metadata.keywords)
+
+    avg_scale = sum(scales) / len(scales) if scales else None
+    avg_keywords = total_keywords / len(metadata_list) if metadata_list else 0
+
+    return {
+        "count": len(metadata_list),
+        "avg_scale": int(avg_scale) if avg_scale else None,
+        "publishers": sorted(list(publishers)),
+        "recent_surveys": recent_count,
+        "has_contact": contact_count,
+        "avg_keywords": round(avg_keywords, 1),
+    }
+

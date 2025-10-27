@@ -61,7 +61,10 @@ from .metadata import (
     MetadataParseError,
     SurveyMetadata,
     extract_metadata_summary,
+    filter_metadata_by_bbox,
+    get_metadata_statistics,
     parse_survey_metadata,
+    search_metadata_by_keywords,
 )
 from .query import Query, QueryBuilder, SpatialQuery
 from .response import SDAResponse
@@ -108,6 +111,9 @@ __all__ = [
     "SurveyMetadata",
     "parse_survey_metadata",
     "extract_metadata_summary",
+    "search_metadata_by_keywords",
+    "filter_metadata_by_bbox",
+    "get_metadata_statistics",
     # Convenience functions
     "get_mapunit_by_areasymbol",
     "get_mapunit_by_point",
