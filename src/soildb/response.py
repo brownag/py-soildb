@@ -18,6 +18,7 @@ from .spc_validator import (
     SPCWarnings,
     create_spc_validation_report,
 )
+from .type_conversion import get_default_type_map
 
 if TYPE_CHECKING:
     try:
@@ -922,151 +923,27 @@ class SDAResponse:
         return self.to_dict()
 
     def _convert_value(self, value: Any, sda_type: str) -> Any:
-        """Convert a single value based on SDA data type with enhanced error handling."""
-        if (
-            value is None
-            or value == ""
-            or str(value).lower() in ["null", "none", "nan"]
-        ):
-            return None
-
-        sda_type = sda_type.lower().strip()
-
-        try:
-            # Integer types with fallback
-            if sda_type in ["int", "integer", "bigint", "smallint", "tinyint"]:
-                try:
-                    return int(float(str(value))) if value is not None else None
-                except (ValueError, TypeError):
-                    # Try to extract numeric part
-                    str_val = str(value).strip()
-                    # Remove common suffixes/prefixes that might prevent conversion
-                    import re
-
-                    numeric_match = re.search(r"[-+]?\d*\.?\d+", str_val)
-                    if numeric_match:
-                        try:
-                            return int(float(numeric_match.group()))
-                        except (ValueError, TypeError):
-                            pass
-                    return None  # Return None for unconvertible values
-
-            # Boolean type with multiple formats
-            elif sda_type == "bit":
-                str_val = str(value).lower().strip()
-                if str_val in ["true", "1", "yes", "t", "y"]:
-                    return True
-                elif str_val in ["false", "0", "no", "f", "n"]:
-                    return False
-                else:
-                    return None
-
-            # Float types with enhanced parsing
-            elif sda_type in [
-                "float",
-                "real",
-                "double",
-                "decimal",
-                "numeric",
-                "money",
-                "smallmoney",
-            ]:
-                try:
-                    return float(value) if value is not None else None
-                except (ValueError, TypeError):
-                    # Try to clean the value
-                    str_val = str(value).strip()
-                    # Remove currency symbols and commas
-                    cleaned = str_val.replace("$", "").replace(",", "").replace(" ", "")
-                    try:
-                        return float(cleaned)
-                    except (ValueError, TypeError):
-                        return None
-
-            # Date/time types with multiple format support
-            elif sda_type in [
-                "datetime",
-                "datetime2",
-                "smalldatetime",
-                "date",
-                "timestamp",
-            ]:
-                if isinstance(value, str):
-                    # Try multiple common date formats
-                    formats_to_try = [
-                        "%Y-%m-%d %H:%M:%S",
-                        "%Y-%m-%d %H:%M:%S.%f",
-                        "%Y-%m-%d",
-                        "%m/%d/%Y",
-                        "%m/%d/%Y %H:%M:%S",
-                        "%Y/%m/%d",
-                        "%d-%m-%Y",
-                        "%d/%m/%Y",
-                        "%Y-%m-%dT%H:%M:%S",
-                        "%Y-%m-%dT%H:%M:%SZ",
-                        "%Y-%m-%dT%H:%M:%S.%fZ",
-                    ]
-
-                    for fmt in formats_to_try:
-                        try:
-                            return datetime.strptime(value, fmt)
-                        except ValueError:
-                            continue
-
-                    # If no format worked, try pandas (if available) for more flexible parsing
-                    try:
-                        import pandas as pd
-
-                        return pd.to_datetime(value, errors="coerce")
-                    except (ImportError, Exception):
-                        pass
-
-                # If parsing failed, return the original string
-                return str(value)
-
-            # String types (default) with cleanup
-            else:
-                if value is not None:
-                    str_val = str(value).strip()
-                    # Handle common string null representations
-                    if str_val.lower() in ["null", "none", "nan", "n/a", ""]:
-                        return None
-                    return str_val
-                return None
-
-        except Exception as e:
-            # Log unexpected conversion errors but return original value
-            logger.debug(
-                f"Unexpected error converting value '{value}' of type '{sda_type}': {e}"
-            )
-            return value if value is not None else None
+        """Convert a single value based on SDA data type using unified TypeMap.
+        
+        This delegates to the unified type conversion system which consolidates
+        logic from response.py, type_processors.py, and schema_system.py.
+        """
+        type_map = get_default_type_map()
+        return type_map.convert_value(value, sda_type, strict=False)
 
     def _get_pandas_dtype_mapping(self) -> Dict[str, str]:
-        """Get pandas-compatible dtype mapping."""
+        """Get pandas-compatible dtype mapping using unified TypeMap."""
         column_types = self.get_column_types()
         dtype_mapping = {}
+        type_map = get_default_type_map()
 
         for col_name, sda_type in column_types.items():
-            sda_type_lower = sda_type.lower()
-
-            # Map to pandas dtypes
-            if sda_type_lower in ["int", "integer", "bigint"]:
-                dtype_mapping[col_name] = "Int64"  # Nullable integer
-            elif sda_type_lower in ["smallint", "tinyint"]:
-                dtype_mapping[col_name] = "Int32"
-            elif sda_type_lower == "bit":
-                dtype_mapping[col_name] = "boolean"
-            elif sda_type_lower in ["float", "real", "double", "decimal", "numeric"]:
-                dtype_mapping[col_name] = "float64"
-            elif sda_type_lower in ["datetime", "datetime2", "smalldatetime", "date"]:
-                dtype_mapping[col_name] = "datetime64[ns]"
-            else:
-                dtype_mapping[col_name] = "string"
+            dtype_mapping[col_name] = type_map.get_pandas_dtype(sda_type)
 
         return dtype_mapping
 
     def _get_polars_dtype_mapping(self) -> Dict[str, Any]:
-        """Get polars-compatible dtype mapping."""
+        """Get polars-compatible dtype mapping using unified TypeMap."""
         try:
             import polars as pl
         except ImportError:
@@ -1074,23 +951,10 @@ class SDAResponse:
 
         column_types = self.get_column_types()
         dtype_mapping = {}
+        type_map = get_default_type_map()
 
         for col_name, sda_type in column_types.items():
-            sda_type_lower = sda_type.lower()
-
-            # Map to polars dtypes
-            if sda_type_lower in ["int", "integer", "bigint"]:
-                dtype_mapping[col_name] = pl.Int64  # type: ignore
-            elif sda_type_lower in ["smallint", "tinyint"]:
-                dtype_mapping[col_name] = pl.Int32  # type: ignore
-            elif sda_type_lower == "bit":
-                dtype_mapping[col_name] = pl.Boolean  # type: ignore
-            elif sda_type_lower in ["float", "real", "double", "decimal", "numeric"]:
-                dtype_mapping[col_name] = pl.Float64  # type: ignore
-            elif sda_type_lower in ["datetime", "datetime2", "smalldatetime", "date"]:
-                dtype_mapping[col_name] = pl.Datetime  # type: ignore
-            else:
-                dtype_mapping[col_name] = pl.Utf8  # type: ignore
+            dtype_mapping[col_name] = type_map.get_polars_dtype(sda_type)
 
         return dtype_mapping
 
@@ -1502,14 +1366,23 @@ class SDAResponse:
         return types
 
     def get_python_types(self) -> Dict[str, str]:
-        """Get Python-compatible type mapping."""
+        """Get Python-compatible type mapping using unified TypeMap."""
         sda_types = self.get_column_types()
         python_types = {}
+        type_map = get_default_type_map()
 
         for col_name, sda_type in sda_types.items():
-            python_types[col_name] = self.SDA_TYPE_MAPPING.get(
-                sda_type.lower(), "string"
-            )
+            python_type = type_map.get_python_type(sda_type)
+            # Map Python types to string names used by SDA_TYPE_MAPPING
+            type_name_map = {
+                int: "int",
+                float: "float",
+                bool: "bit",
+                str: "string",
+                datetime: "datetime",
+                bytes: "varbinary",
+            }
+            python_types[col_name] = type_name_map.get(python_type, "string")
 
         return python_types
 
