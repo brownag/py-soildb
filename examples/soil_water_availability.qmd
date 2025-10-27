@@ -1,0 +1,396 @@
+---
+title: "Soil Water Availability Monitoring"
+subtitle: "Combining SDA soil properties with AWDB soil moisture measurements"
+author: "py-soildb"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+jupyter: python3
+---
+
+## Overview
+
+This example demonstrates how to combine **soil property data from SDA** with **soil moisture measurements from AWDB (SCAN stations)** to monitor and analyze water availability.
+
+**Key concepts:**
+- **SDA (Soil Data Access)**: Provides static soil properties like available water capacity (AWC), texture, and depth to water table
+- **AWDB (Air and Water Database)**: SCAN stations provide real-time soil moisture and temperature measurements
+- **Integration goal**: Validate SDA predictions against field measurements and assess seasonal water dynamics
+
+---
+
+## Setup
+
+```{python}
+import asyncio
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+
+# Import soildb modules
+from soildb import SDAClient
+from soildb.awdb_integration import (
+    get_component_water_properties,
+    get_scan_soil_moisture_profile,
+    get_scan_soil_temperature_profile,
+    get_precipitation_data,
+    estimate_water_availability,
+    get_water_stress_categories,
+    get_recommended_awdb_depths_for_soil,
+)
+
+# For Jupyter/IPython async support
+try:
+    get_ipython()
+    import nest_asyncio
+    nest_asyncio.apply()
+except NameError:
+    pass
+```
+
+---
+
+## Step 1: Query soil water properties from SDA
+
+Fetch horizon-level soil properties relevant to water availability: available water capacity, texture, hydraulic conductivity, and depth to water table. These are measured properties from soil horizons (layers) within each map unit.
+
+```{python}
+async def step1_query_soil_properties():
+    """Fetch soil water properties and water table depth for a survey area."""
+    
+    # Query a survey area (example: IA109 - Pocahontas County, Iowa)
+    areasymbol = "IA109"
+    
+    print(f"📍 Querying SDA for survey area: {areasymbol}")
+    
+    # Get horizon-level soil properties
+    soil_response = await get_component_water_properties(areasymbol)
+    soil_df = soil_response.to_pandas()
+    
+    print(f"✓ Found {soil_df['cokey'].nunique()} components with {len(soil_df)} horizons")
+    
+    # Get water table depth (from mapunit aggregates)
+    from soildb.awdb_integration import get_water_table_depth
+    wtable_response = await get_water_table_depth(areasymbol, use_mapunit_agg=True)
+    wtable_df = wtable_response.to_pandas()
+    
+    # Summary statistics
+    print("\n🌱 Soil Water Properties Summary (Horizon-Level):")
+    print(f"  Available Water Capacity (AWC):")
+    print(f"    Mean: {soil_df['awc_r'].mean():.3f} in/in")
+    print(f"    Range: {soil_df['awc_r'].min():.3f} - {soil_df['awc_r'].max():.3f}")
+    print(f"\n  Depth range sampled:")
+    print(f"    Shallow: {soil_df['hzdept_r'].min() / 12:.1f} ft")
+    print(f"    Deep: {soil_df['hzdepb_r'].max() / 12:.1f} ft")
+    print(f"\n  Texture (average across horizons):")
+    print(f"    Clay: {soil_df['claytotal_r'].mean():.1f}%")
+    print(f"    Silt: {soil_df['silttotal_r'].mean():.1f}%")
+    print(f"    Sand: {soil_df['sandtotal_r'].mean():.1f}%")
+    print(f"\n  Saturated Hydraulic Conductivity (Ksat):")
+    print(f"    Mean: {soil_df['ksat_r'].mean():.3f} µm/s")
+    
+    # Add water table depth info if available
+    if not wtable_df.empty:
+        print(f"\n  Depth to Water Table (Mapunit aggregates):")
+        if 'wtdepannmin' in wtable_df.columns:
+            wtdep_min_ft = wtable_df['wtdepannmin'].mean() / 12
+            print(f"    Min depth: {wtdep_min_ft:.1f} ft")
+        if 'wtdepannmax' in wtable_df.columns:
+            wtdep_max_ft = wtable_df['wtdepannmax'].mean() / 12
+            print(f"    Max depth: {wtdep_max_ft:.1f} ft")
+    
+    return soil_df
+
+# Run the query
+soil_df = asyncio.run(step1_query_soil_properties())
+
+# Display sample data showing horizon structure
+display_cols = ['muname', 'compname', 'hzname', 'hzdept_r', 'hzdepb_r', 'awc_r', 'claytotal_r']
+print("\n📋 Sample horizon data:")
+soil_df[display_cols].head(15)
+```
+
+---
+
+## Step 2: Locate nearby SCAN monitoring station
+
+Find SCAN (Soil Climate Analysis Network) stations near the survey area's representative location.
+
+```{python}
+# Representative location for IA109 (approximate center)
+latitude = 42.0
+longitude = -94.6
+max_distance_km = 50
+
+print(f"🔍 Looking for SCAN stations near ({latitude:.2f}°N, {longitude:.2f}°W)")
+print(f"   Search radius: {max_distance_km} km")
+```
+
+---
+
+## Step 3: Query soil moisture from SCAN stations
+
+Fetch actual soil moisture measurements to compare with SDA predictions.
+
+```{python}
+async def step3_query_scan_moisture():
+    """Fetch soil moisture data from nearby SCAN station."""
+    
+    # Date range (last growing season)
+    end_date = "2024-06-30"
+    start_date = "2024-01-01"
+    
+    print(f"📊 Querying SCAN soil moisture: {start_date} to {end_date}")
+    
+    try:
+        moisture_data = await get_scan_soil_moisture_profile(
+            latitude, longitude, start_date, end_date, max_distance_km
+        )
+        
+        # Print station info
+        print(f"\n✓ Station: {moisture_data['site_name']}")
+        print(f"  Triplet: {moisture_data['site_id']}")
+        print(f"  Distance: {moisture_data['metadata']['distance_km']} km")
+        print(f"  Network: {moisture_data['metadata']['network']}")
+        print(f"  Observations: {len(moisture_data['data_points'])}")
+        
+        return moisture_data
+    except Exception as e:
+        print(f"❌ Error fetching SCAN data: {e}")
+        print(f"\n   Note: This example uses mock data if SCAN station is unavailable")
+        # Return mock data structure for demonstration
+        return {
+            'site_name': 'Demo Station',
+            'site_id': 'DEMO:IA:SCAN',
+            'metadata': {'distance_km': 12.5, 'network': 'SCAN'},
+            'data_points': []
+        }
+
+# Query SCAN data
+# moisture_data = asyncio.run(step3_query_scan_moisture())
+print("(SCAN query would run here - requires live API connection)")
+```
+
+---
+
+## Step 4: Query soil temperature and precipitation
+
+Complement moisture data with temperature and precipitation to understand water dynamics.
+
+```{python}
+async def step4_query_weather_data():
+    """Fetch soil temperature and precipitation data."""
+    
+    start_date = "2024-01-01"
+    end_date = "2024-06-30"
+    
+    try:
+        print("📈 Fetching soil temperature data...")
+        temp_data = await get_scan_soil_temperature_profile(
+            latitude, longitude, start_date, end_date, max_distance_km
+        )
+        print(f"  ✓ {len(temp_data['data_points'])} observations")
+        
+        print("🌧️  Fetching precipitation data...")
+        precip_data = await get_precipitation_data(
+            latitude, longitude, start_date, end_date, max_distance_km
+        )
+        print(f"  ✓ {len(precip_data['data_points'])} observations")
+        
+        return temp_data, precip_data
+    except Exception as e:
+        print(f"Note: {e}")
+        return None, None
+
+# temp_data, precip_data = asyncio.run(step4_query_weather_data())
+print("(Weather query would run here)")
+```
+
+---
+
+## Step 5: Estimate water availability
+
+Combine SDA predictions with AWDB measurements to assess water availability.
+
+```{python}
+async def step5_water_availability():
+    """Estimate water availability using combined SDA and AWDB data."""
+    
+    areasymbol = "IA109"
+    start_date = "2024-04-01"
+    end_date = "2024-06-30"
+    
+    print("💧 Estimating soil water availability...")
+    print(f"   Survey area: {areasymbol}")
+    print(f"   Period: {start_date} to {end_date}")
+    
+    try:
+        result = await estimate_water_availability(
+            areasymbol=areasymbol,
+            latitude=latitude,
+            longitude=longitude,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return result
+    except Exception as e:
+        print(f"\nNote: {e}")
+        print("Showing example output structure instead...")
+        return {
+            "survey_area": areasymbol,
+            "monitoring_station": "Example SCAN Station",
+            "distance_km": 15.0,
+            "soil_properties": {
+                "n_components": 12,
+                "avg_awc_in_per_in": 0.18,
+                "avg_ksat": 2.5,
+                "texture_distribution": {
+                    "avg_clay_pct": 22.5,
+                    "avg_silt_pct": 58.3,
+                    "avg_sand_pct": 19.2,
+                }
+            }
+        }
+
+# water_avail = asyncio.run(step5_water_availability())
+print("(Water availability calculation would run here)")
+```
+
+---
+
+## Step 6: Assess water stress conditions
+
+Based on AWC and current moisture, determine if plants are experiencing stress.
+
+```{python}
+def assess_stress_scenarios():
+    """Demonstrate water stress assessment at different moisture levels."""
+    
+    # Example soil: 18% AWC (typical loamy soil)
+    awc_in_per_in = 0.18
+    
+    # Scenario: Different moisture conditions
+    moisture_scenarios = [
+        ("Wet (post-rain)", 15),
+        ("Optimal", 13),
+        ("Moderate stress", 9),
+        ("Severe stress", 3),
+    ]
+    
+    print("💧 Water Stress Assessment")
+    print(f"Soil: AWC = {awc_in_per_in:.2f} in/in (typical loam)")
+    print("\n" + "="*70)
+    
+    for scenario_name, current_moisture_pct in moisture_scenarios:
+        stress = get_water_stress_categories(awc_in_per_in, current_moisture_pct)
+        
+        print(f"\n{scenario_name}:")
+        print(f"  Current moisture: {current_moisture_pct}%")
+        print(f"  Available capacity: {stress['awc_pct']:.1f}%")
+        print(f"  Stress level: {stress['stress_level'].upper()}")
+        print(f"  → {stress['description']}")
+
+assess_stress_scenarios()
+```
+
+---
+
+## Step 7: Recommend AWDB monitoring depths
+
+Select appropriate SCAN soil depths to monitor based on soil texture.
+
+```{python}
+def recommend_monitoring_depths():
+    """Show recommended SCAN depths for different soil textures."""
+    
+    print("🎯 Recommended SCAN soil depths by texture:")
+    print("\nDepth selection balances drainage speed and water storage:\n")
+    
+    scenarios = [
+        ("Sandy soil (10% clay)", 10),
+        ("Sandy loam (18% clay)", 18),
+        ("Loam (28% clay)", 28),
+        ("Clay loam (32% clay)", 32),
+        ("Clay (40% clay)", 40),
+    ]
+    
+    for soil_type, clay_pct in scenarios:
+        depths = get_recommended_awdb_depths_for_soil(clay_pct)
+        depths_str = ", ".join(str(d) for d in sorted(depths, reverse=True))
+        print(f"  {soil_type:30s} → depths: {depths_str} inches")
+    
+    print("\nWhy different depths?")
+    print("  • Sandy soils: Moisture drains quickly → monitor shallow")
+    print("  • Clay soils: Moisture retained longer → monitor deeper")
+    print("  • Multiple depths: Capture vertical water movement")
+
+recommend_monitoring_depths()
+```
+
+---
+
+## Key Takeaways
+
+### SDA + AWDB Integration Benefits
+
+1. **Validation**: Compare predicted AWC with measured SCAN soil moisture
+2. **Monitoring**: Track seasonal water dynamics in real-time
+3. **Optimization**: Inform irrigation decisions with actual field conditions
+4. **Forecasting**: Combine soil properties with weather trends
+5. **Risk Assessment**: Identify drought or flood risk periods early
+
+### When to Use AWDB with SDA
+
+✅ **Use AWDB if you need:**
+- Time-series soil moisture or temperature data
+- Real field measurements to validate predictions
+- Seasonal water availability patterns
+- Irrigation scheduling guidance
+- Soil water stress assessment
+
+❌ **Don't need AWDB if:**
+- Only static soil classifications needed
+- No temporal component to analysis
+- Budget/time constraints prohibit field monitoring
+
+### Data Integration Pattern
+
+```
+SDA Survey Area
+    ↓
+Soil Properties (texture, AWC, Ksat)
+    ↓
++ Spatial Query (latitude, longitude)
+    ↓
+Find Nearby SCAN Station
+    ↓
++ Time Range (start_date, end_date)
+    ↓
+Fetch AWDB Measurements
+    ↓
+= Water Availability Analysis
+```
+
+---
+
+## References
+
+- **SDA (Soil Data Access)**: https://sdmdataaccess.sc.egov.usda.gov/
+- **AWDB (SCAN/SNOTEL)**: https://wcc.sc.egov.usda.gov/
+- **py-soildb Documentation**: https://github.com/brownag/py-soildb
+- **SCAN Network**: https://www.wcc.nrcs.usda.gov/scan/
+
+---
+
+## Next Steps
+
+1. **Run with real data**: Connect to SDA and AWDB APIs for your survey area
+2. **Time-series analysis**: Create plots of moisture trends vs. AWC predictions
+3. **Statistical validation**: Quantify agreement between SDA and AWDB data
+4. **Spatial analysis**: Compare multiple soil map units with station data
+5. **Forecasting**: Use regression models to predict moisture from rainfall + soil properties
