@@ -1,6 +1,53 @@
 """
-High-level functions for the soildb package that return structured
-data objects from soildb.models.
+High-level functions for structured soil data access.
+
+This module provides an object-oriented interface for accessing nested soil data
+structures. Choose this module when you want:
+- Nested relationships (Map Unit → Components → Horizons)
+- An OOP interface with dataclass objects
+- Automatic fetching and combining of related data
+- Attributes instead of dictionary keys
+
+ALTERNATIVES BY USE CASE:
+- Want DataFrame for pandas operations? → Use convenience.get_*() functions
+- Want raw SDA response? → Use convenience.get_*() functions
+- Want low-level control? → Use Query() builder or query_templates
+- Want spatial queries? → Use spatial_query()
+
+API TIER REFERENCE (in order of preference):
+1. HIGH-LEVEL (this module):
+   - fetch_mapunit_struct_by_point()
+   - fetch_pedon_struct_by_bbox()
+   - fetch_pedon_struct_by_id()
+
+2. MID-LEVEL (convenience):
+   - get_mapunit_by_point()
+   - get_mapunit_by_bbox()
+   - get_lab_pedons_by_bbox()
+   - get_lab_pedon_by_id()
+
+3. LOW-LEVEL:
+   - Query() / query_templates
+   - spatial_query()
+
+QUICK START:
+```python
+# Get structured map unit with components and horizons
+mapunit = await fetch_mapunit_struct_by_point(latitude=42.0, longitude=-93.6)
+for component in mapunit.components:
+    print(f"{component.component_name}: {component.component_percentage}%")
+
+# Get pedons with nested horizons
+pedons = await fetch_pedon_struct_by_bbox(-94, 41.5, -93, 42.5)
+for pedon in pedons:
+    depth = pedon.get_profile_depth()
+    print(f"Pedon {pedon.pedon_id}: {depth} cm deep")
+
+# Get raw data for DataFrame operations
+response = await get_mapunit_by_point(-93.6, 42.0)
+df = response.to_pandas()
+df.to_csv('mapunit.csv')
+```
 """
 
 from datetime import datetime
@@ -102,22 +149,61 @@ async def fetch_mapunit_struct_by_point(
     """
     Fetch a structured SoilMapUnit object for a specific geographic location.
 
-    This function orchestrates multiple queries to build a complete, nested
-    object representing the map unit, its components, and their aggregate horizons.
+    Returns a NESTED OBJECT MODEL with Map Unit → Components → Aggregate Horizons.
+
+    **USAGE EXAMPLES:**
+
+    ```python
+    # Get map unit with components and horizons
+    mapunit = await fetch_mapunit_struct_by_point(
+        latitude=42.0, 
+        longitude=-93.6
+    )
+    
+    # Access map unit properties
+    print(f"Map Unit: {mapunit.map_unit_name}")
+    print(f"Symbol: {mapunit.map_unit_symbol}")
+    
+    # Iterate through components
+    for component in mapunit.components:
+        print(f"  Component: {component.component_name}")
+        print(f"  Percentage: {component.component_percentage}%")
+        
+        # Access component horizons
+        for horizon in component.horizons:
+            print(f"    Horizon {horizon.designation}: {horizon.texture_class}")
+    
+    # Get only map unit (no components/horizons)
+    mapunit = await fetch_mapunit_struct_by_point(
+        latitude=42.0, 
+        longitude=-93.6,
+        fill_components=False
+    )
+    
+    # Compare with raw data API
+    response = await get_mapunit_by_point(longitude=-93.6, latitude=42.0)
+    df = response.to_pandas()
+    # Now you have a DataFrame for pandas operations
+    ```
 
     Args:
         latitude: Latitude in decimal degrees.
         longitude: Longitude in decimal degrees.
         fill_components: If True, fetch component data for the map unit.
+                        Default: True. Set False for map unit only.
         fill_horizons: If True, fetch aggregate horizon data for each component.
+                      Default: True. Only used if fill_components=True.
         component_columns: List of component columns to fetch. If None, uses default columns.
                           Extra columns beyond defaults will be stored in component extra_fields.
         horizon_columns: List of horizon columns to fetch. If None, uses default columns.
                         Extra columns beyond defaults will be stored in horizon extra_fields.
-        client: Optional SDA client instance.
+        client: Optional SDA client instance. Creates new client if not provided.
 
     Returns:
-        A SoilMapUnit object.
+        SoilMapUnit: Object with nested components and horizons (if fill_* options enabled).
+    
+    Raises:
+        ValueError: If no map unit found at specified location.
     """
     # Step 1: Get map unit data
     mu_response = await get_mapunit_by_point(longitude, latitude, client=client)
@@ -323,19 +409,57 @@ async def fetch_pedon_struct_by_bbox(
     Fetch structured pedon data within a bounding box.
 
     Returns a list of PedonData objects with site information and laboratory-analyzed horizons.
+    
+    **USAGE EXAMPLES:**
+
+    ```python
+    # Get all pedons in bounding box with horizons
+    pedons = await fetch_pedon_struct_by_bbox(
+        min_x=-94.0,
+        min_y=41.5, 
+        max_x=-93.0,
+        max_y=42.5
+    )
+    
+    # Analyze pedon structure
+    for pedon in pedons:
+        print(f"Pedon {pedon.pedon_id}:")
+        print(f"  Taxon: {pedon.taxonname}")
+        print(f"  Total depth: {pedon.get_profile_depth()} cm")
+        
+        # Access horizons
+        for horizon in pedon.horizons:
+            print(f"    {horizon.designation}: {horizon.texture_class}")
+            for prop in horizon.properties:
+                print(f"      {prop.property_name}: {prop.representative_value}")
+    
+    # Get pedons without horizons
+    pedons = await fetch_pedon_struct_by_bbox(
+        min_x=-94.0,
+        min_y=41.5,
+        max_x=-93.0,
+        max_y=42.5,
+        fill_horizons=False
+    )
+    
+    # Compare with raw data API
+    response = await get_lab_pedons_by_bbox(-94, 41.5, -93, 42.5)
+    df = response.to_pandas()
+    # Now use pandas for analysis: df.groupby(), df.plot(), etc.
+    ```
 
     Args:
         min_x: Western boundary (longitude)
         min_y: Southern boundary (latitude)
         max_x: Eastern boundary (longitude)
         max_y: Northern boundary (latitude)
-        fill_horizons: If True, fetch horizon data for each pedon
+        fill_horizons: If True, fetch horizon data for each pedon. Default: True.
         horizon_columns: List of horizon columns to fetch. If None, uses default columns.
                         Extra columns beyond defaults will be stored in horizon extra_fields.
-        client: Optional SDA client instance.
+        client: Optional SDA client instance. Creates new client if not provided.
 
     Returns:
-        List of PedonData objects
+        List of PedonData objects (empty list if no pedons found).
     """
     # Step 1: Get pedon site data
     site_response = await get_lab_pedons_by_bbox(
@@ -427,15 +551,47 @@ async def fetch_pedon_struct_by_id(
 
     Returns a PedonData object with site information and laboratory-analyzed horizons.
 
+    **USAGE EXAMPLES:**
+
+    ```python
+    # Get single pedon with all horizons
+    pedon = await fetch_pedon_struct_by_id("S1999NY061001")
+    
+    if pedon:
+        print(f"Pedon: {pedon.pedon_id}")
+        print(f"Taxon: {pedon.taxonname}")
+        print(f"Location: ({pedon.latitude}, {pedon.longitude})")
+        print(f"Total depth: {pedon.get_profile_depth()} cm")
+        
+        # Analyze horizons
+        for horizon in pedon.horizons:
+            print(f"  {horizon.designation}: {horizon.texture_class}")
+            # Access horizon properties
+            depth_at = pedon.get_horizon_by_depth(50)  # Get horizon at 50 cm
+            if depth_at:
+                print(f"    At 50 cm depth: {depth_at.designation}")
+    
+    # Get pedon without horizons
+    pedon = await fetch_pedon_struct_by_id(
+        "S1999NY061001",
+        fill_horizons=False
+    )
+    
+    # Compare with raw data API
+    response = await get_lab_pedon_by_id("S1999NY061001")
+    df = response.to_pandas()
+    # Now use pandas for operations
+    ```
+
     Args:
         pedon_id: Pedon key or user pedon ID
-        fill_horizons: If True, fetch horizon data for the pedon
+        fill_horizons: If True, fetch horizon data for the pedon. Default: True.
         horizon_columns: List of horizon columns to fetch. If None, uses default columns.
                         Extra columns beyond defaults will be stored in horizon extra_fields.
-        client: Optional SDA client instance.
+        client: Optional SDA client instance. Creates new client if not provided.
 
     Returns:
-        PedonData object or None if not found
+        PedonData object if found, None if not found.
     """
     # Step 1: Get pedon site data
     site_response = await get_lab_pedon_by_id(pedon_id, client=client)
