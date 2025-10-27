@@ -11,7 +11,7 @@ from soildb.high_level import (
     fetch_pedon_struct_by_bbox,
     fetch_pedon_struct_by_id,
 )
-from soildb.models import SoilMapUnit
+from soildb.schema_system import SoilMapUnit
 
 # A known location in Iowa with soil data
 TEST_LAT = 42.0
@@ -66,7 +66,7 @@ async def test_fetch_pedon_struct_by_bbox(sda_client):
         )
         assert isinstance(pedons, list)
         if pedons:
-            from soildb.models import PedonData
+            from soildb.schema_system import PedonData
 
             assert isinstance(pedons[0], PedonData)
             assert hasattr(pedons[0], "pedon_key")
@@ -90,7 +90,7 @@ async def test_fetch_pedon_struct_by_id(sda_client):
     print("Testing fetch_pedon_struct_by_id...")
     try:
         pedon = await fetch_pedon_struct_by_id(TEST_PEDON_ID, client=sda_client)
-        from soildb.models import PedonData
+        from soildb.schema_system import PedonData
 
         assert isinstance(pedon, PedonData)
         assert hasattr(pedon, "pedon_key")
@@ -210,7 +210,7 @@ async def test_fetch_pedon_struct_by_id_with_custom_columns(sda_client):
             ],
             client=sda_client,
         )
-        from soildb.models import PedonData
+        from soildb.schema_system import PedonData
 
         assert isinstance(pedon, PedonData)
         assert hasattr(pedon, "pedon_key")

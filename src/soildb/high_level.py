@@ -17,14 +17,15 @@ from . import (
     get_mapunit_by_point,
 )
 from .client import SDAClient
-from .models import (
+from .schema_system import (  # type: ignore
     AggregateHorizon,
     HorizonProperty,
     MapUnitComponent,
     PedonData,
+    PedonHorizon,
     SoilMapUnit,
+    get_schema,
 )
-from .schema_system import PedonHorizon, get_schema  # type: ignore
 from .utils import add_sync_version
 
 
