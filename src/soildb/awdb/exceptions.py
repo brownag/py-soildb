@@ -1,21 +1,11 @@
 """
 Exceptions for AWDB operations.
+
+These exceptions mirror the structure of SDA exceptions but for AWDB service operations.
+Both inherit from SoilDBError, allowing unified exception handling across services.
 """
 
+from soildb.exceptions import AWDBError, AWDBConnectionError, AWDBQueryError
 
-class AWDBError(Exception):
-    """Base exception for AWDB-related errors."""
-
-    pass
-
-
-class AWDBConnectionError(AWDBError):
-    """Error connecting to AWDB API."""
-
-    pass
-
-
-class AWDBQueryError(AWDBError):
-    """Error in AWDB query or response parsing."""
-
-    pass
+# Re-export for backward compatibility and convenience
+__all__ = ["AWDBError", "AWDBConnectionError", "AWDBQueryError"]
