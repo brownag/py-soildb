@@ -9,7 +9,7 @@ from .sanitization import (
     sanitize_sql_numeric,
     sanitize_sql_string,
     sanitize_sql_string_list,
-    validate_sql_object_name,
+    validate_sql_identifier,
 )
 
 
@@ -666,7 +666,7 @@ class QueryBuilder:
         columns: Optional[List[str]] = None, table: str = "sacatalog"
     ) -> Query:
         """Get list of available survey areas."""
-        validate_sql_object_name(table)
+        validate_sql_identifier(table)
 
         if columns is None:
             if table == "sacatalog":
@@ -681,7 +681,7 @@ class QueryBuilder:
         columns: Optional[List[str]] = None, table: str = "sapolygon"
     ) -> SpatialQuery:
         """Get survey area boundary polygons."""
-        validate_sql_object_name(table)
+        validate_sql_identifier(table)
 
         if columns is None:
             columns = ["areasymbol", "areaname", "sapolygongeo.STAsText() as geometry"]
@@ -732,10 +732,10 @@ class QueryBuilder:
         if columns is None:
             columns = ColumnSets.PEDON_BASIC + ["corr_name", "samp_name"]
 
-        # Validate column and table names
-        validate_sql_object_name(lon_column)
-        validate_sql_object_name(lat_column)
-        validate_sql_object_name(base_table)
+        # Validate column and table names (security: whitelist allowed identifiers)
+        validate_sql_identifier(lon_column)
+        validate_sql_identifier(lat_column)
+        validate_sql_identifier(base_table)
 
         query = (
             Query()
@@ -754,7 +754,7 @@ class QueryBuilder:
         if related_tables:
             for i, table in enumerate(related_tables):
                 # Validate table name to prevent SQL injection
-                validate_sql_object_name(table)
+                validate_sql_identifier(table)
                 alias = f"t{i}"
                 # Most pedon-related tables join on pedon_key
                 query = query.left_join(
@@ -800,7 +800,7 @@ class QueryBuilder:
             )
 
         # Validate table name
-        validate_sql_object_name(base_table)
+        validate_sql_identifier(base_table)
 
         # Build IN clause for pedon keys
         keys_str = ", ".join(sanitize_sql_string_list(pedon_keys))
@@ -828,7 +828,7 @@ class QueryBuilder:
 
         for i, table in enumerate(related_tables):
             # Validate table name to prevent SQL injection
-            validate_sql_object_name(table)
+            validate_sql_identifier(table)
             alias = f"t{i}"
             if table in lab_join_tables:
                 # Lab tables typically join on labsampnum
@@ -865,7 +865,7 @@ class QueryBuilder:
             columns = ColumnSets.PEDON_BASIC
 
         # Validate table name
-        validate_sql_object_name(base_table)
+        validate_sql_identifier(base_table)
 
         query = (
             Query()
@@ -878,7 +878,7 @@ class QueryBuilder:
         if related_tables:
             for i, table in enumerate(related_tables):
                 # Validate table name to prevent SQL injection
-                validate_sql_object_name(table)
+                validate_sql_identifier(table)
                 alias = f"t{i}"
                 # Most pedon-related tables join on pedon_key
                 query = query.left_join(
