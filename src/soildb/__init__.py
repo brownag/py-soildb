@@ -40,7 +40,6 @@ from .exceptions import (
     SDAMaintenanceError,
     SDAQueryError,
     SoilDBError,
-    SyncUsageError,
 )
 from .fetch import (
     fetch_by_keys,
@@ -104,7 +103,6 @@ __all__ = [
     "SDAConnectionError",
     "SDAQueryError",
     "SDAMaintenanceError",
-    "SyncUsageError",
     "MetadataParseError",
     # Metadata parsing
     "SurveyMetadata",

@@ -15,8 +15,6 @@ from typing import (
     get_origin,
 )
 
-from .exceptions import SyncUsageError
-
 R = TypeVar("R")
 
 
@@ -49,7 +47,7 @@ def add_sync_version(
         # Check if we're already in an async context
         try:
             asyncio.get_running_loop()
-            raise SyncUsageError(
+            raise RuntimeError(
                 "Cannot use .sync() from within an existing asyncio event loop. "
                 "Use the async version of this function instead."
             )
