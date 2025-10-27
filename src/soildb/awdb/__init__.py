@@ -25,7 +25,7 @@ from .convenience import (
     get_soil_moisture_data,
     list_available_variables,
 )
-from .exceptions import AWDBError
+from .exceptions import AWDBConnectionError, AWDBError, AWDBQueryError
 from .models import (
     ForecastData,
     ReferenceData,
@@ -42,6 +42,8 @@ __all__ = [
     "get_soil_moisture_data",
     "list_available_variables",
     "AWDBError",
+    "AWDBConnectionError",
+    "AWDBQueryError",
     "ForecastData",
     "ReferenceData",
     "StationInfo",

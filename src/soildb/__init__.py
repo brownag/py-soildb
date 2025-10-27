@@ -14,7 +14,9 @@ except Exception:
 from . import fetch
 from .awdb import (
     AWDBClient,
+    AWDBConnectionError,
     AWDBError,
+    AWDBQueryError,
     ForecastData,
     ReferenceData,
     StationInfo,
@@ -39,7 +41,10 @@ from .convenience import (
 from .exceptions import (
     SDAConnectionError,
     SDAMaintenanceError,
+    SDANetworkError,
     SDAQueryError,
+    SDAResponseError,
+    SDATimeoutError,
     SoilDBError,
 )
 from .fetch import (
@@ -137,6 +142,8 @@ __all__ = [
     "get_soil_moisture_data",
     "list_available_variables",
     "AWDBError",
+    "AWDBConnectionError",
+    "AWDBQueryError",
     "ForecastData",
     "ReferenceData",
     "StationInfo",
@@ -144,9 +151,12 @@ __all__ = [
     "StationTimeSeries",
     # Exceptions
     "SoilDBError",
+    "SDANetworkError",
     "SDAConnectionError",
-    "SDAQueryError",
+    "SDATimeoutError",
     "SDAMaintenanceError",
+    "SDAQueryError",
+    "SDAResponseError",
     "MetadataParseError",
     # Metadata parsing
     "SurveyMetadata",
