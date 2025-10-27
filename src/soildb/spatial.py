@@ -423,27 +423,3 @@ async def sapolygon_in_bbox(
     """Get survey area polygons in a bounding box."""
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await query_sapolygon(bbox, return_type, client=client)
-
-
-# Compatibility function - keep the original get_mapunits_in_bbox name
-async def get_mapunits_in_bbox(
-    min_longitude: float,
-    min_latitude: float,
-    max_longitude: float,
-    max_latitude: float,
-    client: Optional[SDAClient] = None,
-) -> SDAResponse:
-    """
-    Get map units within a bounding box (compatibility function).
-
-    This maintains backward compatibility. For new code, consider using
-    mupolygon_in_bbox() for more explicit naming.
-    """
-    return await mupolygon_in_bbox(
-        min_longitude,
-        min_latitude,
-        max_longitude,
-        max_latitude,
-        return_type="tabular",
-        client=client,
-    )
