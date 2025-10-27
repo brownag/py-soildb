@@ -3,6 +3,34 @@ Schema-driven column mapping system for flexible data structures.
 
 This module provides a completely automatic system for mapping database columns
 to dataclass fields with minimal hardcoded logic.
+
+REFACTORED ARCHITECTURE:
+The schema definitions have been refactored into modular files in the schemas/
+subdirectory to reduce monolithic definitions from 900+ lines to ~200 lines:
+
+- schemas/_base.py: ColumnSchema, TableSchema classes
+- schemas/_registry.py: Lazy-loading registry
+- schemas/mapunit.py: Mapunit and soil_map_unit schemas
+- schemas/component.py: Component and map_unit_component schemas
+- schemas/chorizon.py: Chorizon and aggregate_horizon schemas
+- schemas/pedon.py: Pedon and pedon_horizon schemas
+- schemas/property.py: Horizon property schema
+- schemas/spatial.py: Mupolygon and spatial schemas
+
+BACKWARD COMPATIBILITY:
+- SCHEMAS dictionary still works via lazy-loading (no change needed in code using it)
+- get_schema() function works as before
+- All dataclass creation functions unchanged
+
+USAGE:
+    from soildb.schema_system import get_schema, SCHEMAS, create_dynamic_dataclass
+    schema = get_schema("mapunit")
+    schema_dict = SCHEMAS["component"]
+    
+    from soildb.schemas import list_available_schemas
+    available = list_available_schemas()
+
+For detailed schema design documentation, see: docs/SCHEMA_DESIGN.md
 """
 
 from dataclasses import asdict, dataclass, field, make_dataclass
@@ -14,625 +42,101 @@ if TYPE_CHECKING:
     except ImportError:
         pd = None  # type: ignore
 
-from .type_processors import (
-    to_optional_float,
-    to_optional_int,
-    to_optional_str,
-    to_str,
-)
+# Import base classes and registry from modular schema system
+from .schemas import ColumnSchema, TableSchema, get_schema as schemas_get_schema
+from .schemas import list_available_schemas
+from .schemas._registry import _load_schema, _SCHEMA_LOADERS
 
 
-@dataclass
-class ColumnSchema:
-    """Schema definition for a single column."""
+class _LazySchemaDict(dict):
+    """Dictionary wrapper that lazy-loads schemas on access.
+    
+    Provides backward compatibility with code that uses SCHEMAS["table_name"].
+    Schemas are loaded on-demand rather than all at startup, improving performance.
+    """
 
-    name: str
-    type_hint: Any
-    processor: Callable[[Any], Any]
-    default: bool = False
-    field_name: Optional[str] = None  # Maps to dataclass field, None = extra_fields
-    required: bool = False
-    description: str = ""
+    def __getitem__(self, key: str) -> TableSchema:
+        """Get schema by table name, loading if necessary."""
+        schema = _load_schema(key)
+        if schema is None:
+            raise KeyError(f"Schema not found for table: {key}")
+        return schema
 
+    def __contains__(self, key: Any) -> bool:
+        """Check if schema exists."""
+        return key in _SCHEMA_LOADERS
 
-@dataclass
-class TableSchema:
-    """Schema definition for a table/entity type."""
+    def keys(self) -> list:
+        """Get all available schema table names."""
+        return sorted(_SCHEMA_LOADERS.keys())
 
-    name: str
-    columns: Dict[str, ColumnSchema]
-    base_fields: Dict[str, Any] = field(
-        default_factory=dict
-    )  # Fixed fields for dataclass
+    def get(self, key: str, default: Any = None) -> Optional[TableSchema]:
+        """Get schema or return default."""
+        return _load_schema(key) or default
 
-    def get_default_columns(self) -> List[str]:
-        """Get list of default column names."""
-        return [col.name for col in self.columns.values() if col.default]
+    def items(self) -> list:
+        """Get all schema items (loads all schemas)."""
+        return [(k, _load_schema(k)) for k in sorted(_SCHEMA_LOADERS.keys())]
 
-    def get_required_columns(self) -> List[str]:
-        """Get list of required column names."""
-        return [col.name for col in self.columns.values() if col.required]
+    def values(self) -> list:
+        """Get all schema values (loads all schemas)."""
+        return [_load_schema(k) for k in sorted(_SCHEMA_LOADERS.keys())]
 
-    def process_row(
-        self, row: Any, requested_columns: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Process a data row according to the schema."""
-        result = dict(self.base_fields)  # Start with base fields
-        extra_fields = {}
+    def __iter__(self):
+        """Iterate over schema table names."""
+        return iter(sorted(_SCHEMA_LOADERS.keys()))
 
-        # Determine which columns to process
-        columns_to_process = requested_columns or self.get_default_columns()
-
-        for col_name in columns_to_process:
-            if col_name in row.index and col_name in self.columns:
-                schema = self.columns[col_name]
-                raw_value = row[col_name]
-
-                # Apply processor
-                processed_value = schema.processor(raw_value)
-
-                # Map to field or extra_fields
-                if schema.field_name:
-                    result[schema.field_name] = processed_value
-                else:
-                    extra_fields[col_name] = processed_value
-            elif col_name in row.index and col_name not in self.columns:
-                # Pass through unknown-but-requested columns into extra_fields
-                extra_fields[col_name] = row[col_name]
-
-        result["extra_fields"] = extra_fields
-        return result
+    def __len__(self) -> int:
+        """Get count of available schemas."""
+        return len(_SCHEMA_LOADERS)
 
 
-# Schema definitions
-SCHEMAS = {
-    "mapunit": TableSchema(
-        name="mapunit",
-        base_fields={
-            "components": [],
-            "extra_fields": {},
-        },
-        columns={
-            "mukey": ColumnSchema(
-                "mukey",
-                str,
-                str,
-                default=True,
-                field_name="map_unit_key",
-                required=True,
-            ),
-            "muname": ColumnSchema(
-                "muname", str, to_str, default=True, field_name="map_unit_name"
-            ),
-            "musym": ColumnSchema(
-                "musym",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="map_unit_symbol",
-            ),
-            "lkey": ColumnSchema(
-                "lkey", str, str, default=True, field_name="survey_area_symbol"
-            ),
-            "areaname": ColumnSchema(
-                "areaname", str, to_str, default=True, field_name="survey_area_name"
-            ),
-            # Additional columns can be added dynamically
-        },
-    ),
-    "component": TableSchema(
-        name="component",
-        base_fields={
-            "aggregate_horizons": [],
-            "extra_fields": {},
-        },
-        columns={
-            "cokey": ColumnSchema(
-                "cokey",
-                str,
-                str,
-                default=True,
-                field_name="component_key",
-                required=True,
-            ),
-            "compname": ColumnSchema(
-                "compname", str, to_str, default=True, field_name="component_name"
-            ),
-            "comppct_r": ColumnSchema(
-                "comppct_r",
-                float,
-                to_optional_float,
-                default=True,
-                field_name="component_percentage",
-            ),
-            "majcompflag": ColumnSchema(
-                "majcompflag",
-                bool,
-                lambda x: str(x).lower() == "yes",
-                default=True,
-                field_name="is_major_component",
-            ),
-            "taxclname": ColumnSchema(
-                "taxclname",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="taxonomic_class",
-            ),
-            "drainagecl": ColumnSchema(
-                "drainagecl",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="drainage_class",
-            ),
-            "localphase": ColumnSchema(
-                "localphase",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="local_phase",
-            ),
-            "hydricrating": ColumnSchema(
-                "hydricrating",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="hydric_rating",
-            ),
-            "compkind": ColumnSchema(
-                "compkind",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="component_kind",
-            ),
-        },
-    ),
-    "chorizon": TableSchema(
-        name="chorizon",
-        base_fields={
-            "properties": [],
-            "extra_fields": {},
-        },
-        columns={
-            "chkey": ColumnSchema(
-                "chkey", str, str, default=True, field_name="horizon_key", required=True
-            ),
-            "hzname": ColumnSchema(
-                "hzname", str, to_str, default=True, field_name="horizon_name"
-            ),
-            "hzdept_r": ColumnSchema(
-                "hzdept_r",
-                float,
-                to_optional_float,
-                default=True,
-                field_name="top_depth",
-            ),
-            "hzdepb_r": ColumnSchema(
-                "hzdepb_r",
-                float,
-                to_optional_float,
-                default=True,
-                field_name="bottom_depth",
-            ),
-            # Property columns
-            "claytotal_r": ColumnSchema(
-                "claytotal_r",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name=None,
-            ),  # Goes to properties
-            "sandtotal_r": ColumnSchema(
-                "sandtotal_r",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name=None,
-            ),
-            "om_r": ColumnSchema(
-                "om_r",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name=None,
-            ),
-            "ph1to1h2o_r": ColumnSchema(
-                "ph1to1h2o_r",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name=None,
-            ),
-        },
-    ),
-    "pedon": TableSchema(
-        name="pedon",
-        base_fields={
-            "horizons": [],
-            "extra_fields": {},
-        },
-        columns={
-            "pedon_key": ColumnSchema(
-                "pedon_key",
-                str,
-                str,
-                default=True,
-                field_name="pedon_key",
-                required=True,
-            ),
-            "upedonid": ColumnSchema(
-                "upedonid", str, str, default=True, field_name="pedon_id", required=True
-            ),
-            "corr_name": ColumnSchema(
-                "corr_name",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="taxonname",
-            ),
-            "latitude_decimal_degrees": ColumnSchema(
-                "latitude_decimal_degrees",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="latitude",
-            ),
-            "longitude_decimal_degrees": ColumnSchema(
-                "longitude_decimal_degrees",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="longitude",
-            ),
-            "taxonname": ColumnSchema(
-                "taxonname",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="taxclname",
-            ),
-        },
-    ),
-    "pedon_horizon": TableSchema(
-        name="pedon_horizon",
-        base_fields={
-            "extra_fields": {},
-        },
-        columns={
-            "pedon_key": ColumnSchema(
-                "pedon_key",
-                str,
-                str,
-                default=True,
-                field_name="pedon_key",
-                required=True,
-            ),
-            "layer_key": ColumnSchema(
-                "layer_key",
-                str,
-                str,
-                default=True,
-                field_name="layer_key",
-                required=True,
-            ),
-            "layer_sequence": ColumnSchema(
-                "layer_sequence",
-                Optional[int],
-                to_optional_int,
-                default=True,
-                field_name="layer_sequence",
-            ),
-            "hzn_desgn": ColumnSchema(
-                "hzn_desgn", str, to_str, default=True, field_name="horizon_name"
-            ),
-            "hzn_top": ColumnSchema(
-                "hzn_top",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="top_depth",
-            ),
-            "hzn_bot": ColumnSchema(
-                "hzn_bot",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="bottom_depth",
-            ),
-            "sand_total": ColumnSchema(
-                "sand_total",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="sand_total",
-            ),
-            "silt_total": ColumnSchema(
-                "silt_total",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="silt_total",
-            ),
-            "clay_total": ColumnSchema(
-                "clay_total",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="clay_total",
-            ),
-            "texture_lab": ColumnSchema(
-                "texture_lab",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="texture_lab",
-            ),
-            "ph_h2o": ColumnSchema(
-                "ph_h2o",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="ph_h2o",
-            ),
-            "total_carbon_ncs": ColumnSchema(
-                "total_carbon_ncs",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name=None,
-            ),  # Processed
-            "organic_carbon_walkley_black": ColumnSchema(
-                "organic_carbon_walkley_black",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name=None,
-            ),
-            "organic_carbon": ColumnSchema(
-                "organic_carbon",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="organic_carbon",
-            ),  # Computed from carbon sources
-            "caco3_lt_2_mm": ColumnSchema(
-                "caco3_lt_2_mm",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="calcium_carbonate",
-            ),
-            "bulk_density_third_bar": ColumnSchema(
-                "bulk_density_third_bar",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="bulk_density_third_bar",
-            ),
-            "le_third_fifteen_lt2_mm": ColumnSchema(
-                "le_third_fifteen_lt2_mm",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="le_third_fifteen_lt2_mm",
-            ),
-            "water_retention_third_bar": ColumnSchema(
-                "water_retention_third_bar",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="water_content_third_bar",
-            ),
-            "water_retention_15_bar": ColumnSchema(
-                "water_retention_15_bar",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="water_content_fifteen_bar",
-            ),
-        },
-    ),
-    "horizon_property": TableSchema(
-        name="horizon_property",
-        base_fields={
-            "extra_fields": {},
-        },
-        columns={
-            "property_name": ColumnSchema(
-                "property_name",
-                str,
-                to_str,
-                default=True,
-                field_name="property_name",
-                required=True,
-            ),
-            "rv": ColumnSchema(
-                "rv", Optional[float], to_optional_float, default=True, field_name="rv"
-            ),
-            "low": ColumnSchema(
-                "low",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="low",
-            ),
-            "high": ColumnSchema(
-                "high",
-                Optional[float],
-                to_optional_float,
-                default=True,
-                field_name="high",
-            ),
-            "unit": ColumnSchema("unit", str, to_str, default=True, field_name="unit"),
-        },
-    ),
-    "aggregate_horizon": TableSchema(
-        name="aggregate_horizon",
-        base_fields={
-            "properties": [],
-            "extra_fields": {},
-        },
-        columns={
-            "chkey": ColumnSchema(
-                "chkey", str, str, default=True, field_name="horizon_key", required=True
-            ),
-            "hzname": ColumnSchema(
-                "hzname", str, to_str, default=True, field_name="horizon_name"
-            ),
-            "hzdept_r": ColumnSchema(
-                "hzdept_r",
-                float,
-                to_optional_float,
-                default=True,
-                field_name="top_depth",
-            ),
-            "hzdepb_r": ColumnSchema(
-                "hzdepb_r",
-                float,
-                to_optional_float,
-                default=True,
-                field_name="bottom_depth",
-            ),
-        },
-    ),
-    "map_unit_component": TableSchema(
-        name="map_unit_component",
-        base_fields={
-            "aggregate_horizons": [],
-            "extra_fields": {},
-        },
-        columns={
-            "cokey": ColumnSchema(
-                "cokey",
-                str,
-                str,
-                default=True,
-                field_name="component_key",
-                required=True,
-            ),
-            "compname": ColumnSchema(
-                "compname", str, to_str, default=True, field_name="component_name"
-            ),
-            "comppct_r": ColumnSchema(
-                "comppct_r",
-                float,
-                to_optional_float,
-                default=True,
-                field_name="component_percentage",
-            ),
-            "majcompflag": ColumnSchema(
-                "majcompflag",
-                bool,
-                lambda x: str(x).lower() == "yes",
-                default=True,
-                field_name="is_major_component",
-            ),
-            "taxclname": ColumnSchema(
-                "taxclname",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="taxonomic_class",
-            ),
-            "drainagecl": ColumnSchema(
-                "drainagecl",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="drainage_class",
-            ),
-            "localphase": ColumnSchema(
-                "localphase",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="local_phase",
-            ),
-            "hydricrating": ColumnSchema(
-                "hydricrating",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="hydric_rating",
-            ),
-            "compkind": ColumnSchema(
-                "compkind",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="component_kind",
-            ),
-        },
-    ),
-    "soil_map_unit": TableSchema(
-        name="soil_map_unit",
-        base_fields={
-            "components": [],
-            "extra_fields": {},
-        },
-        columns={
-            "mukey": ColumnSchema(
-                "mukey",
-                str,
-                str,
-                default=True,
-                field_name="map_unit_key",
-                required=True,
-            ),
-            "muname": ColumnSchema(
-                "muname", str, to_str, default=True, field_name="map_unit_name"
-            ),
-            "musym": ColumnSchema(
-                "musym",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="map_unit_symbol",
-            ),
-            "lkey": ColumnSchema(
-                "lkey", str, str, default=True, field_name="survey_area_symbol"
-            ),
-            "areaname": ColumnSchema(
-                "areaname", str, to_str, default=True, field_name="survey_area_name"
-            ),
-        },
-    ),
-    "mupolygon": TableSchema(
-        name="mupolygon",
-        base_fields={
-            "extra_fields": {},
-        },
-        columns={
-            "mukey": ColumnSchema(
-                "mukey",
-                str,
-                str,
-                default=True,
-                field_name="map_unit_key",
-                required=True,
-            ),
-            "musym": ColumnSchema(
-                "musym",
-                Optional[str],
-                to_optional_str,
-                default=True,
-                field_name="map_unit_symbol",
-            ),
-            "areasymbol": ColumnSchema(
-                "areasymbol", str, str, default=True, field_name="area_symbol"
-            ),
-            "spatialversion": ColumnSchema(
-                "spatialversion",
-                Optional[int],
-                to_optional_int,
-                default=True,
-                field_name="spatial_version",
-            ),
-        },
-    ),
-}
+# Maintain backward compatibility - SCHEMAS dictionary now uses lazy-loading
+SCHEMAS = _LazySchemaDict()
+
+
+def get_schema(table_name: str) -> Optional[TableSchema]:
+    """Get schema for a table.
+    
+    This function provides backward compatibility with existing code.
+    Schemas are lazy-loaded on first access.
+    
+    Args:
+        table_name: Name of the table schema to retrieve
+        
+    Returns:
+        TableSchema if found, None otherwise
+        
+    Example:
+        schema = get_schema("mapunit")
+        if schema:
+            print(f"Default columns: {schema.get_default_columns()}")
+    """
+    return _load_schema(table_name)
+
+
+def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
+    """Add a new column to an existing schema.
+    
+    This allows dynamic schema extension at runtime.
+    
+    Args:
+        table_name: Name of the table
+        column_schema: ColumnSchema object to add
+        
+    Example:
+        from soildb.schema_system import add_column_to_schema, ColumnSchema
+        from soildb.type_processors import to_optional_str
+        
+        new_col = ColumnSchema(
+            "custom_field", str, to_optional_str,
+            default=True, field_name="custom_field"
+        )
+        add_column_to_schema("mapunit", new_col)
+    """
+    schema = _load_schema(table_name)
+    if schema:
+        schema.columns[column_schema.name] = column_schema
 
 
 def create_dynamic_dataclass(
@@ -644,6 +148,19 @@ def create_dynamic_dataclass(
         schema: The table schema to create the dataclass from
         name: Name for the new dataclass
         base_class: Optional base class to inherit from (for complex models)
+        
+    Returns:
+        A new dataclass type with methods for accessing extra_fields
+
+    Example:
+        from soildb.schema_system import get_schema, create_dynamic_dataclass
+        
+        schema = get_schema("mapunit")
+        MapUnit = create_dynamic_dataclass(schema, "MapUnit")
+        
+        # Create instances from row data
+        data = {"mukey": "123456", "muname": "Miami", "extra_fields": {}}
+        mu = MapUnit(**data)
     """
     from dataclasses import Field
 
@@ -691,27 +208,12 @@ def create_dynamic_dataclass(
         return list(self.extra_fields.keys())
 
     def to_dict(self: Any) -> Dict[str, Any]:
-        """Convert dataclass to dictionary."""
+        """Convert to dictionary."""
         return asdict(self)
 
-    # Create the dataclass
     if base_class:
-        # If we have a base class, create a subclass
+        # Create new methods dict
         base_dict = {}
-        for fname, _ftype, default_val in fields:
-            if isinstance(default_val, Field):
-                # Handle field() objects
-                base_dict[fname] = default_val
-            else:
-                # Use default_factory for mutable defaults to avoid shared state
-                if isinstance(default_val, list):
-                    base_dict[fname] = field(default_factory=list)  # type: ignore
-                elif isinstance(default_val, dict):
-                    base_dict[fname] = field(default_factory=dict)  # type: ignore
-                else:
-                    base_dict[fname] = field(default=default_val)
-
-        # Add methods directly to class dict
         base_dict["get_extra_field"] = get_extra_field  # type: ignore
         base_dict["has_extra_field"] = has_extra_field  # type: ignore
         base_dict["list_extra_fields"] = list_extra_fields  # type: ignore
@@ -740,17 +242,6 @@ def create_dynamic_dataclass(
         return DynamicClass
 
 
-def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
-    """Add a new column to an existing schema."""
-    if table_name in SCHEMAS:
-        SCHEMAS[table_name].columns[column_schema.name] = column_schema
-
-
-def get_schema(table_name: str) -> Optional[TableSchema]:  # type: ignore
-    """Get schema for a table."""
-    return SCHEMAS.get(table_name)
-
-
 @dataclass
 class PedonData:
     """
@@ -770,7 +261,6 @@ class PedonData:
     taxclname: Optional[str] = None  # Full taxonomic class name
     # Horizons
     horizons: List[Any] = field(default_factory=list)
-    # --- ADDED ---
     # Dictionary for arbitrary user-defined properties.
     extra_fields: Dict[str, Any] = field(default_factory=dict)
 
@@ -814,21 +304,23 @@ class PedonData:
 
 
 # Create dynamic dataclasses from schemas
-PedonHorizon = create_dynamic_dataclass(SCHEMAS["pedon_horizon"], "PedonHorizon")
+PedonHorizon = create_dynamic_dataclass(get_schema("pedon_horizon"), "PedonHorizon")
 HorizonProperty = create_dynamic_dataclass(
-    SCHEMAS["horizon_property"], "HorizonProperty"
+    get_schema("horizon_property"), "HorizonProperty"
 )
 AggregateHorizon = create_dynamic_dataclass(
-    SCHEMAS["aggregate_horizon"], "AggregateHorizon"
+    get_schema("aggregate_horizon"), "AggregateHorizon"
 )
 MapUnitComponent = create_dynamic_dataclass(
-    SCHEMAS["map_unit_component"], "MapUnitComponent"
+    get_schema("map_unit_component"), "MapUnitComponent"
 )
-SoilMapUnit = create_dynamic_dataclass(SCHEMAS["soil_map_unit"], "SoilMapUnit")
+SoilMapUnit = create_dynamic_dataclass(get_schema("soil_map_unit"), "SoilMapUnit")
 
 
 # Export all dynamically created models
 __all__ = [
+    "ColumnSchema",
+    "TableSchema",
     "PedonData",
     "PedonHorizon",
     "HorizonProperty",
@@ -836,9 +328,8 @@ __all__ = [
     "MapUnitComponent",
     "SoilMapUnit",
     "SCHEMAS",
-    "ColumnSchema",
-    "TableSchema",
-    "create_dynamic_dataclass",
-    "add_column_to_schema",
     "get_schema",
+    "add_column_to_schema",
+    "create_dynamic_dataclass",
+    "list_available_schemas",
 ]
