@@ -89,6 +89,12 @@ from .query_templates import (
     query_survey_area_boundaries,
 )
 from .response import SDAResponse
+from .type_conversion import (
+    TypeMap,
+    TypeProcessor,
+    convert_value,
+    get_default_type_map,
+)
 from .spc_presets import (
     ColumnConfig,
     CustomColumnConfig,
@@ -141,6 +147,11 @@ __all__ = [
     "SpatialQuery",
     "QueryBuilder",
     "SDAResponse",
+    # Type conversion system (UNIFIED - consolidates scattered logic)
+    "TypeMap",
+    "TypeProcessor",
+    "get_default_type_map",
+    "convert_value",
     # SoilProfileCollection integration (NEW)
     "ColumnConfig",
     "StandardSDAHorizonColumns",
