@@ -79,7 +79,7 @@ mapunits_df = await survey_area_example()
 
 ## 3. Spatial Queries
 
-Query soil data using geographic areas.
+Query soil data using geographic areas. v0.4.0 provides a unified `spatial_query()` function for all spatial table types.
 
 ```{python}
 #| eval: false
@@ -90,11 +90,10 @@ async def spatial_example():
         "xmax": -93.60, "ymax": 42.04
     }
     
-    # Get map unit polygons in this area
+    # Get map unit polygons in this area (unified spatial_query interface)
     response = await soildb.spatial_query(
         geometry=bbox,
         table="mupolygon", 
-        spatial_relation="intersects",
         return_type="spatial"  # Include geometry
     )
     
@@ -123,7 +122,7 @@ spatial_df = await spatial_example()
 
 ## 4. Bulk Data Fetching
 
-Efficiently fetch large amounts of data using pagination.
+Efficiently fetch large amounts of data using pagination. v0.4.0 provides a unified `fetch_by_keys()` function for all table types.
 
 ```{python}
 #| eval: false
@@ -140,6 +139,7 @@ async def bulk_fetch_example():
     response = await soildb.fetch_by_keys(
         keys=all_mukeys,
         table="mapunit",
+        key_column="mukey",
         columns=["mukey", "muname", "mukind", "muacres"],
         chunk_size=500  # Process in chunks of 500
     )
@@ -151,11 +151,16 @@ async def bulk_fetch_example():
     print(f"Total area: {mapunit_df['muacres'].sum():,.0f} acres")
     print(f"Average map unit size: {mapunit_df['muacres'].mean():.1f} acres")
     
-    # Get components for a sample of map units
+    # Get components for a sample of map units (using unified fetch_by_keys)
     sample_mukeys = all_mukeys[:100]  # First 100 map units
     print(f"\nFetching components for {len(sample_mukeys)} map units...")
     
-    comp_response = await soildb.fetch_component_by_mukey(sample_mukeys)
+    comp_response = await soildb.fetch_by_keys(
+        keys=sample_mukeys,
+        table="component",
+        key_column="mukey",  # Auto-detected for known tables
+        chunk_size=500
+    )
     comp_df = comp_response.to_pandas()
     print(f"Found {len(comp_df)} components")
     
@@ -167,7 +172,7 @@ mapunit_bulk_df, components_bulk_df = await bulk_fetch_example()
 
 ## 5. Hierarchical Data Analysis
 
-Work with the soil survey hierarchy: Map Unit, Component, and Component Horizon.
+Work with the soil survey hierarchy: Map Unit, Component, and Component Horizon. v0.4.0 uses a unified `fetch_by_keys()` function for all table types.
 
 ```{python}
 #| eval: false
@@ -182,15 +187,25 @@ async def hierarchy_example():
     # Take a sample for detailed analysis
     sample_mukeys = mapunit_df['mukey'].head(10).tolist()
     
-    # 2. Get components for these map units
-    comp_response = await soildb.fetch_component_by_mukey(sample_mukeys)
+    # 2. Get components for these map units (using unified fetch_by_keys)
+    comp_response = await soildb.fetch_by_keys(
+        keys=sample_mukeys,
+        table="component",
+        key_column="mukey"
+    )
     comp_df = comp_response.to_pandas()
     
     # 3. Get horizons for major components
     major_components = comp_df[comp_df['majcompflag'] == 'Yes']
     cokeys = major_components['cokey'].tolist()
     
-    hz_response = await soildb.fetch_chorizon_by_cokey(cokeys, columns=["chkey", "cokey", "hzdept_r", "hzdepb_r", "claytotal_r", "sandtotal_r", "silttotal_r", "om_r"])
+    # Fetch horizons using unified fetch_by_keys
+    hz_response = await soildb.fetch_by_keys(
+        keys=cokeys,
+        table="chorizon",
+        key_column="cokey",
+        columns=["chkey", "cokey", "hzdept_r", "hzdepb_r", "claytotal_r", "sandtotal_r", "silttotal_r", "om_r"]
+    )
     
     print("Soil Survey Hierarchy Analysis (DataFrame method)")
     print("="*50)
