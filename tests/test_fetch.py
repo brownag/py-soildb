@@ -435,6 +435,7 @@ class TestFetchPedonsByBbox:
 class TestFetchIntegration:
     """Integration tests for fetch functions (require network access)."""
 
+    @pytest.mark.timeout(20)
     async def test_fetch_real_mapunit_data(self):
         """Test fetching real map unit data."""
         # Use known good mukeys from California
@@ -449,6 +450,7 @@ class TestFetchIntegration:
             assert "mukey" in df.columns
             assert "muname" in df.columns
 
+    @pytest.mark.timeout(20)
     async def test_fetch_real_component_data(self):
         """Test fetching real component data."""
         # Use explicit client to avoid cleanup issues
@@ -468,6 +470,7 @@ class TestFetchIntegration:
             assert "cokey" in df.columns
             assert "compname" in df.columns
 
+    @pytest.mark.timeout(20)
     async def test_fetch_with_chunking(self):
         """Test that chunking works with real data."""
         async with SDAClient() as client:
@@ -484,6 +487,7 @@ class TestFetchIntegration:
                 assert not df.empty
                 assert len(df) <= 10
 
+    @pytest.mark.timeout(20)
     async def test_fetch_with_geometry(self):
         """Test fetching spatial data with geometry."""
         async with SDAClient() as client:

@@ -12,6 +12,7 @@ import soildb
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.timeout(20)
 async def test_sda_connection():
     """Test basic SDA connection and simple query."""
     print("Testing soildb SDA connection...")
@@ -64,6 +65,7 @@ async def test_sda_connection():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.timeout(20)
 async def test_flexible_query_parameters():
     """Test that the new flexible query parameters work with SDA."""
     print("Testing flexible query parameters...")

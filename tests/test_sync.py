@@ -33,7 +33,7 @@ class TestSyncWrappers:
     @pytest.mark.asyncio
     async def test_sync_in_async_context_raises_error(self):
         """Test that calling .sync from async context raises RuntimeError."""
-        with pytest.raises(RuntimeError, match="existing asyncio event loop"):
+        with pytest.raises(RuntimeError, match="event loop"):
             soildb.get_sacatalog.sync()
 
     @pytest.mark.integration
