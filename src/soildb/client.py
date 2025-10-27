@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 import httpx
 
+from .base_client import BaseDataAccessClient, ClientConfig
 from .exceptions import (
     SDAConnectionError,
     SDAMaintenanceError,
@@ -19,7 +20,7 @@ from .response import SDAResponse
 from .utils import add_sync_version
 
 
-class SDAClient:
+class SDAClient(BaseDataAccessClient):
     """Async HTTP client for Soil Data Access web service."""
 
     def __init__(
@@ -28,66 +29,73 @@ class SDAClient:
         timeout: float = 60.0,
         max_retries: int = 3,
         retry_delay: float = 1.0,
+        config: Optional[ClientConfig] = None,
     ):
         """
         Initialize SDA client.
 
+        Can be initialized either with individual parameters or with a ClientConfig object.
+        If config is provided, it takes precedence over individual parameters.
+
         Args:
-            base_url: Base URL for SDA service
-            timeout: Request timeout in seconds
-            max_retries: Number of retries for failed requests
-            retry_delay: Delay between retries in seconds
+            base_url: Base URL for SDA service (default: official SDA endpoint)
+            timeout: Request timeout in seconds (default: 60.0)
+            max_retries: Number of retries for failed requests (default: 3)
+            retry_delay: Delay between retries in seconds (default: 1.0)
+            config: ClientConfig instance with timeout, retry, and URL settings.
+                   If provided, takes precedence over individual parameters.
+
+        Examples:
+            >>> # Using individual parameters
+            >>> client = SDAClient(timeout=120.0, max_retries=5)
+
+            >>> # Using ClientConfig with presets
+            >>> config = ClientConfig.reliable()
+            >>> client = SDAClient(config=config)
+
+            >>> # Using custom ClientConfig
+            >>> config = ClientConfig(
+            ...     base_url="https://custom.endpoint.gov",
+            ...     timeout=90.0,
+            ...     max_retries=4
+            ... )
+            >>> client = SDAClient(config=config)
         """
-        self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
-        self._client: Optional[httpx.AsyncClient] = None
-        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
-
-    async def __aenter__(self) -> "SDAClient":
-        """Async context manager entry."""
-        await self._ensure_client()
-        return self
-
-    async def __aexit__(self, exc_type: type, exc_val: Exception, exc_tb: Any) -> None:
-        """Async context manager exit."""
-        await self.close()
-
-    async def _ensure_client(self) -> None:
-        """Ensure HTTP client is initialized."""
-        current_loop = asyncio.get_running_loop()
-
-        # If we have a client but it's from a different event loop, close it and recreate
-        if (
-            self._client is not None
-            and self._event_loop is not None
-            and self._event_loop != current_loop
-        ):
-            try:
-                await self._client.aclose()
-            except Exception:
-                pass  # Ignore errors when closing
-            self._client = None
-            self._event_loop = None
-
-        if self._client is None:
-            self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.timeout),
-                headers={
-                    "Content-Type": "application/json",
-                    "User-Agent": "soildb-python-client/0.1.0",
-                },
+        if config is None:
+            config = ClientConfig(
+                base_url=base_url,
+                timeout=timeout,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
             )
-            self._event_loop = current_loop
+        else:
+            # If config is provided but base_url is explicitly different from default,
+            # use the provided base_url (for backward compatibility)
+            if base_url != "https://sdmdataaccess.sc.egov.usda.gov":
+                config.base_url = base_url
+
+        super().__init__(config)
+        self.base_url = config.base_url.rstrip("/") if config.base_url else "https://sdmdataaccess.sc.egov.usda.gov"
+
+    def _create_http_client(self) -> httpx.AsyncClient:
+        """Create HTTP client with SDA-specific configuration.
+
+        Returns:
+            httpx.AsyncClient: Configured client with SDA headers
+        """
+        return httpx.AsyncClient(
+            timeout=httpx.Timeout(self._config.timeout),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "soildb-python-client/0.1.0",
+            },
+        )
 
     @add_sync_version
     async def close(self) -> None:
-        """Close the HTTP client."""
-        if self._client is not None:
-            await self._client.aclose()
-            self._client = None
-            self._event_loop = None
+        """Close the HTTP client and clean up resources."""
+        await super().close()
+
 
     @add_sync_version
     async def connect(self) -> bool:
@@ -150,15 +158,14 @@ class SDAClient:
             SDATimeoutError: If request times out
             SDAConnectionError: If connection fails
         """
-        await self._ensure_client()
-        assert self._client is not None  # _ensure_client should have set this
-
         request_body = {"query": sql, "format": "json+columnname+metadata"}
 
-        for attempt in range(self.max_retries + 1):
+        for attempt in range(self._config.max_retries + 1):
             try:
-                response = await self._client.post(
-                    f"{self.base_url}/tabular/post.rest", json=request_body
+                response = await self._make_request(
+                    "POST",
+                    f"{self.base_url}/tabular/post.rest",
+                    json=request_body,
                 )
 
                 # Check HTTP status and handle SDA errors
@@ -228,17 +235,17 @@ class SDAClient:
                     ) from e
 
             except httpx.TimeoutException:
-                if attempt < self.max_retries:
-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                if attempt < self._config.max_retries:
+                    await asyncio.sleep(self._config.retry_delay * (attempt + 1))
                     continue
                 else:
                     raise SDATimeoutError(
-                        f"Request timed out after {self.timeout} seconds"
+                        f"Request timed out after {self._config.timeout} seconds"
                     ) from None
 
             except httpx.NetworkError as e:
-                if attempt < self.max_retries:
-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                if attempt < self._config.max_retries:
+                    await asyncio.sleep(self._config.retry_delay * (attempt + 1))
                     continue
                 else:
                     raise SDAConnectionError(f"Network error: {e}") from e

@@ -6,8 +6,9 @@ from typing import Optional
 
 from .client import SDAClient
 from .fetch import fetch_pedons_by_bbox
-from .query import Query, QueryBuilder
+from .query import ColumnSets, Query, QueryBuilder
 from .response import SDAResponse
+from .sanitization import sanitize_sql_string
 from .spatial import spatial_query
 from .utils import add_sync_version
 

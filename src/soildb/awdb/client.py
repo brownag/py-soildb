@@ -10,11 +10,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from ..base_client import BaseDataAccessClient, ClientConfig
 from .exceptions import AWDBConnectionError, AWDBError, AWDBQueryError
 from .models import ForecastData, ReferenceData, StationInfo, TimeSeriesDataPoint
 
 
-class AWDBClient:
+class AWDBClient(BaseDataAccessClient):
     """
     Async client for accessing data via the NRCS AWDB REST API.
 
@@ -24,70 +25,101 @@ class AWDBClient:
 
     BASE_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1"
 
-    def __init__(self, timeout: int = 60):
-        self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
-        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
+    def __init__(self, timeout: int = 60, config: Optional[ClientConfig] = None):
+        """
+        Initialize AWDB client.
 
-    async def __aenter__(self) -> "AWDBClient":
-        """Async context manager entry."""
-        await self._ensure_client()
-        return self
+        Can be initialized either with a timeout parameter or with a ClientConfig object.
+        If config is provided, it takes precedence over the timeout parameter.
 
-    async def __aexit__(self, exc_type: type, exc_val: Exception, exc_tb: Any) -> None:
-        """Async context manager exit."""
-        await self.close()
+        Args:
+            timeout: Request timeout in seconds (default: 60)
+            config: ClientConfig instance with timeout and retry settings.
+                   If provided, takes precedence over timeout parameter.
 
-    async def _ensure_client(self) -> None:
-        """Ensure HTTP client is initialized."""
-        current_loop = asyncio.get_running_loop()
+        Examples:
+            >>> # Using timeout parameter
+            >>> client = AWDBClient(timeout=120)
 
-        # If we have a client but it's from a different event loop, close it and recreate
-        if (
-            self._client is not None
-            and self._event_loop is not None
-            and self._event_loop != current_loop
-        ):
-            try:
-                await self._client.aclose()
-            except Exception:
-                pass  # Ignore errors when closing
-            self._client = None
-            self._event_loop = None
+            >>> # Using ClientConfig with presets
+            >>> config = ClientConfig.reliable()
+            >>> client = AWDBClient(config=config)
+        """
+        if config is None:
+            config = ClientConfig(timeout=float(timeout))
+        else:
+            # If timeout is explicitly different from default, use it
+            if timeout != 60:
+                config.timeout = float(timeout)
 
-        if self._client is None:
-            self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.timeout),
-                headers={
-                    "User-Agent": "soildb-awdb-client/0.1.0",
-                    "Accept": "application/json",
-                },
-            )
-            self._event_loop = current_loop
+        super().__init__(config)
 
-    async def close(self) -> None:
-        """Close the HTTP client."""
-        if self._client is not None:
-            await self._client.aclose()
-            self._client = None
-            self._event_loop = None
+    @property
+    def timeout(self) -> float:
+        """Get the timeout in seconds (for backward compatibility).
+
+        Returns:
+            float: Timeout value from config
+        """
+        return self._config.timeout
+
+
+    def _create_http_client(self) -> httpx.AsyncClient:
+        """Create HTTP client with AWDB-specific configuration.
+
+        Returns:
+            httpx.AsyncClient: Configured client with AWDB headers
+        """
+        return httpx.AsyncClient(
+            timeout=httpx.Timeout(self._config.timeout),
+            headers={
+                "User-Agent": "soildb-awdb-client/0.1.0",
+                "Accept": "application/json",
+            },
+        )
+
+    async def connect(self) -> bool:
+        """
+        Test connection to AWDB service.
+
+        Returns:
+            True if connection successful
+
+        Raises:
+            AWDBConnectionError: If connection fails
+        """
+        try:
+            # Try to get a simple endpoint that requires no parameters
+            await self._make_request("GET", f"{self.BASE_URL}/reference-data")
+            return True
+        except Exception as e:
+            raise AWDBConnectionError(f"Connection test failed: {e}") from e
 
     async def _make_request(
         self, endpoint: str, params: Optional[Dict[str, str]] = None
     ) -> Any:
-        """Make an async request to the AWDB API with error handling."""
-        await self._ensure_client()
-        assert self._client is not None  # _ensure_client should have set this
+        """Make an async request to the AWDB API with error handling.
 
+        This method wraps the base class retry logic with AWDB-specific error handling.
+
+        Args:
+            endpoint: API endpoint relative to BASE_URL (e.g., "stations", "data")
+            params: Query parameters to include in the request
+
+        Returns:
+            Parsed JSON response
+
+        Raises:
+            AWDBQueryError: If response status indicates bad parameters or not found
+            AWDBConnectionError: If there are network, timeout, or server issues
+        """
         url = f"{self.BASE_URL}/{endpoint}"
 
         try:
-            response = await self._client.get(url, params=params)
+            response = await super()._make_request("GET", url, params=params)
             response.raise_for_status()
             return response.json()
 
-        except httpx.TimeoutException as e:
-            raise AWDBConnectionError(f"Request timeout after {self.timeout}s") from e
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
                 raise AWDBQueryError("Bad request - invalid parameters") from e
@@ -105,6 +137,8 @@ class AWDBClient:
                 raise AWDBConnectionError(
                     f"HTTP error {e.response.status_code}: {e}"
                 ) from e
+        except httpx.TimeoutException as e:
+            raise AWDBConnectionError(f"Request timeout after {self._config.timeout}s") from e
         except httpx.RequestError as e:
             raise AWDBConnectionError(f"Network error: {e}") from e
         except json.JSONDecodeError as e:
