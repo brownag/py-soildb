@@ -26,6 +26,7 @@ from .awdb import (
     get_soil_moisture_data,
     list_available_variables,
 )
+from .base_client import BaseDataAccessClient, ClientConfig
 from .client import SDAClient
 from .convenience import (
     get_lab_pedon_by_id,
@@ -80,7 +81,9 @@ from .spatial import (
 )
 
 __all__ = [
-    # Core classes
+    # Core classes and base classes
+    "BaseDataAccessClient",
+    "ClientConfig",
     "SDAClient",
     "Query",
     "SpatialQuery",
