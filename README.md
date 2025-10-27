@@ -390,10 +390,9 @@ The `component` table has a hierarchical relationship:
 So when fetching components, you typically want to filter by mukey to
 get all components for specific map units.
 
-The specialized `fetch_component_by_mukey()` convenience function
-handles this, but above we use the lower-level `fetch_by_keys()` with
-the `"mukey"` as the `key_column` to achieve the same result and
-demonstrate pagination over chunks with `100` rows each.
+Use the `fetch_by_keys()` function with the `"mukey"` as the
+`key_column` to achieve this with automatic pagination over chunks with
+`100` rows each (or specify your own `chunk_size`).
 
 # Examples
 
