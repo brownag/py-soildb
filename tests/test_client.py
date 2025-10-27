@@ -5,6 +5,8 @@ from soildb.query import QueryBuilder
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.timeout(10)
 async def test_execute_sql():
     query = "SELECT TOP 1 areasymbol, areaname FROM sacatalog"
     async with SDAClient() as client:
@@ -15,6 +17,8 @@ async def test_execute_sql():
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.timeout(10)
 async def test_query_builder_sql():
     query = QueryBuilder.from_sql("SELECT TOP 1 areasymbol, areaname FROM sacatalog")
     async with SDAClient() as client:

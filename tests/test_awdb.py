@@ -423,25 +423,28 @@ class TestConvenienceFunctions:
         """Test list_available_variables function."""
         from soildb.awdb.convenience import list_available_variables
 
-        # This test will fail in mock environment since it tries to call real API
-        # In a real environment, this would work, but for testing we skip the assertion
-        try:
-            variables = await list_available_variables("301:CA:SNTL")
-            # If we get here, the API call succeeded, so we can test
-            if len(variables) > 0:
-                # Check that soil_moisture is included
+        # Mock the underlying API call to avoid real network requests
+        with patch("soildb.awdb.convenience.get_station_sensor_metadata") as mock_metadata:
+            mock_metadata.return_value = {
+                "sensors": {
+                    "soil_moisture": [{"code": "SMS", "depth": "-20"}],
+                    "air_temp": [{"code": "AT", "depth": "0"}],
+                }
+            }
+            
+            with patch("soildb.awdb.convenience.get_property_unit_from_api") as mock_unit:
+                mock_unit.return_value = "pct"
+                
+                variables = await list_available_variables("301:CA:SNTL")
+                
+                # Verify the function returned the expected structure
+                assert len(variables) == 2
                 soil_moisture_vars = [
                     v for v in variables if v["property_name"] == "soil_moisture"
                 ]
                 assert len(soil_moisture_vars) == 1
                 assert soil_moisture_vars[0]["element_code"] == "SMS"
                 assert soil_moisture_vars[0]["unit"] == "pct"
-            else:
-                # API returned no data, which is acceptable for this test
-                pass
-        except Exception:
-            # API call failed (expected in test environment), skip assertions
-            pass
 
     def test_property_element_map_validation(self):
         """Test that PROPERTY_ELEMENT_MAP contains expected properties."""
