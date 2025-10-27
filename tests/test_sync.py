@@ -5,7 +5,7 @@ Tests for synchronous wrapper functionality.
 import pytest
 
 import soildb
-from soildb import SDAClient, SyncUsageError
+from soildb import SDAClient
 
 
 class TestSyncWrappers:
@@ -32,8 +32,8 @@ class TestSyncWrappers:
 
     @pytest.mark.asyncio
     async def test_sync_in_async_context_raises_error(self):
-        """Test that calling .sync from async context raises SyncUsageError."""
-        with pytest.raises(SyncUsageError, match="existing asyncio event loop"):
+        """Test that calling .sync from async context raises RuntimeError."""
+        with pytest.raises(RuntimeError, match="existing asyncio event loop"):
             soildb.get_sacatalog.sync()
 
     @pytest.mark.integration
@@ -42,7 +42,7 @@ class TestSyncWrappers:
         client = SDAClient()
         try:
             # This should work (though may fail due to network)
-            # We just test that it doesn't raise SyncUsageError
+            # We just test that it doesn't raise RuntimeError
             try:
                 result = soildb.get_sacatalog.sync(client=client)
                 assert isinstance(result, soildb.SDAResponse)

@@ -223,4 +223,4 @@ client.close()
 
 ### Important Limitation
 
-The `.sync` methods are intended for use in synchronous code only. They will raise a `SyncUsageError` if called from within an existing asyncio event loop. In such cases, use the async version instead.
+The `.sync` methods are intended for use in synchronous code only. They will raise a `RuntimeError` if called from within an existing asyncio event loop. In such cases, use the async version instead.

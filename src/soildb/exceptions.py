@@ -68,9 +68,3 @@ class SDAResponseError(SDAQueryError):
         return f"Received invalid response from USDA Soil Data Access service: {self.message}. This may indicate a service issue or malformed query. Check your query syntax and try again."
 
 
-class SyncUsageError(SoilDBError):
-    """Raised when .sync methods are used incorrectly."""
-
-    def __str__(self) -> str:
-        """Return helpful sync usage error message."""
-        return f"{self.message}"
