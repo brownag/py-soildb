@@ -89,6 +89,23 @@ from .query_templates import (
     query_survey_area_boundaries,
 )
 from .response import SDAResponse
+from .spc_presets import (
+    ColumnConfig,
+    CustomColumnConfig,
+    LabPedonHorizonColumns,
+    MapunitComponentHorizonColumns,
+    PedonSiteHorizonColumns,
+    StandardSDAHorizonColumns,
+    get_preset,
+    list_presets,
+)
+from .spc_validator import (
+    SPCColumnValidator,
+    SPCDepthValidator,
+    SPCValidationError,
+    SPCWarnings,
+    create_spc_validation_report,
+)
 from .spatial import (
     SpatialQueryBuilder,
     bbox_query,
@@ -124,6 +141,20 @@ __all__ = [
     "SpatialQuery",
     "QueryBuilder",
     "SDAResponse",
+    # SoilProfileCollection integration (NEW)
+    "ColumnConfig",
+    "StandardSDAHorizonColumns",
+    "LabPedonHorizonColumns",
+    "PedonSiteHorizonColumns",
+    "MapunitComponentHorizonColumns",
+    "CustomColumnConfig",
+    "get_preset",
+    "list_presets",
+    "SPCValidationError",
+    "SPCColumnValidator",
+    "SPCDepthValidator",
+    "SPCWarnings",
+    "create_spc_validation_report",
     # Query template functions (replaces QueryBuilder)
     "query_mapunits_by_legend",
     "query_components_by_legend",
