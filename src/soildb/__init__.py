@@ -11,7 +11,7 @@ try:
 except Exception:
     __version__ = "unknown"
 
-from . import fetch, schema_inference
+from . import fetch
 from .awdb import (
     AWDBClient,
     AWDBError,
@@ -99,8 +99,6 @@ __all__ = [
     "StationInfo",
     "TimeSeriesDataPoint",
     "StationTimeSeries",
-    # Schema inference
-    "schema_inference",
     # Exceptions
     "SoilDBError",
     "SDAConnectionError",
