@@ -3,8 +3,16 @@ Spatial queries for SSURGO data.
 
 Query soil data using points, bounding boxes, and polygons.
 Returns tabular data or spatial data with geometry.
+
+PRIMARY FUNCTION:
+- spatial_query() - Use this for all spatial queries
+
+CANONICAL DESIGN:
+All spatial queries should use spatial_query(). See that function's docstring for
+comprehensive documentation, examples, and design rationale.
 """
 
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
 
 from .client import SDAClient
@@ -300,43 +308,145 @@ async def spatial_query(
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
     """
-    Execute a generic spatial query against SSURGO data.
+    Execute a spatial query against SSURGO data (CANONICAL FUNCTION).
 
-    This is the main spatial query function, similar to soilDB::SDA_spatialQuery() in R.
-    Supports arbitrary input geometries with flexible table and return type options.
+    This is the primary and recommended spatial query function for py-soildb.
+    It is similar to soilDB::SDA_spatialQuery() in R and supports arbitrary input
+    geometries with flexible table and return type options.
 
-    Performance Notes:
+    **WHEN TO USE THIS:**
+    - You need to query spatial features (map units, survey areas, features)
+    - You have point, polygon, line, or bounding box geometry
+    - You want tabular or spatial results
+    - You prefer a single unified function for all spatial queries
+
+    **DESIGN:**
+    - Canonical function: ALL spatial queries should use this function
+    - Supports multiple geometry input formats (WKT, shapely, bbox dict)
+    - Flexible table selection (mupolygon, sapolygon, featpoint, featline)
+    - Flexible return types (tabular for analysis, spatial with geometry)
+    - Configurable spatial relationships (intersects, contains, within, etc.)
+
+    **PERFORMANCE NOTES:**
     - Tabular queries use optimized UDFs when possible (faster than spatial joins)
     - Spatial queries with geometry return large result sets; use selective bounding boxes
     - Complex geometries (many vertices) may timeout; simplify when possible
     - Point queries are fastest; polygon queries scale with geometry complexity
+    - Bounding box queries are fast and recommended for large areas
+
+    **TABLE TYPES:**
+    - "mupolygon": Map unit polygons (most common)
+    - "sapolygon": Survey area polygons
+    - "mupoint": Map unit points
+    - "muline": Map unit lines
+    - "featpoint": Feature points (e.g., soil pits, monuments)
+    - "featline": Feature lines (e.g., linear features)
+    - "mapunit": Map unit table (spatial join required)
+    - "legend": Legend table (for legend-based queries)
+
+    **SPATIAL RELATIONSHIPS:**
+    - "intersects": Overlaps or touches (default, most common)
+    - "contains": Query geometry contains SSURGO feature
+    - "within": Query geometry within SSURGO feature
+    - "touches": Features share a boundary but don't overlap
+    - "crosses": Features cross each other
+    - "overlaps": Features overlap but one doesn't contain the other
+
+    **RETURN TYPES:**
+    - "tabular": Returns attribute data as DataFrame (lighter weight, faster)
+    - "spatial": Returns with geometry column (heavier, for mapping/analysis)
+
+    **GEOMETRY INPUT FORMATS:**
+    - WKT string: "POINT(-94.68 42.03)" or "POLYGON((-94.7 42.0, ...))"
+    - Shapely geometry: geometry.Point(-94.68, 42.03)
+    - Bounding box dict: {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
 
     Args:
-        geometry: Input geometry as WKT string, shapely geometry, or bbox dict
-        table: Target SSURGO table name
-        return_type: Whether to return 'tabular' or 'spatial' data
-        spatial_relation: Spatial relationship to test
-        what: Custom selection of columns (defaults based on table/return_type)
-        geom_column: Custom geometry column name (defaults based on table)
-        client: Optional SDA client instance
+        geometry: Input geometry as WKT string, shapely geometry object, or bbox dict
+        table: Target SSURGO table (default: "mupolygon"). See TABLE TYPES above.
+        return_type: "tabular" for data only (default), "spatial" for with geometry
+        spatial_relation: Type of spatial relationship to test (default: "intersects")
+        what: Custom comma-separated column list (e.g., "mukey,muname,musym").
+              If None, uses sensible defaults based on table and return_type.
+        geom_column: Custom geometry column name (e.g., "geometry", "the_geom").
+                     If None, auto-detected based on table.
+        client: Optional SDA client instance. Required unless using wrapper functions.
 
     Returns:
-        SDAResponse with query results
+        SDAResponse: Query results with methods like .to_pandas(), .to_geodataframe()
+
+    Raises:
+        TypeError: If client is None
+        ValueError: If geometry cannot be parsed
 
     Examples:
-        # Get map unit tabular data intersecting a point
-        >>> point_wkt = "POINT(-94.6859 42.0285)"
-        >>> response = await spatial_query(point_wkt, "mupolygon", "tabular")
-        >>> df = response.to_pandas()
+        # Example 1: Get map unit info for a point (simplest case)
+        ```python
+        point_wkt = "POINT(-94.6859 42.0285)"
+        response = await spatial_query(point_wkt, "mupolygon", "tabular")
+        df = response.to_pandas()
+        print(df[['mukey', 'muname', 'musym']])
+        ```
 
-        # Get spatial polygons within a bounding box
-        >>> bbox = {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
-        >>> response = await spatial_query(bbox, "mupolygon", "spatial")
-        >>> gdf = response.to_geodataframe()
+        # Example 2: Get spatial polygons in a bounding box (for mapping)
+        ```python
+        bbox = {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
+        response = await spatial_query(bbox, "mupolygon", "spatial")
+        gdf = response.to_geodataframe()
+        gdf.plot()  # Visualize map units
+        ```
 
-        # Get survey area info intersecting a polygon
-        >>> polygon_wkt = "POLYGON((-94.7 42.0, -94.6 42.0, -94.6 42.1, -94.7 42.1, -94.7 42.0))"
-        >>> response = await spatial_query(polygon_wkt, "sapolygon", "tabular")
+        # Example 3: Get survey areas intersecting a custom polygon
+        ```python
+        polygon_wkt = "POLYGON((-94.7 42.0, -94.6 42.0, -94.6 42.1, -94.7 42.1, -94.7 42.0))"
+        response = await spatial_query(polygon_wkt, "sapolygon", "tabular")
+        df = response.to_pandas()
+        print(df[['areasymbol', 'areaname', 'areaacres']])
+        ```
+
+        # Example 4: Use shapely geometry
+        ```python
+        from shapely.geometry import Point
+        location = Point(-94.68, 42.03)
+        response = await spatial_query(location, "mupolygon", "tabular")
+        ```
+
+        # Example 5: Get feature points within area (archeological/historical sites)
+        ```python
+        response = await spatial_query(point_wkt, "featpoint", "spatial")
+        gdf = response.to_geodataframe()
+        ```
+
+        # Example 6: Custom columns and spatial relationship
+        ```python
+        response = await spatial_query(
+            bbox,
+            table="mupolygon",
+            return_type="tabular",
+            spatial_relation="within",
+            what="mukey,muname,musym,compname,comppct_r"
+        )
+        ```
+
+    **COMPARISON WITH CONVENIENCE FUNCTIONS:**
+
+    For common use cases, consider using these instead:
+    - `point_query(lat, lon, table, return_type)` - Simplified point queries
+    - `bbox_query(xmin, ymin, xmax, ymax, table, return_type)` - Simplified bbox queries
+    - `mupolygon_in_bbox(xmin, ymin, xmax, ymax, ...)` - Quick map unit lookups
+    - `sapolygon_in_bbox(xmin, ymin, xmax, ymax, ...)` - Quick survey area lookups
+
+    **DEPRECATION NOTE:**
+    - The functions query_mupolygon(), query_sapolygon(), query_featpoint(),
+      query_featline() are deprecated. Use spatial_query() instead.
+    - They now wrap this function for backward compatibility.
+    - SpatialQueryBuilder is an internal implementation detail; use spatial_query() instead.
+
+    **SEE ALSO:**
+    - point_query() - Simplified point-based queries
+    - bbox_query() - Simplified bounding box queries
+    - Query builder (query.py) - For non-spatial attribute queries
+    - soilDB R package documentation - For additional spatial query patterns
     """
     if client is None:
         raise TypeError("client parameter is required")
@@ -349,14 +459,159 @@ async def spatial_query(
     return await client.execute(query)
 
 
-# Convenience functions for specific table types
+# ============================================================================
+# HELPER FUNCTIONS - Simplified API for common use cases
+# ============================================================================
+
+
+async def point_query(
+    latitude: float,
+    longitude: float,
+    table: TableType = "mupolygon",
+    return_type: ReturnType = "tabular",
+    spatial_relation: SpatialRelation = "intersects",
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """
+    Simplified point-based spatial query.
+
+    Convenience wrapper for point locations. Use this instead of spatial_query()
+    when you have latitude/longitude coordinates.
+
+    **WHEN TO USE THIS:**
+    - You have a single (lat, lon) coordinate
+    - You want tabular or spatial results
+    - You want simpler syntax than spatial_query()
+
+    Args:
+        latitude: Latitude in decimal degrees
+        longitude: Longitude in decimal degrees
+        table: Target SSURGO table (default: "mupolygon")
+        return_type: "tabular" for data only (default), "spatial" for with geometry
+        spatial_relation: Spatial relationship to test (default: "intersects")
+        client: Optional SDA client instance
+
+    Returns:
+        SDAResponse: Query results
+
+    Examples:
+        ```python
+        # Get map unit info at a location
+        response = await point_query(latitude=42.0, longitude=-93.6)
+        df = response.to_pandas()
+
+        # Get spatial features for mapping
+        response = await point_query(42.0, -93.6, "mupolygon", "spatial")
+        gdf = response.to_geodataframe()
+        ```
+
+    See Also:
+        spatial_query() - For full control over geometry and parameters
+        bbox_query() - For bounding box queries
+    """
+    point_wkt = f"POINT({longitude} {latitude})"
+    return await spatial_query(
+        point_wkt, table, return_type, spatial_relation, client=client
+    )
+
+
+async def bbox_query(
+    xmin: float,
+    ymin: float,
+    xmax: float,
+    ymax: float,
+    table: TableType = "mupolygon",
+    return_type: ReturnType = "tabular",
+    spatial_relation: SpatialRelation = "intersects",
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """
+    Simplified bounding box-based spatial query.
+
+    Convenience wrapper for bounding box coordinates. Use this instead of
+    spatial_query() when you have a rectangular area.
+
+    **WHEN TO USE THIS:**
+    - You have a bounding box (xmin, ymin, xmax, ymax)
+    - You want faster queries than complex polygons
+    - You want tabular or spatial results
+    - You want simpler syntax than spatial_query()
+
+    Args:
+        xmin: Western boundary (longitude)
+        ymin: Southern boundary (latitude)
+        xmax: Eastern boundary (longitude)
+        ymax: Northern boundary (latitude)
+        table: Target SSURGO table (default: "mupolygon")
+        return_type: "tabular" for data only (default), "spatial" for with geometry
+        spatial_relation: Spatial relationship to test (default: "intersects")
+        client: Optional SDA client instance
+
+    Returns:
+        SDAResponse: Query results
+
+    Examples:
+        ```python
+        # Get map units in a region
+        response = await bbox_query(-94.7, 42.0, -94.6, 42.1)
+        df = response.to_pandas()
+
+        # Get spatial polygons for mapping
+        response = await bbox_query(-94.7, 42.0, -94.6, 42.1, return_type="spatial")
+        gdf = response.to_geodataframe()
+        gdf.plot()
+        ```
+
+    See Also:
+        spatial_query() - For full control over geometry and parameters
+        point_query() - For point-based queries
+        mupolygon_in_bbox() - Specialized for map unit polygons
+        sapolygon_in_bbox() - Specialized for survey area polygons
+    """
+    bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+    return await spatial_query(
+        bbox, table, return_type, spatial_relation, client=client
+    )
+
+
+# ============================================================================
+# DEPRECATED FUNCTIONS - Use spatial_query() instead
+# ============================================================================
+# These functions are maintained for backward compatibility only.
+# They wrap spatial_query() and will be removed in v0.4.0.
+# ============================================================================
+
+
 async def query_mupolygon(
     geometry: GeometryInput,
     return_type: ReturnType = "tabular",
     spatial_relation: SpatialRelation = "intersects",
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
-    """Query map unit polygons with a geometry."""
+    """
+    Query map unit polygons with a geometry (DEPRECATED).
+
+    .. deprecated:: 0.3.0
+        Use :func:`spatial_query` instead.
+
+    This function is maintained for backward compatibility only.
+    It will be removed in v0.4.0.
+
+    Instead of:
+        response = await query_mupolygon(geometry, return_type, client=client)
+
+    Use:
+        response = await spatial_query(geometry, "mupolygon", return_type, client=client)
+
+    See:
+        spatial_query() - Recommended replacement with full documentation
+    """
+    warnings.warn(
+        "query_mupolygon() is deprecated and will be removed in v0.4.0. "
+        "Use spatial_query(geometry, 'mupolygon', return_type, client=client) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await spatial_query(
         geometry, "mupolygon", return_type, spatial_relation, client=client
     )
@@ -368,7 +623,30 @@ async def query_sapolygon(
     spatial_relation: SpatialRelation = "intersects",
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
-    """Query survey area polygons with a geometry."""
+    """
+    Query survey area polygons with a geometry (DEPRECATED).
+
+    .. deprecated:: 0.3.0
+        Use :func:`spatial_query` instead.
+
+    This function is maintained for backward compatibility only.
+    It will be removed in v0.4.0.
+
+    Instead of:
+        response = await query_sapolygon(geometry, return_type, client=client)
+
+    Use:
+        response = await spatial_query(geometry, "sapolygon", return_type, client=client)
+
+    See:
+        spatial_query() - Recommended replacement with full documentation
+    """
+    warnings.warn(
+        "query_sapolygon() is deprecated and will be removed in v0.4.0. "
+        "Use spatial_query(geometry, 'sapolygon', return_type, client=client) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await spatial_query(
         geometry, "sapolygon", return_type, spatial_relation, client=client
     )
@@ -380,7 +658,30 @@ async def query_featpoint(
     spatial_relation: SpatialRelation = "intersects",
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
-    """Query feature points with a geometry."""
+    """
+    Query feature points with a geometry (DEPRECATED).
+
+    .. deprecated:: 0.3.0
+        Use :func:`spatial_query` instead.
+
+    This function is maintained for backward compatibility only.
+    It will be removed in v0.4.0.
+
+    Instead of:
+        response = await query_featpoint(geometry, return_type, client=client)
+
+    Use:
+        response = await spatial_query(geometry, "featpoint", return_type, client=client)
+
+    See:
+        spatial_query() - Recommended replacement with full documentation
+    """
+    warnings.warn(
+        "query_featpoint() is deprecated and will be removed in v0.4.0. "
+        "Use spatial_query(geometry, 'featpoint', return_type, client=client) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await spatial_query(
         geometry, "featpoint", return_type, spatial_relation, client=client
     )
@@ -392,7 +693,30 @@ async def query_featline(
     spatial_relation: SpatialRelation = "intersects",
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
-    """Query feature lines with a geometry."""
+    """
+    Query feature lines with a geometry (DEPRECATED).
+
+    .. deprecated:: 0.3.0
+        Use :func:`spatial_query` instead.
+
+    This function is maintained for backward compatibility only.
+    It will be removed in v0.4.0.
+
+    Instead of:
+        response = await query_featline(geometry, return_type, client=client)
+
+    Use:
+        response = await spatial_query(geometry, "featline", return_type, client=client)
+
+    See:
+        spatial_query() - Recommended replacement with full documentation
+    """
+    warnings.warn(
+        "query_featline() is deprecated and will be removed in v0.4.0. "
+        "Use spatial_query(geometry, 'featline', return_type, client=client) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await spatial_query(
         geometry, "featline", return_type, spatial_relation, client=client
     )
@@ -407,7 +731,26 @@ async def mupolygon_in_bbox(
     return_type: ReturnType = "tabular",
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
-    """Get map unit polygons in a bounding box."""
+    """
+    Get map unit polygons in a bounding box.
+
+    Convenience wrapper combining query_mupolygon() with bbox input.
+
+    Args:
+        xmin: Western boundary (longitude)
+        ymin: Southern boundary (latitude)
+        xmax: Eastern boundary (longitude)
+        ymax: Northern boundary (latitude)
+        return_type: "tabular" (default) or "spatial"
+        client: Optional SDA client instance
+
+    Returns:
+        SDAResponse: Query results
+
+    See Also:
+        bbox_query() - More flexible bounding box queries
+        spatial_query() - For full control
+    """
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await query_mupolygon(bbox, return_type, client=client)
 
@@ -420,6 +763,23 @@ async def sapolygon_in_bbox(
     return_type: ReturnType = "tabular",
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
-    """Get survey area polygons in a bounding box."""
-    bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-    return await query_sapolygon(bbox, return_type, client=client)
+    """
+    Get survey area polygons in a bounding box.
+
+    Convenience wrapper combining query_sapolygon() with bbox input.
+
+    Args:
+        xmin: Western boundary (longitude)
+        ymin: Southern boundary (latitude)
+        xmax: Eastern boundary (longitude)
+        ymax: Northern boundary (latitude)
+        return_type: "tabular" (default) or "spatial"
+        client: Optional SDA client instance
+
+    Returns:
+        SDAResponse: Query results
+
+    See Also:
+        bbox_query() - More flexible bounding box queries
+        spatial_query() - For full control
+    """
