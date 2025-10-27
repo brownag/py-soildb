@@ -57,6 +57,7 @@ from .fetch import (
     fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
+    QueryPresets,
 )
 from .high_level import (
     fetch_mapunit_struct_by_point,
@@ -201,15 +202,21 @@ __all__ = [
     "mupolygon_in_bbox",
     "sapolygon_in_bbox",
     "SpatialQueryBuilder",
-    # Bulk/paginated fetching
-    "fetch",
-    "fetch_by_keys",
-    "fetch_mapunit_polygon",
-    "fetch_component_by_mukey",
-    "fetch_chorizon_by_cokey",
-    "fetch_pedons_by_bbox",
-    "fetch_pedon_horizons",
-    "fetch_survey_area_polygon",
-    "get_mukey_by_areasymbol",
-    "get_cokey_by_mukey",
+    # Bulk/paginated fetching - FETCH FUNCTION HIERARCHY
+    # TIER 1 - PRIMARY INTERFACE (Use for most cases)
+    "fetch_by_keys",  # Universal key-based fetcher - RECOMMENDED
+    "QueryPresets",  # Preset configurations for common queries - NEW
+    # TIER 2 - SPECIALIZED FUNCTIONS (deprecated, use fetch_by_keys)
+    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys(..., "mupolygon")
+    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys(..., "component", "mukey")
+    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys(..., "chorizon", "cokey")
+    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys(..., "sapolygon", "areasymbol")
+    # TIER 3 - COMPLEX MULTI-STEP FETCHES
+    "fetch_pedons_by_bbox",  # Lab pedons with flexible return types
+    "fetch_pedon_horizons",  # Horizon data for pedon sites
+    # TIER 4 - KEY LOOKUP HELPERS (for planning multi-step operations)
+    "get_mukey_by_areasymbol",  # Discover mukeys from survey areas
+    "get_cokey_by_mukey",  # Discover cokeys from map units
+    # Module
+    "fetch",  # fetch module
 ]
