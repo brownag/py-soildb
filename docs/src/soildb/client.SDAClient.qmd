@@ -6,6 +6,7 @@ client.SDAClient(
     timeout=60.0,
     max_retries=3,
     retry_delay=1.0,
+    config=None,
 )
 ```
 
@@ -15,7 +16,7 @@ Async HTTP client for Soil Data Access web service.
 
 | Name | Description |
 | --- | --- |
-| [close](#soildb.client.SDAClient.close) | Close the HTTP client. |
+| [close](#soildb.client.SDAClient.close) | Close the HTTP client and clean up resources. |
 | [connect](#soildb.client.SDAClient.connect) | Test connection to SDA service. |
 | [execute](#soildb.client.SDAClient.execute) | Execute a query against SDA. |
 | [execute_many](#soildb.client.SDAClient.execute_many) | Execute multiple queries concurrently. |
@@ -27,7 +28,7 @@ Async HTTP client for Soil Data Access web service.
 client.SDAClient.close()
 ```
 
-Close the HTTP client.
+Close the HTTP client and clean up resources.
 
 ### connect { #soildb.client.SDAClient.connect }
 

@@ -5,3 +5,6 @@ exceptions.SoilDBError(message, details=None)
 ```
 
 Base exception for all soildb errors.
+
+All soildb-specific exceptions inherit from this class, allowing
+code to catch any soildb error with `except SoilDBError`.

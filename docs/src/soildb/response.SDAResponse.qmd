@@ -12,23 +12,57 @@ Represents a response from the Soil Data Access web service.
 | --- | --- |
 | [columns](#soildb.response.SDAResponse.columns) | Get column names. |
 | [data](#soildb.response.SDAResponse.data) | Get raw data rows. |
+| [data_quality_score](#soildb.response.SDAResponse.data_quality_score) | Get the data quality score (0.0 to 1.0). |
+| [has_warnings](#soildb.response.SDAResponse.has_warnings) | Check if the response has any validation warnings. |
+| [is_valid](#soildb.response.SDAResponse.is_valid) | Check if the response passed validation (no errors). |
 | [metadata](#soildb.response.SDAResponse.metadata) | Get column metadata. |
+| [validation_result](#soildb.response.SDAResponse.validation_result) | Get the validation result for this response. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
+| [find_fallback_columns](#soildb.response.SDAResponse.find_fallback_columns) | Find fallback column names when preferred columns are not available. |
 | [from_json](#soildb.response.SDAResponse.from_json) | Create response from JSON string. |
 | [get_column_types](#soildb.response.SDAResponse.get_column_types) | Extract column data types from metadata. |
-| [get_python_types](#soildb.response.SDAResponse.get_python_types) | Get Python-compatible type mapping. |
-| [is_empty](#soildb.response.SDAResponse.is_empty) | Check if the response contains no data. |
+| [get_python_types](#soildb.response.SDAResponse.get_python_types) | Get Python-compatible type mapping using unified TypeMap. |
+| [get_validation_summary](#soildb.response.SDAResponse.get_validation_summary) | Get a summary of validation results. |
+| [handle_missing_fields](#soildb.response.SDAResponse.handle_missing_fields) | Handle missing required fields with fallbacks or defaults. |
+| [is_empty](#soildb.response.SDAResponse.is_empty) | Check if the response contains any data rows. |
+| [recover_partial_data](#soildb.response.SDAResponse.recover_partial_data) | Attempt to recover partial data by skipping malformed records. |
 | [to_dataframe](#soildb.response.SDAResponse.to_dataframe) | Convert to pandas or polars DataFrame with proper type conversion. |
-| [to_dict](#soildb.response.SDAResponse.to_dict) | Convert to list of dictionaries with basic type conversion. |
+| [to_dict](#soildb.response.SDAResponse.to_dict) | Convert to list of dictionaries with basic type conversion and error recovery. |
 | [to_geodataframe](#soildb.response.SDAResponse.to_geodataframe) | Convert to GeoPandas GeoDataFrame if geometry column exists. |
 | [to_pandas](#soildb.response.SDAResponse.to_pandas) | Convert to pandas DataFrame with proper type conversion. |
 | [to_polars](#soildb.response.SDAResponse.to_polars) | Convert to polars DataFrame with proper type conversion. |
 | [to_records](#soildb.response.SDAResponse.to_records) | Alias for to_dict() for compatibility. |
 | [to_soilprofilecollection](#soildb.response.SDAResponse.to_soilprofilecollection) | Converts the response data to a soilprofilecollection.SoilProfileCollection object. |
+| [validate](#soildb.response.SDAResponse.validate) | Validate the response based on its type. |
+| [validate_for_soilprofilecollection](#soildb.response.SDAResponse.validate_for_soilprofilecollection) | Validate data suitability for SoilProfileCollection conversion without converting. |
+| [validate_mapunit_response](#soildb.response.SDAResponse.validate_mapunit_response) | Validate a mapunit response for required fields and data integrity. |
+| [validate_pedon_response](#soildb.response.SDAResponse.validate_pedon_response) | Validate a pedon response for required fields and data integrity. |
+| [validate_response](#soildb.response.SDAResponse.validate_response) | Validate the response for common issues and return detailed results. |
+| [validate_transformed_data](#soildb.response.SDAResponse.validate_transformed_data) | Validate transformed data dictionaries for consistency and data quality. |
+
+### find_fallback_columns { #soildb.response.SDAResponse.find_fallback_columns }
+
+```python
+response.SDAResponse.find_fallback_columns(
+    available_columns,
+    preferred_columns,
+    fallback_mappings=None,
+)
+```
+
+Find fallback column names when preferred columns are not available.
+
+Args:
+    available_columns: List of columns actually present in the data
+    preferred_columns: List of preferred column names
+    fallback_mappings: Optional mapping of preferred -> [fallback1, fallback2, ...]
+
+Returns:
+    Dictionary mapping preferred column names to available fallback names
 
 ### from_json { #soildb.response.SDAResponse.from_json }
 
@@ -52,7 +86,35 @@ Extract column data types from metadata.
 response.SDAResponse.get_python_types()
 ```
 
-Get Python-compatible type mapping.
+Get Python-compatible type mapping using unified TypeMap.
+
+### get_validation_summary { #soildb.response.SDAResponse.get_validation_summary }
+
+```python
+response.SDAResponse.get_validation_summary()
+```
+
+Get a summary of validation results.
+
+### handle_missing_fields { #soildb.response.SDAResponse.handle_missing_fields }
+
+```python
+response.SDAResponse.handle_missing_fields(
+    data,
+    required_fields,
+    fallback_values=None,
+)
+```
+
+Handle missing required fields with fallbacks or defaults.
+
+Args:
+    data: The data dictionary to check
+    required_fields: List of field names that must be present
+    fallback_values: Optional mapping of field names to fallback values
+
+Returns:
+    Tuple of (processed_data, missing_fields_list)
 
 ### is_empty { #soildb.response.SDAResponse.is_empty }
 
@@ -60,10 +122,21 @@ Get Python-compatible type mapping.
 response.SDAResponse.is_empty()
 ```
 
-Check if the response contains no data.
+Check if the response contains any data rows.
+
+### recover_partial_data { #soildb.response.SDAResponse.recover_partial_data }
+
+```python
+response.SDAResponse.recover_partial_data(max_errors=10)
+```
+
+Attempt to recover partial data by skipping malformed records.
+
+Args:
+    max_errors: Maximum number of errors to tolerate before giving up
 
 Returns:
-    True if the response contains no rows, False otherwise.
+    Tuple of (valid_records, error_records)
 
 ### to_dataframe { #soildb.response.SDAResponse.to_dataframe }
 
@@ -79,7 +152,7 @@ Convert to pandas or polars DataFrame with proper type conversion.
 response.SDAResponse.to_dict()
 ```
 
-Convert to list of dictionaries with basic type conversion.
+Convert to list of dictionaries with basic type conversion and error recovery.
 
 Returns:
     List of dictionaries where each dictionary represents a row with
@@ -122,6 +195,144 @@ Alias for to_dict() for compatibility.
 ```python
 response.SDAResponse.to_soilprofilecollection(
     site_data=None,
+    site_id_col=None,
+    hz_id_col=None,
+    hz_top_col=None,
+    hz_bot_col=None,
+    preset=None,
+    validate_depths=True,
+    warn_on_defaults=True,
+)
+```
+
+Converts the response data to a soilprofilecollection.SoilProfileCollection object.
+
+This method is intended for horizon-level data, which can be joined with
+site-level data (e.g., from the component or pedon table) to form a complete
+soil profile collection.
+
+**Decision Tree: When to use to_soilprofilecollection()**
+
+1. Do you have horizon-level data with depths?
+   - Yes → Continue
+   - No → Use `to_pandas()` or `to_polars()` instead
+
+2. What type of data do you have?
+   - Standard SDA chorizon → Use `preset="standard_sda"` 
+   - Lab pedon data → Use `preset="lab_pedon"`
+   - Map unit + component → Use `preset="mapunit_component"`
+   - Custom columns → Use `preset=CustomColumnConfig(...)`
+   - Explicit column names → Provide site_id_col, hz_id_col, etc.
+
+3. Do you have site-level data?
+   - Yes → Provide as `site_data` parameter
+   - No → Leave as None (SPC will only have horizon data)
+
+Args:
+    site_data: Optional pandas DataFrame containing site-level data.
+        This will be joined with the horizon data using site_id_col.
+
+    site_id_col: Column name for site/component identifier.
+        If not provided and preset is None, defaults to "cokey".
+        Can be: "cokey" (component), "pedon_id" (lab), "mukey" (mapunit)
+
+    hz_id_col: Column name for unique horizon identifier.
+        If not provided and preset is None, defaults to "chkey".
+        Can be: "chkey" (SDA), "pedon_key_horizon" (lab), "hzname" (other)
+
+    hz_top_col: Column name for horizon top depth.
+        If not provided and preset is None, defaults to "hzdept_r".
+        Must be in inches for standard SDA data.
+
+    hz_bot_col: Column name for horizon bottom depth.
+        If not provided and preset is None, defaults to "hzdepb_r".
+        Must be in inches for standard SDA data.
+
+    preset: Preset configuration. Can be:
+        - String name: "standard_sda", "lab_pedon", "pedon_site", "mapunit_component"
+        - ColumnConfig object: e.g., StandardSDAHorizonColumns()
+        - None: Use explicit column parameters (defaults to standard SDA)
+
+    validate_depths: Whether to validate depth values before conversion.
+        If True and invalid depths found, issues warning but continues.
+        Default: True
+
+    warn_on_defaults: Whether to warn when using default column names.
+        Set to False if you prefer silent defaults.
+        Default: True
+
+Returns:
+    A SoilProfileCollection object configured with the provided columns.
+
+Raises:
+    ImportError: If the 'soilprofilecollection' package is not installed.
+    SPCValidationError: If required columns are missing and cannot be resolved.
+
+Examples:
+    >>> from soildb.spc_presets import StandardSDAHorizonColumns
+    >>> from soildb import SDAClient, Query
+    >>> 
+    >>> # Using preset
+    >>> async with SDAClient() as client:
+    ...     query = Query().select(
+    ...         "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
+    ...         "claytotal_r", "sandtotal_r", "silttotal_r", "awc_r", "ksat_r"
+    ...     ).from_("chorizon")
+    ...     response = await client.execute(query)
+    ...     spc = response.to_soilprofilecollection(preset="standard_sda")
+
+    >>> # Using explicit columns
+    >>> spc = response.to_soilprofilecollection(
+    ...     site_id_col="cokey",
+    ...     hz_id_col="chkey",
+    ...     hz_top_col="hzdept_r",
+    ...     hz_bot_col="hzdepb_r"
+    ... )
+
+    >>> # With site data
+    >>> import pandas as pd
+    >>> site_data = pd.DataFrame({
+    ...     "cokey": [1, 2, 3],
+    ...     "compname": ["Ames", "Benton", "Clarion"]
+    ... })
+    >>> spc = response.to_soilprofilecollection(
+    ...     site_data=site_data,
+    ...     preset="standard_sda"
+    ... )
+
+See Also:
+    spc_presets: Column configuration presets for common query types
+    spc_validator: Validation utilities used internally
+
+### validate { #soildb.response.SDAResponse.validate }
+
+```python
+response.SDAResponse.validate(response_type='general')
+```
+
+Validate the response based on its type.
+
+Unified validation entry point that routes to appropriate validators.
+
+Args:
+    response_type: Type of response to validate:
+        - "general": General SDA response validation
+        - "mapunit": Mapunit-specific validation
+        - "pedon": Pedon-specific validation
+
+Returns:
+    ValidationResult with comprehensive validation details
+
+Examples:
+    >>> response = SDAResponse(data)
+    >>> result = response.validate("mapunit")
+    >>> if result.is_valid():
+    ...     print(f"Quality score: {result.data_quality_score}")
+
+### validate_for_soilprofilecollection { #soildb.response.SDAResponse.validate_for_soilprofilecollection }
+
+```python
+response.SDAResponse.validate_for_soilprofilecollection(
     site_id_col='cokey',
     hz_id_col='chkey',
     hz_top_col='hzdept_r',
@@ -129,25 +340,100 @@ response.SDAResponse.to_soilprofilecollection(
 )
 ```
 
-Converts the response data to a soilprofilecollection.SoilProfileCollection object.
+Validate data suitability for SoilProfileCollection conversion without converting.
 
-This method is intended for horizon-level data, which can be joined with
-site-level data (e.g., from the component table) to form a complete
-soil profile collection.
+This is useful for checking data quality before committing to a conversion.
 
 Args:
-    site_data: Optional pandas DataFrame containing site-level data.
-        This will be joined with the horizon data.
-    site_id_col: The name of the site ID column, used to link site and
-        horizon data (default: "cokey").
-    hz_id_col: The name of the unique horizon ID column (default: "chkey").
-    hz_top_col: The name of the horizon top depth column (default: "hzdept_r").
-    hz_bot_col: The name of the horizon bottom depth column (default: "hzdepb_r").
+    site_id_col: Column name for site identifier
+    hz_id_col: Column name for horizon identifier
+    hz_top_col: Column name for horizon top depth
+    hz_bot_col: Column name for horizon bottom depth
 
 Returns:
-    A SoilProfileCollection object.
+    Validation report dictionary with:
+    - is_valid: Whether data can be converted
+    - errors: List of validation errors
+    - warnings: List of warnings
+    - data_summary: Summary of data
+    - validation_details: Detailed validation results
 
-Raises:
-    ImportError: If the 'soilprofilecollection' package is not installed.
-    ValueError: If required columns for creating the SoilProfileCollection
-        are missing from the data.
+Example:
+    >>> response = await client.execute(query)
+    >>> report = response.validate_for_soilprofilecollection()
+    >>> if report["is_valid"]:
+    ...     spc = response.to_soilprofilecollection()
+    ... else:
+    ...     print("Validation errors:", report["errors"])
+
+### validate_mapunit_response { #soildb.response.SDAResponse.validate_mapunit_response }
+
+```python
+response.SDAResponse.validate_mapunit_response(response_data)
+```
+
+Validate a mapunit response for required fields and data integrity.
+
+DEPRECATED: Use response.validate("mapunit") instead.
+This static method is maintained for backward compatibility.
+
+Args:
+    response_data: SDAResponse object or dict with response data
+
+Returns:
+    ValidationResult with mapunit-specific validation details
+
+Examples:
+    >>> result = SDAResponse.validate_mapunit_response(response)  # Deprecated
+    >>> result = response.validate("mapunit")  # Preferred
+
+### validate_pedon_response { #soildb.response.SDAResponse.validate_pedon_response }
+
+```python
+response.SDAResponse.validate_pedon_response(response_data)
+```
+
+Validate a pedon response for required fields and data integrity.
+
+DEPRECATED: Use response.validate("pedon") instead.
+This static method is maintained for backward compatibility.
+
+Args:
+    response_data: SDAResponse object or dict with response data
+
+Returns:
+    ValidationResult with pedon-specific validation details
+
+Examples:
+    >>> result = SDAResponse.validate_pedon_response(response)  # Deprecated
+    >>> result = response.validate("pedon")  # Preferred
+
+### validate_response { #soildb.response.SDAResponse.validate_response }
+
+```python
+response.SDAResponse.validate_response()
+```
+
+Validate the response for common issues and return detailed results.
+
+DEPRECATED: Use validate() instead for better API.
+This method is maintained for backward compatibility.
+
+Examples:
+    >>> response = SDAResponse(data)
+    >>> result = response.validate_response()  # Deprecated
+    >>> result = response.validate()  # Preferred
+
+### validate_transformed_data { #soildb.response.SDAResponse.validate_transformed_data }
+
+```python
+response.SDAResponse.validate_transformed_data(data_dicts)
+```
+
+Validate transformed data dictionaries for consistency and data quality.
+
+Args:
+    data_dicts: List of dictionaries from to_dict() conversion
+
+Returns:
+    ValidationResult with data quality assessment

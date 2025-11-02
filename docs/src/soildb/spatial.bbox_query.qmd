@@ -1,0 +1,56 @@
+# spatial.bbox_query { #soildb.spatial.bbox_query }
+
+```python
+spatial.bbox_query(
+    xmin,
+    ymin,
+    xmax,
+    ymax,
+    table='mupolygon',
+    return_type='tabular',
+    spatial_relation='intersects',
+    client=None,
+)
+```
+
+Simplified bounding box-based spatial query.
+
+Convenience wrapper for bounding box coordinates. Use this instead of
+spatial_query() when you have a rectangular area.
+
+**WHEN TO USE THIS:**
+- You have a bounding box (xmin, ymin, xmax, ymax)
+- You want faster queries than complex polygons
+- You want tabular or spatial results
+- You want simpler syntax than spatial_query()
+
+Args:
+    xmin: Western boundary (longitude)
+    ymin: Southern boundary (latitude)
+    xmax: Eastern boundary (longitude)
+    ymax: Northern boundary (latitude)
+    table: Target SSURGO table (default: "mupolygon")
+    return_type: "tabular" for data only (default), "spatial" for with geometry
+    spatial_relation: Spatial relationship to test (default: "intersects")
+    client: Optional SDA client instance
+
+Returns:
+    SDAResponse: Query results
+
+Examples:
+    ```python
+    # Get map units in a region
+    response = await bbox_query(-94.7, 42.0, -94.6, 42.1)
+    df = response.to_pandas()
+
+    # Get spatial polygons for mapping
+    response = await bbox_query(-94.7, 42.0, -94.6, 42.1, return_type="spatial")
+    gdf = response.to_geodataframe()
+    gdf.plot()
+    ```
+
+See Also:
+    spatial_query() - For full control over geometry and parameters
+    point_query() - For point-based queries
+    mupolygon_in_bbox() - Specialized for map unit polygons
+    sapolygon_in_bbox() - Specialized for survey area polygons

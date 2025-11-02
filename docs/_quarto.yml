@@ -18,6 +18,12 @@ website:
         href: async.qmd
       - text: "API Guide"
         href: api.qmd
+      - text: "Guides"
+        menu:
+          - text: "Error Handling"
+            href: error-handling.qmd
+          - text: "Troubleshooting"
+            href: troubleshooting.qmd
 
 format:
   html:
@@ -37,8 +43,7 @@ quartodoc:
       desc: "Classes and functions for building and executing queries."
       contents:
         - query.Query
-        - query.SpatialQuery
-        - query.QueryBuilder
+        - query_templates
         - convenience.get_mapunit_by_point
         - convenience.get_mapunit_by_areasymbol
         - convenience.get_mapunit_by_bbox
@@ -54,37 +59,24 @@ quartodoc:
         - query.Query.left_join
         - query.Query.order_by
         - query.Query.limit
-        - query.SpatialQuery.select
-        - query.SpatialQuery.from_
-        - query.SpatialQuery.where
-        - query.SpatialQuery.inner_join
-        - query.SpatialQuery.left_join
-        - query.SpatialQuery.order_by
-        - query.SpatialQuery.limit
-        - query.SpatialQuery.intersects_bbox
-        - query.SpatialQuery.contains_point
-        - query.SpatialQuery.intersects_geometry
     - title: "Fetching"
       desc: "Functions for bulk data fetching."
       contents:
         - fetch.fetch_by_keys
-        - fetch.fetch_mapunit_polygon
-        - fetch.fetch_component_by_mukey
-        - fetch.fetch_chorizon_by_cokey
-        - fetch.fetch_survey_area_polygon
         - fetch.get_mukey_by_areasymbol
         - fetch.get_cokey_by_mukey
     - title: "Spatial"
       desc: "Functions for spatial queries."
       contents:
         - spatial.spatial_query
-        - spatial.SpatialQueryBuilder
-        - spatial.query_mupolygon
-        - spatial.query_sapolygon
-        - spatial.query_featpoint
-        - spatial.query_featline
-        - spatial.mupolygon_in_bbox
-        - spatial.sapolygon_in_bbox
+        - spatial.point_query
+        - spatial.bbox_query
+    - title: "AWDB Integration"
+      desc: "Functions for accessing NRCS monitoring data."
+      contents:
+        - awdb.client.AWDBClient
+        - awdb.convenience.get_monitoring_station_data
+        - awdb.convenience.find_stations_by_criteria
     - title: "Metadata"
       desc: "Classes and functions for parsing survey area metadata."
       contents:

@@ -4,12 +4,39 @@
 fetch.get_cokey_by_mukey(mukeys, major_components_only=True, client=None)
 ```
 
-Get all cokeys for given mukeys.
+Get all cokeys for given mukeys (TIER 4 - Helper).
+
+**WHEN TO USE THIS**:
+- You know the map units but need to discover all components
+- Planning multi-step fetch operations to get horizons
+- Building key lists for fetch_by_keys()
+
+**DESIGN - Why this helper exists**:
+- Convenience: Discovers all cokeys in map units
+- Use before: fetch_by_keys(..., "chorizon", key_column="cokey")
+- Performance: Small result (quick execution)
+- Option: major_components_only to filter
 
 Args:
     mukeys: Map unit key(s) (single key or list of keys)
-    major_components_only: Whether to only return major components
-    client: Optional SDA client
+    major_components_only: If True, only return major components (default: True)
+    client: Required SDA client instance
 
 Returns:
-    List of component keys
+    List of all component keys found in specified map units
+
+Examples:
+    # Discover cokeys in map units
+    >>> cokeys = await get_cokey_by_mukey([123456, 123457])
+    >>> print(f"Found {len(cokeys)} components")
+
+    # Then fetch horizons for those components
+    >>> horizons = await fetch_by_keys(cokeys, "chorizon", key_column="cokey")
+    >>> df = horizons.to_pandas()
+
+    # Include minor components
+    >>> all_cokeys = await get_cokey_by_mukey([123456], major_components_only=False)
+
+See Also:
+    get_mukey_by_areasymbol() - Discover mukeys from survey areas
+    fetch_by_keys() - Use discovered keys to fetch data

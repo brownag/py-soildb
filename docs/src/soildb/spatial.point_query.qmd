@@ -1,0 +1,48 @@
+# spatial.point_query { #soildb.spatial.point_query }
+
+```python
+spatial.point_query(
+    latitude,
+    longitude,
+    table='mupolygon',
+    return_type='tabular',
+    spatial_relation='intersects',
+    client=None,
+)
+```
+
+Simplified point-based spatial query.
+
+Convenience wrapper for point locations. Use this instead of spatial_query()
+when you have latitude/longitude coordinates.
+
+**WHEN TO USE THIS:**
+- You have a single (lat, lon) coordinate
+- You want tabular or spatial results
+- You want simpler syntax than spatial_query()
+
+Args:
+    latitude: Latitude in decimal degrees
+    longitude: Longitude in decimal degrees
+    table: Target SSURGO table (default: "mupolygon")
+    return_type: "tabular" for data only (default), "spatial" for with geometry
+    spatial_relation: Spatial relationship to test (default: "intersects")
+    client: Optional SDA client instance
+
+Returns:
+    SDAResponse: Query results
+
+Examples:
+    ```python
+    # Get map unit info at a location
+    response = await point_query(latitude=42.0, longitude=-93.6)
+    df = response.to_pandas()
+
+    # Get spatial features for mapping
+    response = await point_query(42.0, -93.6, "mupolygon", "spatial")
+    gdf = response.to_geodataframe()
+    ```
+
+See Also:
+    spatial_query() - For full control over geometry and parameters
+    bbox_query() - For bounding box queries
