@@ -15,10 +15,9 @@ Classes and functions for building and executing queries.
 | | |
 | --- | --- |
 | [query.Query](query.Query.qmd#soildb.query.Query) | Builder for SQL queries against Soil Data Access. |
-| [query.SpatialQuery](query.SpatialQuery.qmd#soildb.query.SpatialQuery) | Builder for spatial queries with geometry filters. |
-| [query.QueryBuilder](query.QueryBuilder.qmd#soildb.query.QueryBuilder) | Factory class for common SDA query patterns. |
+| [query_templates](query_templates.qmd#soildb.query_templates) | Query templates for common Soil Data Access query patterns. |
 | [convenience.get_mapunit_by_point](convenience.get_mapunit_by_point.qmd#soildb.convenience.get_mapunit_by_point) | Get map unit data at a specific point location. |
-| [convenience.get_mapunit_by_areasymbol](convenience.get_mapunit_by_areasymbol.qmd#soildb.convenience.get_mapunit_by_areasymbol) | Get map unit data by survey area symbol (legend) with optional schema auto-registration. |
+| [convenience.get_mapunit_by_areasymbol](convenience.get_mapunit_by_areasymbol.qmd#soildb.convenience.get_mapunit_by_areasymbol) | Get map unit data by survey area symbol (legend). |
 | [convenience.get_mapunit_by_bbox](convenience.get_mapunit_by_bbox.qmd#soildb.convenience.get_mapunit_by_bbox) | Get map unit data within a bounding box. |
 | [convenience.get_sacatalog](convenience.get_sacatalog.qmd#soildb.convenience.get_sacatalog) | Get survey area catalog (sacatalog) data. |
 
@@ -36,16 +35,6 @@ Fluent interface methods for building SQL queries.
 | [query.Query.left_join](query.Query.left_join.qmd#soildb.query.Query.left_join) | Add a LEFT JOIN clause. |
 | [query.Query.order_by](query.Query.order_by.qmd#soildb.query.Query.order_by) | Set the ORDER BY clause. |
 | [query.Query.limit](query.Query.limit.qmd#soildb.query.Query.limit) | Set the LIMIT (uses TOP in SQL Server). |
-| [query.SpatialQuery.select](query.SpatialQuery.select.qmd#soildb.query.SpatialQuery.select) | Set the SELECT clause. |
-| [query.SpatialQuery.from_](query.SpatialQuery.from_.qmd#soildb.query.SpatialQuery.from_) | Set the FROM clause. |
-| [query.SpatialQuery.where](query.SpatialQuery.where.qmd#soildb.query.SpatialQuery.where) | Add a WHERE condition. |
-| [query.SpatialQuery.inner_join](query.SpatialQuery.inner_join.qmd#soildb.query.SpatialQuery.inner_join) | Add an INNER JOIN clause. |
-| [query.SpatialQuery.left_join](query.SpatialQuery.left_join.qmd#soildb.query.SpatialQuery.left_join) | Add a LEFT JOIN clause. |
-| [query.SpatialQuery.order_by](query.SpatialQuery.order_by.qmd#soildb.query.SpatialQuery.order_by) | Set the ORDER BY clause. |
-| [query.SpatialQuery.limit](query.SpatialQuery.limit.qmd#soildb.query.SpatialQuery.limit) | Set the LIMIT. |
-| [query.SpatialQuery.intersects_bbox](query.SpatialQuery.intersects_bbox.qmd#soildb.query.SpatialQuery.intersects_bbox) | Add a bounding box intersection filter. |
-| [query.SpatialQuery.contains_point](query.SpatialQuery.contains_point.qmd#soildb.query.SpatialQuery.contains_point) | Add a point containment filter. |
-| [query.SpatialQuery.intersects_geometry](query.SpatialQuery.intersects_geometry.qmd#soildb.query.SpatialQuery.intersects_geometry) | Add a geometry intersection filter using WKT. |
 
 ## Fetching
 
@@ -53,13 +42,9 @@ Functions for bulk data fetching.
 
 | | |
 | --- | --- |
-| [fetch.fetch_by_keys](fetch.fetch_by_keys.qmd#soildb.fetch.fetch_by_keys) | Fetch data from a table using a list of key values with pagination. |
-| [fetch.fetch_mapunit_polygon](fetch.fetch_mapunit_polygon.qmd#soildb.fetch.fetch_mapunit_polygon) | Fetch map unit polygon data for a list of mukeys. |
-| [fetch.fetch_component_by_mukey](fetch.fetch_component_by_mukey.qmd#soildb.fetch.fetch_component_by_mukey) | Fetch component data for a list of mukeys with optional schema auto-registration. |
-| [fetch.fetch_chorizon_by_cokey](fetch.fetch_chorizon_by_cokey.qmd#soildb.fetch.fetch_chorizon_by_cokey) | Fetch chorizon data for a list of cokeys. |
-| [fetch.fetch_survey_area_polygon](fetch.fetch_survey_area_polygon.qmd#soildb.fetch.fetch_survey_area_polygon) | Fetch survey area polygon data for a list of area symbols. |
-| [fetch.get_mukey_by_areasymbol](fetch.get_mukey_by_areasymbol.qmd#soildb.fetch.get_mukey_by_areasymbol) | Get all mukeys for given area symbols. |
-| [fetch.get_cokey_by_mukey](fetch.get_cokey_by_mukey.qmd#soildb.fetch.get_cokey_by_mukey) | Get all cokeys for given mukeys. |
+| [fetch.fetch_by_keys](fetch.fetch_by_keys.qmd#soildb.fetch.fetch_by_keys) | Fetch data from a table using a list of key values with pagination (PRIMARY INTERFACE). |
+| [fetch.get_mukey_by_areasymbol](fetch.get_mukey_by_areasymbol.qmd#soildb.fetch.get_mukey_by_areasymbol) | Get all mukeys for given area symbols (TIER 4 - Helper). |
+| [fetch.get_cokey_by_mukey](fetch.get_cokey_by_mukey.qmd#soildb.fetch.get_cokey_by_mukey) | Get all cokeys for given mukeys (TIER 4 - Helper). |
 
 ## Spatial
 
@@ -67,14 +52,19 @@ Functions for spatial queries.
 
 | | |
 | --- | --- |
-| [spatial.spatial_query](spatial.spatial_query.qmd#soildb.spatial.spatial_query) | Execute a generic spatial query against SSURGO data. |
-| [spatial.SpatialQueryBuilder](spatial.SpatialQueryBuilder.qmd#soildb.spatial.SpatialQueryBuilder) | Generic spatial query builder for SSURGO data. |
-| [spatial.query_mupolygon](spatial.query_mupolygon.qmd#soildb.spatial.query_mupolygon) | Query map unit polygons with a geometry. |
-| [spatial.query_sapolygon](spatial.query_sapolygon.qmd#soildb.spatial.query_sapolygon) | Query survey area polygons with a geometry. |
-| [spatial.query_featpoint](spatial.query_featpoint.qmd#soildb.spatial.query_featpoint) | Query feature points with a geometry. |
-| [spatial.query_featline](spatial.query_featline.qmd#soildb.spatial.query_featline) | Query feature lines with a geometry. |
-| [spatial.mupolygon_in_bbox](spatial.mupolygon_in_bbox.qmd#soildb.spatial.mupolygon_in_bbox) | Get map unit polygons in a bounding box. |
-| [spatial.sapolygon_in_bbox](spatial.sapolygon_in_bbox.qmd#soildb.spatial.sapolygon_in_bbox) | Get survey area polygons in a bounding box. |
+| [spatial.spatial_query](spatial.spatial_query.qmd#soildb.spatial.spatial_query) | Execute a spatial query against SSURGO data (CANONICAL FUNCTION). |
+| [spatial.point_query](spatial.point_query.qmd#soildb.spatial.point_query) | Simplified point-based spatial query. |
+| [spatial.bbox_query](spatial.bbox_query.qmd#soildb.spatial.bbox_query) | Simplified bounding box-based spatial query. |
+
+## AWDB Integration
+
+Functions for accessing NRCS monitoring data.
+
+| | |
+| --- | --- |
+| [awdb.client.AWDBClient](awdb.client.AWDBClient.qmd#soildb.awdb.client.AWDBClient) | Async client for accessing data via the NRCS AWDB REST API. |
+| [awdb.convenience.get_monitoring_station_data](awdb.convenience.get_monitoring_station_data.qmd#soildb.awdb.convenience.get_monitoring_station_data) | Get time-series data for a property from nearby stations. |
+| [awdb.convenience.find_stations_by_criteria](awdb.convenience.find_stations_by_criteria.qmd#soildb.awdb.convenience.find_stations_by_criteria) | Find stations using advanced filtering criteria with wildcard support. |
 
 ## Metadata
 
@@ -103,6 +93,6 @@ Custom exception classes.
 | [exceptions.SoilDBError](exceptions.SoilDBError.qmd#soildb.exceptions.SoilDBError) | Base exception for all soildb errors. |
 | [exceptions.SDAConnectionError](exceptions.SDAConnectionError.qmd#soildb.exceptions.SDAConnectionError) | Raised when there are connection issues with the SDA service. |
 | [exceptions.SDAQueryError](exceptions.SDAQueryError.qmd#soildb.exceptions.SDAQueryError) | Raised when a query fails or returns invalid results. |
-| [exceptions.SDAMaintenanceError](exceptions.SDAMaintenanceError.qmd#soildb.exceptions.SDAMaintenanceError) | Raised when the SDA service is under daily (or other) maintenance. |
+| [exceptions.SDAMaintenanceError](exceptions.SDAMaintenanceError.qmd#soildb.exceptions.SDAMaintenanceError) | Raised when the SDA service is under maintenance. |
 | [exceptions.SDAResponseError](exceptions.SDAResponseError.qmd#soildb.exceptions.SDAResponseError) | Raised when SDA returns an invalid or unexpected response format. |
 | [metadata.MetadataParseError](metadata.MetadataParseError.qmd#soildb.metadata.MetadataParseError) | Raised when XML metadata parsing fails. |

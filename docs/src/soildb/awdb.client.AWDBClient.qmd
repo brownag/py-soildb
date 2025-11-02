@@ -1,0 +1,266 @@
+# awdb.client.AWDBClient { #soildb.awdb.client.AWDBClient }
+
+```python
+awdb.client.AWDBClient(timeout=60, config=None)
+```
+
+Async client for accessing data via the NRCS AWDB REST API.
+
+The AWDB (Air-Water Database) API provides access to real-time and historical
+monitoring data from networks such as SCAN and SNOTEL.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [timeout](#soildb.awdb.client.AWDBClient.timeout) | Get the timeout in seconds (for backward compatibility). |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [check_station_data_availability](#soildb.awdb.client.AWDBClient.check_station_data_availability) | Check data availability for a station by querying coarser time granularity. |
+| [connect](#soildb.awdb.client.AWDBClient.connect) | Test connection to AWDB service. |
+| [find_nearby_stations](#soildb.awdb.client.AWDBClient.find_nearby_stations) | Find stations near a given location. |
+| [get_forecasts](#soildb.awdb.client.AWDBClient.get_forecasts) | Get forecast data for one or more stations. |
+| [get_reference_data](#soildb.awdb.client.AWDBClient.get_reference_data) | Get reference data from AWDB. |
+| [get_station_data](#soildb.awdb.client.AWDBClient.get_station_data) | Get time series data for a specific station and element with enhanced options. |
+| [get_stations](#soildb.awdb.client.AWDBClient.get_stations) | Get list of available stations with comprehensive filtering options. |
+
+### check_station_data_availability { #soildb.awdb.client.AWDBClient.check_station_data_availability }
+
+```python
+awdb.client.AWDBClient.check_station_data_availability(
+    station_triplet,
+    elements,
+    start_date,
+    end_date,
+    duration='MONTHLY',
+    ordinal=1,
+)
+```
+
+Check data availability for a station by querying coarser time granularity.
+
+This method helps determine if a station has any data for a given element
+by using monthly aggregation, which is more likely to return results than
+daily data for sparse or intermittent measurements.
+
+Args:
+    station_triplet: Station identifier (e.g., '1234:UT:SNTL')
+    elements: Element code (e.g., 'SMS', 'STO', 'PREC')
+    start_date: Start date in YYYY-MM-DD format
+    end_date: End date in YYYY-MM-DD format
+    duration: Data duration to check ('MONTHLY', 'YEARLY', etc.)
+    ordinal: Sensor ordinal (1, 2, 3, etc. for multiple sensors)
+
+Returns:
+    Dictionary with availability information:
+    - 'has_data': Boolean indicating if any data exists
+    - 'data_points': Number of data points found
+    - 'date_range': Date range checked
+    - 'sample_values': List of up to 5 sample values with dates
+
+Raises:
+    AWDBQueryError: If station/element not found or invalid parameters
+    AWDBConnectionError: If there are network or server issues
+
+### connect { #soildb.awdb.client.AWDBClient.connect }
+
+```python
+awdb.client.AWDBClient.connect()
+```
+
+Test connection to AWDB service.
+
+Returns:
+    True if connection successful
+
+Raises:
+    AWDBConnectionError: If connection fails
+
+### find_nearby_stations { #soildb.awdb.client.AWDBClient.find_nearby_stations }
+
+```python
+awdb.client.AWDBClient.find_nearby_stations(
+    latitude,
+    longitude,
+    max_distance_km=50.0,
+    network_codes=None,
+    limit=10,
+)
+```
+
+Find stations near a given location.
+
+Note: This method fetches all stations and filters client-side for distance.
+For large-scale applications, consider using the get_stations method with
+geographic filtering if available in future API versions.
+
+Args:
+    latitude: Target latitude (-90 to 90)
+    longitude: Target longitude (-180 to 180)
+    max_distance_km: Maximum search distance in kilometers
+    network_codes: Optional network codes to filter by before distance calculation
+    limit: Maximum number of nearest stations to return
+
+Returns:
+    List of (StationInfo, distance_km) tuples, sorted by ascending distance
+
+Raises:
+    ValueError: If latitude/longitude are outside valid ranges
+    AWDBQueryError: If station retrieval fails
+
+### get_forecasts { #soildb.awdb.client.AWDBClient.get_forecasts }
+
+```python
+awdb.client.AWDBClient.get_forecasts(
+    station_triplets,
+    element_codes=None,
+    begin_publication_date=None,
+    end_publication_date=None,
+    exceedence_probabilities=None,
+    forecast_periods=None,
+)
+```
+
+Get forecast data for one or more stations.
+
+Args:
+    station_triplets: List of station triplets (e.g., ['302:OR:SNTL'])
+    element_codes: List of element codes (e.g., ['RESC', 'SRVO'])
+    begin_publication_date: Start date for publication period (YYYY-MM-DD)
+    end_publication_date: End date for publication period (YYYY-MM-DD)
+    exceedence_probabilities: List of exceedence probabilities (e.g., [10, 30, 50])
+    forecast_periods: List of forecast periods (e.g., ['03-01', '07-31'])
+
+Returns:
+    List of ForecastData objects
+
+### get_reference_data { #soildb.awdb.client.AWDBClient.get_reference_data }
+
+```python
+awdb.client.AWDBClient.get_reference_data(reference_lists=None)
+```
+
+Get reference data from AWDB.
+
+Retrieves lookup tables and reference information used by the AWDB system,
+including elements, networks, units, states, and other metadata.
+
+Args:
+    reference_lists: List of reference data types to retrieve. Available options:
+                    'dcos', 'durations', 'elements', 'forecastPeriods', 'functions',
+                    'instruments', 'networks', 'physicalElements', 'states', 'units'.
+                    If None, returns all reference data.
+
+Returns:
+    ReferenceData object containing requested reference information
+
+Raises:
+    AWDBQueryError: If invalid reference list specified
+    AWDBConnectionError: If there are network or server issues
+
+### get_station_data { #soildb.awdb.client.AWDBClient.get_station_data }
+
+```python
+awdb.client.AWDBClient.get_station_data(
+    station_triplet,
+    elements,
+    start_date,
+    end_date,
+    duration='DAILY',
+    ordinal=1,
+    period_ref='END',
+    central_tendency_type='NONE',
+    return_flags=True,
+    return_original_values=False,
+    return_suspect_data=False,
+    insert_or_update_begin_date=None,
+)
+```
+
+Get time series data for a specific station and element with enhanced options.
+
+This method provides access to all AWDB data retrieval parameters, including
+quality flags, central tendency calculations, and incremental data updates.
+
+Args:
+    station_triplet: Station identifier (e.g., '1234:UT:SNTL')
+    elements: Element code (e.g., 'SMS', 'STO', 'PREC')
+    start_date: Start date in YYYY-MM-DD format
+    end_date: End date in YYYY-MM-DD format
+    duration: Data duration ('DAILY', 'HOURLY', 'MONTHLY', etc.)
+    ordinal: Sensor ordinal (1, 2, 3, etc. for multiple sensors)
+    period_ref: Timestamp reference ('START' or 'END' of period)
+    central_tendency_type: Include averages/medians ('NONE', 'ALL', 'MEDIAN', 'AVERAGE')
+    return_flags: Include quality control and assurance flags
+    return_original_values: Include original values before processing
+    return_suspect_data: Include data marked as suspect (normally filtered)
+    insert_or_update_begin_date: For incremental updates (YYYY-MM-DD format)
+
+Returns:
+    List of TimeSeriesDataPoint objects with comprehensive data and quality information
+
+Raises:
+    AWDBQueryError: If station/element not found or invalid parameters
+    AWDBConnectionError: If there are network or server issues
+
+### get_stations { #soildb.awdb.client.AWDBClient.get_stations }
+
+```python
+awdb.client.AWDBClient.get_stations(
+    network_codes=None,
+    state_codes=None,
+    station_triplets=None,
+    station_names=None,
+    dco_codes=None,
+    county_names=None,
+    elements=None,
+    durations=None,
+    hucs=None,
+    return_forecast_point_metadata=False,
+    return_reservoir_metadata=False,
+    return_station_elements=False,
+    active_only=True,
+    limit=None,
+)
+```
+
+Get list of available stations with comprehensive filtering options.
+
+This method leverages the full AWDB API filtering capabilities, including wildcard support
+for station triplets, names, counties, and HUCs. All filtering is performed server-side
+for optimal performance.
+
+Args:
+    network_codes: Filter by network codes (e.g., ['SCAN', 'SNTL']). Supports wildcards like ['*:OR:*'].
+    state_codes: Filter by state codes (e.g., ['OR', 'WA'])
+    station_triplets: Filter by station triplets with wildcards (e.g., ['*:OR:SNTL', '302:*:*'])
+    station_names: Filter by station names with wildcards (e.g., ['*Lake*', 'Alab*'])
+    dco_codes: Filter by DCO codes
+    county_names: Filter by county names with wildcards (e.g., ['*County', 'Wall*'])
+    elements: Filter stations with specific elements (format: elementCode:heightDepth:ordinal, supports wildcards)
+    durations: Filter stations by data durations (HOURLY, DAILY, SEMIMONTHLY, MONTHLY, CALENDAR_YEAR, WATER_YEAR, SEASONAL)
+    hucs: Filter by HUC codes with wildcards (e.g., ['170601*', '*050101'])
+    return_forecast_point_metadata: Include forecast point metadata for applicable stations
+    return_reservoir_metadata: Include reservoir metadata for applicable stations
+    return_station_elements: Include detailed station elements information
+    active_only: Return only active stations (default: True)
+
+Returns:
+    List of StationInfo objects with enhanced metadata based on request parameters
+
+Raises:
+    AWDBQueryError: If the request parameters are invalid
+    AWDBConnectionError: If there are network or server issues
+
+Examples:
+    # Get all SNOTEL stations in Oregon or Washington
+    stations = client.get_stations(station_triplets=['*:OR:SNTL', '*:WA:SNTL'])
+
+    # Get stations with soil moisture sensors in California
+    stations = client.get_stations(elements=['SMS:*'], state_codes=['CA'])
+
+    # Get stations in specific HUC areas
+    stations = client.get_stations(hucs=['170601*'])

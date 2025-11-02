@@ -5,3 +5,7 @@ exceptions.SDAResponseError(message, query=None, details=None)
 ```
 
 Raised when SDA returns an invalid or unexpected response format.
+
+This occurs when the SDA service returns a response that cannot be parsed
+or validated. Unlike SDAQueryError, this indicates the query was accepted
+but the response was malformed.

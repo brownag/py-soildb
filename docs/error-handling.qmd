@@ -1,0 +1,419 @@
+---
+title: "Error Handling"
+description: "Comprehensive guide to error handling in py-soildb"
+---
+
+## Overview
+
+py-soildb provides a structured exception hierarchy to help you handle errors gracefully. All exceptions inherit from `SoilDBError`, which allows you to catch any soildb-specific error.
+
+## Exception Hierarchy
+
+```
+SoilDBError (base for all soildb exceptions)
+├── SDANetworkError (network/connection related)
+│   ├── SDAConnectionError (connection failures)
+│   ├── SDATimeoutError (request timeouts)
+│   └── SDAMaintenanceError (service maintenance)
+├── SDAQueryError (query execution failures)
+│   └── SDAResponseError (invalid response format)
+└── AWDBError (AWDB service errors)
+    ├── AWDBConnectionError (connection failures)
+    └── AWDBQueryError (query failures)
+```
+
+## SDA Service Errors
+
+### SDANetworkError
+
+Base exception for all network-related SDA errors. Catch this to handle connection problems, timeouts, and maintenance windows.
+
+```python
+import asyncio
+from soildb import SDAClient, Query
+from soildb.exceptions import SDANetworkError
+
+async def fetch_with_retry():
+    async with SDAClient() as client:
+        query = Query().select("mukey", "muname").from_("mapunit").where("areasymbol = 'IA109'")
+        
+        try:
+            result = await client.execute(query)
+            return result.to_pandas()
+        except SDANetworkError as e:
+            print(f"Network error: {e}")
+            # Implement retry logic or fallback
+            raise
+```
+
+### SDAConnectionError
+
+Raised when there are connection issues with the SDA service (HTTP errors, DNS failures, etc.). Does NOT include timeouts or maintenance windows.
+
+```python
+from soildb.exceptions import SDAConnectionError
+
+async def fetch_mapunits():
+    async with SDAClient() as client:
+        query = Query().select("*").from_("mapunit").limit(10)
+        
+        try:
+            return await client.execute(query)
+        except SDAConnectionError as e:
+            print(f"Failed to connect: {e}")
+            # Check internet connection or SDA service status
+            # Implement exponential backoff retry
+            raise
+```
+
+### SDATimeoutError
+
+Raised when a request to SDA times out. Timeouts can result from network latency, high server load, or complex queries.
+
+```python
+from soildb.exceptions import SDATimeoutError
+
+async def fetch_with_timeout_handling():
+    async with SDAClient(timeout=30) as client:  # 30 second timeout
+        query = Query().select("*").from_("chorizon").limit(1000)
+        
+        try:
+            return await client.execute(query)
+        except SDATimeoutError:
+            print("Request timed out. Try simplifying your query or increasing timeout.")
+            # Strategies:
+            # 1. Break query into smaller chunks with pagination
+            # 2. Reduce number of columns selected
+            # 3. Add more specific WHERE conditions
+            raise
+```
+
+### SDAMaintenanceError
+
+Raised when the SDA service is under maintenance. This is typically temporary. SDA undergoes daily maintenance from 12:45 AM to 1 AM Central Time.
+
+```python
+from soildb.exceptions import SDAMaintenanceError
+
+async def fetch_with_maintenance_check():
+    async with SDAClient() as client:
+        query = Query().select("mukey").from_("mapunit").limit(5)
+        
+        try:
+            return await client.execute(query)
+        except SDAMaintenanceError:
+            print("SDA is under maintenance. Please try again in a few minutes.")
+            # Implement delayed retry or alert user
+            import asyncio
+            await asyncio.sleep(60)  # Wait 1 minute before retrying
+            return await client.execute(query)
+```
+
+### SDAQueryError
+
+Raised when a query fails or returns invalid results (SQL syntax errors, invalid table names, etc.).
+
+```python
+from soildb.exceptions import SDAQueryError
+
+async def fetch_with_query_validation():
+    async with SDAClient() as client:
+        # This query has invalid syntax
+        query = Query().select("mukey, muname").from_("mapunit").where("areasymbol = 'INVALID'")
+        
+        try:
+            return await client.execute(query)
+        except SDAQueryError as e:
+            print(f"Query error: {e.message}")
+            if e.query:
+                print(f"Failed query: {e.query}")
+            if e.details:
+                print(f"SDA details: {e.details}")
+            # Fix the query and retry
+            raise
+```
+
+### SDAResponseError
+
+Raised when SDA returns an invalid or unexpected response format. The query was accepted but the response was malformed.
+
+```python
+from soildb.exceptions import SDAResponseError
+
+async def fetch_with_response_validation():
+    async with SDAClient() as client:
+        query = Query().select("mukey", "muname").from_("mapunit").limit(10)
+        
+        try:
+            result = await client.execute(query)
+            # Response parsing happens in to_pandas()
+            return result.to_pandas()
+        except SDAResponseError as e:
+            print(f"Response format error: {e}")
+            # This indicates a potential SDA service issue
+            # Try again after a short delay
+            raise
+```
+
+## AWDB Service Errors
+
+### AWDBConnectionError
+
+Raised when there are connection issues with the AWDB service (timeouts, network errors, rate limiting).
+
+```python
+from soildb.awdb import get_soil_moisture_data
+from soildb.exceptions import AWDBConnectionError
+
+async def fetch_awdb_data():
+    try:
+        data = await get_soil_moisture_data(
+            latitude=42.0,
+            longitude=-93.6,
+            start_date="2024-01-01",
+            end_date="2024-12-31"
+        )
+        return data
+    except AWDBConnectionError as e:
+        print(f"AWDB connection failed: {e}")
+        # Check AWDB service status or network connection
+        raise
+```
+
+### AWDBQueryError
+
+Raised when an AWDB query fails (invalid parameters, missing data).
+
+```python
+from soildb.awdb import get_station_data
+from soildb.exceptions import AWDBQueryError
+
+async def fetch_station_data():
+    try:
+        # Query with invalid station ID
+        data = await get_station_data(station_id="INVALID_ID")
+        return data
+    except AWDBQueryError as e:
+        print(f"AWDB query failed: {e}")
+        # Validate parameters and try again
+        raise
+```
+
+## Common Error Patterns and Recovery
+
+### Pattern 1: Retry with Exponential Backoff
+
+```python
+import asyncio
+from soildb import SDAClient, Query
+from soildb.exceptions import SDANetworkError
+
+async def fetch_with_exponential_backoff(max_retries: int = 3):
+    """Retry with exponential backoff on network errors."""
+    async with SDAClient() as client:
+        query = Query().select("*").from_("mapunit").limit(10)
+        
+        for attempt in range(max_retries):
+            try:
+                return await client.execute(query)
+            except SDANetworkError as e:
+                if attempt == max_retries - 1:
+                    raise  # Last attempt failed
+                
+                wait_time = 2 ** attempt  # 1s, 2s, 4s...
+                print(f"Attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+```
+
+### Pattern 2: Handle Maintenance Windows
+
+```python
+import asyncio
+from soildb import SDAClient, Query
+from soildb.exceptions import SDAMaintenanceError, SDANetworkError
+from datetime import datetime
+
+async def fetch_with_maintenance_awareness():
+    """Check time and avoid SDA during maintenance window."""
+    # SDA maintenance: 12:45 AM - 1 AM Central Time daily
+    now = datetime.now()
+    
+    if 0 <= now.hour < 1:  # Avoid maintenance window
+        print("Waiting for SDA maintenance window to close...")
+        await asyncio.sleep(120)
+    
+    async with SDAClient() as client:
+        query = Query().select("*").from_("mapunit").limit(10)
+        
+        try:
+            return await client.execute(query)
+        except SDAMaintenanceError:
+            # Still in maintenance? Wait and retry
+            await asyncio.sleep(60)
+            return await client.execute(query)
+```
+
+### Pattern 3: Graceful Degradation
+
+```python
+from soildb import SDAClient, Query
+from soildb.exceptions import SDAQueryError, SDATimeoutError
+
+async def fetch_with_fallback():
+    """Try detailed query, fallback to simpler query on timeout."""
+    async with SDAClient(timeout=10) as client:
+        # Try detailed query first
+        detailed_query = Query().select(
+            "mukey", "muname", "muacres", "mukey"
+        ).from_("mapunit").where("areasymbol = 'IA109'")
+        
+        try:
+            result = await client.execute(detailed_query)
+            return result.to_pandas()
+        except SDATimeoutError:
+            print("Detailed query timed out, trying simpler query...")
+            
+            # Fallback to simpler query
+            simple_query = Query().select(
+                "mukey", "muname"
+            ).from_("mapunit").where("areasymbol = 'IA109'").limit(100)
+            
+            return await client.execute(simple_query)
+```
+
+### Pattern 4: Error Logging and Monitoring
+
+```python
+import logging
+from soildb import SDAClient, Query
+from soildb.exceptions import SoilDBError, SDANetworkError, SDAQueryError
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def fetch_with_logging():
+    """Comprehensive error logging for monitoring."""
+    async with SDAClient() as client:
+        query = Query().select("*").from_("mapunit").limit(10)
+        
+        try:
+            logger.info(f"Executing query: {query}")
+            result = await client.execute(query)
+            logger.info(f"Query successful, returned {len(result)} rows")
+            return result
+        except SDANetworkError as e:
+            logger.error(f"Network error: {e}", exc_info=True)
+            raise
+        except SDAQueryError as e:
+            logger.error(f"Query error: {e}", exc_info=True)
+            raise
+        except SoilDBError as e:
+            logger.error(f"Unexpected soildb error: {e}", exc_info=True)
+            raise
+```
+
+## Best Practices
+
+### 1. Catch Specific Exceptions
+
+```python
+# Good: Specific error handling
+try:
+    result = await client.execute(query)
+except SDATimeoutError:
+    # Handle timeouts specifically
+    pass
+except SDAConnectionError:
+    # Handle connection errors differently
+    pass
+
+# Avoid: Catching too broadly
+try:
+    result = await client.execute(query)
+except Exception:  # Too broad!
+    pass
+```
+
+### 2. Provide User-Friendly Error Messages
+
+```python
+from soildb.exceptions import SDANetworkError, SDAQueryError
+
+try:
+    result = await client.execute(query)
+except SDATimeoutError:
+    print("Your query took too long. Try selecting fewer columns or narrowing your search area.")
+except SDAConnectionError:
+    print("Unable to connect to the soil data service. Check your internet connection.")
+except SDAQueryError as e:
+    print(f"There's an error in your query: {e.message}")
+```
+
+### 3. Use Context Managers for Cleanup
+
+```python
+from soildb import SDAClient
+
+# Always use async context manager to ensure cleanup
+async with SDAClient() as client:
+    try:
+        result = await client.execute(query)
+    except Exception as e:
+        # Connection automatically closed even on error
+        print(f"Error: {e}")
+```
+
+### 4. Include Details in Error Context
+
+```python
+from soildb.exceptions import SDAQueryError
+
+try:
+    result = await client.execute(query)
+except SDAQueryError as e:
+    # Log all available information
+    error_info = {
+        "message": e.message,
+        "query": e.query,
+        "details": e.details,
+        "type": type(e).__name__
+    }
+    logger.error(f"Query failed: {error_info}")
+    raise
+```
+
+## Testing Error Handling
+
+```python
+import pytest
+from soildb.exceptions import SDAConnectionError, SDAQueryError
+
+@pytest.mark.asyncio
+async def test_connection_error_recovery():
+    """Test recovery from connection errors."""
+    with pytest.raises(SDAConnectionError):
+        async with SDAClient() as client:
+            # This will raise SDAConnectionError due to invalid host
+            raise SDAConnectionError("Connection failed")
+
+@pytest.mark.asyncio
+async def test_query_error_details():
+    """Test query error includes details."""
+    error = SDAQueryError(
+        message="Invalid column",
+        query="SELECT invalid_column FROM mapunit",
+        details="Column 'invalid_column' does not exist"
+    )
+    
+    assert "Invalid column" in str(error)
+    assert "invalid_column" in str(error)
+```
+
+## Summary
+
+- **Catch specific exceptions** for different error scenarios
+- **Use exponential backoff** for retry logic
+- **Check maintenance windows** when appropriate
+- **Implement graceful degradation** by falling back to simpler queries
+- **Log errors comprehensively** for debugging and monitoring
+- **Provide user-friendly messages** for application users

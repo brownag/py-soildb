@@ -6,13 +6,30 @@ query.Query()
 
 Builder for SQL queries against Soil Data Access.
 
+Unified query builder supporting both regular SQL queries and spatial queries.
+
+Spatial queries can be constructed by chaining spatial filter methods:
+- intersects_bbox(): Filter by bounding box intersection
+- contains_point(): Filter by point containment
+- intersects_geometry(): Filter by geometry intersection using WKT
+
+Examples:
+    # Regular query
+    query = Query().select("mukey", "muname").from_("mapunit").where("areasymbol = 'IA109'")
+
+    # Spatial query (same Query class!)
+    query = Query().select("mukey").from_("mupolygon").contains_point(-93.5, 42.5)
+
 ## Methods
 
 | Name | Description |
 | --- | --- |
+| [contains_point](#soildb.query.Query.contains_point) | Add a point containment filter (spatial query). |
 | [from_](#soildb.query.Query.from_) | Set the FROM clause. |
 | [from_sql](#soildb.query.Query.from_sql) | Create a query from raw SQL. |
 | [inner_join](#soildb.query.Query.inner_join) | Add an INNER JOIN clause. |
+| [intersects_bbox](#soildb.query.Query.intersects_bbox) | Add a bounding box intersection filter (spatial query). |
+| [intersects_geometry](#soildb.query.Query.intersects_geometry) | Add a geometry intersection filter using WKT (spatial query). |
 | [join](#soildb.query.Query.join) | Add a JOIN clause. |
 | [left_join](#soildb.query.Query.left_join) | Add a LEFT JOIN clause. |
 | [limit](#soildb.query.Query.limit) | Set the LIMIT (uses TOP in SQL Server). |
@@ -20,6 +37,21 @@ Builder for SQL queries against Soil Data Access.
 | [select](#soildb.query.Query.select) | Set the SELECT clause. |
 | [to_sql](#soildb.query.Query.to_sql) | Build the SQL query string. |
 | [where](#soildb.query.Query.where) | Add a WHERE condition. |
+
+### contains_point { #soildb.query.Query.contains_point }
+
+```python
+query.Query.contains_point(x, y)
+```
+
+Add a point containment filter (spatial query).
+
+Args:
+    x: Longitude of the point.
+    y: Latitude of the point.
+
+Returns:
+    Query: This Query instance for method chaining.
 
 ### from_ { #soildb.query.Query.from_ }
 
@@ -60,6 +92,37 @@ Add an INNER JOIN clause.
 Args:
     table: Name of the table to join.
     on_condition: JOIN condition (ON clause).
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### intersects_bbox { #soildb.query.Query.intersects_bbox }
+
+```python
+query.Query.intersects_bbox(min_x, min_y, max_x, max_y)
+```
+
+Add a bounding box intersection filter (spatial query).
+
+Args:
+    min_x: Minimum longitude (west bound).
+    min_y: Minimum latitude (south bound).
+    max_x: Maximum longitude (east bound).
+    max_y: Maximum latitude (north bound).
+
+Returns:
+    Query: This Query instance for method chaining.
+
+### intersects_geometry { #soildb.query.Query.intersects_geometry }
+
+```python
+query.Query.intersects_geometry(wkt)
+```
+
+Add a geometry intersection filter using WKT (spatial query).
+
+Args:
+    wkt: Well-Known Text representation of the geometry.
 
 Returns:
     Query: This Query instance for method chaining.
@@ -145,6 +208,8 @@ query.Query.to_sql()
 ```
 
 Build the SQL query string.
+
+Supports both regular SQL queries and spatial queries with geometry filters.
 
 Returns:
     str: The complete SQL query string.

@@ -34,17 +34,24 @@ client = SDAClient(
 
 ### `Query`
 
-SQL query builder with fluent interface.
+SQL query builder with fluent interface. This is the only query builder class in v0.4.0 (SpatialQuery and QueryBuilder were removed).
 
 ```{python}
 from soildb import Query
 
+# Basic query
 query = (Query()
     .select("mukey", "muname")
     .from_("mapunit")
     .where("mukind = 'Series'")
     .order_by("muname")
     .limit(100))
+
+# Spatial query with bbox
+query = (Query()
+    .select("mukey", "geometry")
+    .from_("mupolygon")
+    .where("areasymbol = 'IA109'"))
 ```
 
 **Methods:**
@@ -58,74 +65,46 @@ query = (Query()
 - `limit(count)` - Add LIMIT clause
 - `to_sql()` - Generate SQL string
 
-### `SpatialQueryBuilder`
+### Query Templates
 
-Generic spatial query builder class. `SpatialQueryBuilder` builds a `Query` object but does not execute it. For async execution, use the `spatial_query` function.
+For common query patterns, use the `query_templates` module instead of building queries manually:
 
 ```{python}
 #| eval: false
-from soildb import spatial_query
+from soildb import query_templates
 
-# For a direct async operation, use the `spatial_query` function.
-response = await spatial_query(
-    geometry="POINT(-93.6 42.0)",
-    table="mupolygon",
-    return_type="spatial"
-)
+# Get map units for survey area (replaces QueryBuilder.mapunits_by_legend())
+query = query_templates.query_mapunits_by_legend("IA109")
+
+# Get components for survey area (replaces QueryBuilder.components_by_legend())
+query = query_templates.query_components_by_legend("IA109")
+
+# Get components at point (replaces QueryBuilder.components_at_point())
+query = query_templates.query_components_at_point(-93.6, 42.0)
+
+# Get available survey areas (replaces QueryBuilder.available_survey_areas())
+query = query_templates.query_available_survey_areas()
+
+# Get survey area boundaries (replaces QueryBuilder.survey_area_boundaries())
+query = query_templates.query_survey_area_boundaries()
+
+# Custom SQL query
+query = query_templates.query_from_sql("SELECT * FROM mapunit WHERE areasymbol = 'IA109'")
 ```
 
-### `SpatialQuery`
+**Available Templates:**
 
-Query builder for spatial queries.
-
-```{python}
-from soildb import SpatialQuery
-
-query = (SpatialQuery()
-    .select("mukey", "geometry")
-    .from_("mupolygon")
-    .intersects_bbox(-93.7, 42.0, -93.6, 42.1)
-    .where("areasymbol = 'IA109'")
-)
-```
-
-**Methods:**
-
-- `select(*columns)` - Add columns to SELECT clause
-- `from_(table)` - Set table for FROM clause
-- `where(condition)` - Add WHERE condition
-- `inner_join(table, condition)` - Add INNER JOIN
-- `left_join(table, condition)` - Add LEFT JOIN
-- `order_by(column, direction="ASC")` - Add ORDER BY
-- `limit(count)` - Add LIMIT clause
-- `intersects_bbox(min_x, min_y, max_x, max_y)` - Add bounding box intersection filter
-- `contains_point(x, y)` - Add point containment filter
-- `intersects_geometry(wkt)` - Add geometry intersection filter
-
-### `QueryBuilder`
-
-Factory methods for common queries.
-
-```{python}
-from soildb import QueryBuilder
-
-# Get map units for survey area
-query = QueryBuilder.mapunits_by_legend("IA109")
-
-# Get components at point
-query = QueryBuilder.components_at_point(-93.6, 42.0)
-```
-
-**Methods:**
-
-- `mapunits_by_legend(areasymbol)` - Map units for survey area
-- `components_by_legend(areasymbol)` - Components for survey area
-- `component_horizons_by_legend(areasymbol)` - Components and horizons for survey area
-- `components_at_point(lon, lat)` - Components at coordinate
-- `spatial_by_legend(areasymbol)` - Spatial data for map units in area
-- `mapunits_intersecting_bbox(min_x, min_y, max_x, max_y)` - Map units intersecting bbox
-- `available_survey_areas()` - List available survey areas
-- `survey_area_boundaries()` - Survey area boundary polygons
+- `query_mapunits_by_legend(areasymbol)` - Map units for survey area
+- `query_components_by_legend(areasymbol)` - Components for survey area
+- `query_component_horizons_by_legend(areasymbol)` - Components and horizons
+- `query_components_at_point(lon, lat)` - Components at coordinate
+- `query_spatial_by_legend(areasymbol)` - Spatial data for map units
+- `query_mapunits_intersecting_bbox(xmin, ymin, xmax, ymax)` - Map units in bbox
+- `query_pedons_intersecting_bbox(xmin, ymin, xmax, ymax)` - Lab pedons in bbox
+- `query_available_survey_areas()` - List available survey areas
+- `query_survey_area_boundaries()` - Survey area boundary polygons
+- `query_pedon_horizons_by_pedon_keys(pedon_keys)` - Horizons for pedons
+- `query_from_sql(sql_string)` - Custom SQL query
 
 ## Response Handling
 
@@ -156,8 +135,9 @@ count = len(response)           # Number of rows
 
 - `to_pandas()` - Export to pandas DataFrame
 - `to_polars()` - Export to polars DataFrame
-- `to_geodataframe()` - Export to GeoPandas GeoDataFrame
+- `to_geodataframe()` - Export to GeoPandas GeoDataFrame (for spatial data)
 - `to_dict()` - Export to list of dictionaries
+- `to_soilprofilecollection()` - Convert to SoilProfileCollection (soil-specific)
 
 ## High-Level Functions
 
@@ -197,76 +177,67 @@ from soildb import get_sacatalog, list_survey_areas
 response = await get_sacatalog(columns=['areasymbol', 'areaname'])
 df = response.to_pandas()
 
-# Get just survey area symbols (backward compatibility)
+# Get just survey area symbols
 sacatalog = await get_sacatalog(columns=['areasymbol'])
 area_list = sacatalog.to_pandas()['areasymbol'].tolist()
 ```
 
 ## Spatial Queries
 
-### `spatial_query`
+### `spatial_query` (Unified Spatial Interface)
 
-Generic spatial query function.
+Generic spatial query function - replaces all table-specific functions (query_mupolygon, etc.)
 
 ```{python}
 #| eval: false
 from soildb import spatial_query
 
-# Point query
+# Point query for map unit polygons
 response = await spatial_query(
     geometry="POINT(-93.6 42.0)",
     table="mupolygon",
-    spatial_relation="intersects",
     return_type="tabular"
 )
 
-# Bounding box query
-bbox = {"xmin": -93.7, "ymin": 42.0, "xmax": -93.6, "ymax": 42.1}
+# Bounding box query with geometry
 response = await spatial_query(
-    geometry=bbox,
+    geometry={"xmin": -93.7, "ymin": 42.0, "xmax": -93.6, "ymax": 42.1},
     table="mupolygon",
-    spatial_relation="intersects", 
     return_type="spatial"  # Include geometry
+)
+
+# Survey area polygons
+response = await spatial_query(
+    geometry="POINT(-93.6 42.0)",
+    table="sapolygon",
+    return_type="spatial"
 )
 ```
 
 **Parameters:**
 
-- `geometry` - WKT string, bounding box dict, or Shapely geometry
-- `table` - Target table ("mupolygon", "sapolygon", etc.)
-- `spatial_relation` - Spatial relationship ("intersects", "contains", etc.)
+- `geometry` - WKT string, bounding box dict, or GeoJSON
+- `table` - Target table ("mupolygon", "sapolygon", "featpoint", "featline")
 - `return_type` - "tabular" (attributes only) or "spatial" (with geometry)
 
-### Table-Specific Functions
+### Convenience Spatial Functions
 
 ```{python}
 #| eval: false
-from soildb import (
-    query_mupolygon, query_sapolygon,
-    query_featpoint, query_featline,
-    mupolygon_in_bbox, sapolygon_in_bbox
-)
+from soildb import point_query, bbox_query
 
-# Map unit polygons
-response = await query_mupolygon("POINT(-93.6 42.0)")
+# Point query (shorthand for spatial_query with POINT geometry)
+response = await point_query(-93.6, 42.0, "mupolygon")
 
-# Survey area polygons  
-response = await query_sapolygon("POINT(-93.6 42.0)")
-
-# Feature points and lines
-response = await query_featpoint("POINT(-93.6 42.0)")
-response = await query_featline("POINT(-93.6 42.0)")
-
-# Bounding box queries
-response = await mupolygon_in_bbox(-93.7, 42.0, -93.6, 42.1)
-response = await sapolygon_in_bbox(-93.7, 42.0, -93.6, 42.1)
+# Bounding box query (shorthand for spatial_query with bbox)
+response = await bbox_query((-93.7, 42.0, -93.6, 42.1), "mupolygon")
 ```
 
 ## Bulk Data Fetching
 
-### `fetch_by_keys`
+### `fetch_by_keys` (Unified Fetch Interface)
 
-Generic bulk data retrieval with pagination.
+Generic bulk data retrieval with pagination - replaces all specialized functions (fetch_component_by_mukey, etc.)
 
 ```{python}
 #| eval: false
@@ -281,50 +252,76 @@ response = await fetch_by_keys(
     chunk_size=1000,     # Pagination size
     include_geometry=False
 )
-```
 
-### Specialized Functions
-
-```{python}
-#| eval: false
-from soildb import (
-    fetch_mapunit_polygon,
-    fetch_component_by_mukey,
-    fetch_chorizon_by_cokey,
-    fetch_survey_area_polygon
+# Fetch components by mukey
+response = await fetch_by_keys(
+    keys=mukeys,
+    table="component",
+    key_column="mukey"
 )
 
-mukeys = [408337, 408339, 408340]
-areasymbols = ["IA109", "IA113"]
-
-# Map unit polygons with geometry
-response = await fetch_mapunit_polygon(mukeys)
-
-# Components for map units
-response = await fetch_component_by_mukey(mukeys)
-
-# Extract cokey from components
+# Fetch horizons by cokey
 cokeys = response.to_pandas()['cokey'].tolist()
+response = await fetch_by_keys(
+    keys=cokeys,
+    table="chorizon",
+    key_column="cokey"
+)
 
-# Horizons for components
-response = await fetch_chorizon_by_cokey(cokeys)
-
-# Survey area polygons
-response = await fetch_survey_area_polygon(areasymbols)
+# Fetch spatial data with geometry
+response = await fetch_by_keys(
+    keys=mukeys,
+    table="mupolygon",
+    include_geometry=True
+)
 ```
 
-### Key Extraction
+**Parameters:**
+
+- `keys` - List of keys to fetch
+- `table` - Target table
+- `key_column` - Column name for filtering (auto-detected if known table)
+- `columns` - Specific columns to return (optional)
+- `chunk_size` - Pagination size (default 1000)
+- `include_geometry` - Include geometry column (for spatial tables)
+
+### Key Extraction Helpers
 
 ```{python}
 #| eval: false
 from soildb import get_mukey_by_areasymbol, get_cokey_by_mukey
 
 # Get mukeys for survey areas
-mukeys = await get_mukey_by_areasymbol(areasymbols)
+mukeys = await get_mukey_by_areasymbol(["IA109", "IA113"])
 
-# Get cokeys for map units
+# Get cokeys for map units (major components only)
 cokeys = await get_cokey_by_mukey(mukeys, major_components_only=True)
 ```
+
+## AWDB Integration (NEW in v0.4.0)
+
+### Soil Water Availability Monitoring
+
+```{python}
+#| eval: false
+from soildb.awdb_integration import get_water_availability_by_location
+
+# Get water availability data for a location
+water_data = await get_water_availability_by_location(
+    lat=42.0,
+    lon=-93.6,
+    start_date="2024-01-01",
+    end_date="2024-12-31"
+)
+
+# Results include:
+# - Soil properties (e.g., available water capacity)
+# - Environmental data (soil moisture, temperature)
+# - Water stress indicators
+# - Time series analysis
+```
+
+See [AWDB Integration Guide](awdb.qmd) for detailed documentation.
 
 ## Error Handling
 
@@ -391,4 +388,3 @@ client = SDAClient(
     max_retries=3,       # Retry attempts
     retry_delay=1.0      # Delay between retries
 )
-```
