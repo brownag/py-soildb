@@ -1,8 +1,9 @@
 """
 Air and Water Database (AWDB) module for SCAN/SNOTEL data access.
 
-This module provides access to real-time monitoring data from SCAN (Soil Climate Analysis Network)
-and SNOTEL (SNOwpack TELemetry) stations operated by the USDA Natural Resources Conservation Service.
+This module provides access to real-time monitoring data from SCAN (Soil Climate
+Analysis Network) and SNOTEL (SNOwpack TELemetry) stations operated by the USDA
+Natural Resources Conservation Service.
 
 SCAN/SNOTEL stations provide real-time monitoring of:
 - Soil moisture and temperature at multiple depths

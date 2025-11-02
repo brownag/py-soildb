@@ -14,8 +14,6 @@ Use these functions to:
 
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
-
 from .awdb import convenience as awdb_convenience
 from .awdb.exceptions import AWDBError
 from .client import SDAClient

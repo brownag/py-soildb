@@ -243,14 +243,8 @@ class SPCWarnings:
     
     @staticmethod
     def warn_default_columns():
-        """Warn that default column names are being used."""
-        warnings.warn(
-            "Using default SDA column names (cokey, chkey, hzdept_r, hzdepb_r). "
-            "If your data uses different column names, provide explicit column parameters. "
-            "See spc_presets for preset configurations.",
-            UserWarning,
-            stacklevel=3,
-        )
+        """Placeholder for warning that default column names are being used."""
+        return
     
     @staticmethod
     def warn_fallback_resolution(original: str, resolved: str):
@@ -264,13 +258,8 @@ class SPCWarnings:
     
     @staticmethod
     def warn_missing_site_data():
-        """Warn that site-level data was not provided."""
-        warnings.warn(
-            "No site-level data provided. The SoilProfileCollection will only contain horizon data. "
-            "To include site metadata, provide site_data DataFrame.",
-            UserWarning,
-            stacklevel=3,
-        )
+        """Placeholder for warning that site-level data was not provided."""
+        return
     
     @staticmethod
     def warn_invalid_depths(invalid_count: int):
@@ -288,8 +277,7 @@ class SPCWarnings:
         """Warn about missing optional columns."""
         if missing:
             warnings.warn(
-                f"Optional columns not found: {missing}. "
-                "The SoilProfileCollection will work but may have less information.",
+                f"Optional columns not found: {missing}. ",
                 UserWarning,
                 stacklevel=3,
             )
