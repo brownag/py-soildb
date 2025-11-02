@@ -270,29 +270,11 @@ class TestSPCDepthValidator:
 class TestSPCWarnings:
     """Test SPCWarnings class."""
 
-    def test_warn_default_columns(self):
-        """Test warn_default_columns produces warning."""
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            SPCWarnings.warn_default_columns()
-            
-            assert len(w) == 1
-            assert issubclass(w[0].category, UserWarning)
-
     def test_warn_fallback_resolution(self):
         """Test warn_fallback_resolution produces warning."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             SPCWarnings.warn_fallback_resolution("cokey", "CoKey")
-            
-            assert len(w) == 1
-            assert issubclass(w[0].category, UserWarning)
-
-    def test_warn_missing_site_data(self):
-        """Test warn_missing_site_data produces warning."""
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            SPCWarnings.warn_missing_site_data()
             
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)

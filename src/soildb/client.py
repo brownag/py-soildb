@@ -3,7 +3,7 @@ HTTP client for Soil Data Access web service.
 """
 
 import asyncio
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import httpx
 

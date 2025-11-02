@@ -2,7 +2,6 @@
 AWDB (Air and Water Database) client for soildb.
 """
 
-import asyncio
 import json
 from datetime import datetime
 from math import atan2, cos, radians, sin, sqrt
