@@ -4,7 +4,34 @@
 fetch.get_mukey_by_areasymbol(areasymbols, client=None)
 ```
 
-Get all mukeys for given area symbols.
+Get all mukeys for given area symbols (TIER 4 - Helper).
 
-This is useful for getting all map units in specific survey areas
-before fetching detailed data.
+**WHEN TO USE THIS**:
+- You know the survey area(s) but need to discover all map units
+- Planning multi-step fetch operations
+- Building key lists for fetch_by_keys()
+
+**DESIGN - Why this helper exists**:
+- Convenience: Discovers all mukeys in survey areas
+- Use before: fetch_by_keys(..., "component", key_column="mukey")
+- Performance: Small result (quick execution)
+
+Args:
+    areasymbols: List of survey area symbols (e.g., ["IA001", "IA002"])
+    client: Required SDA client instance
+
+Returns:
+    List of all mukeys found in specified survey areas
+
+Examples:
+    # Discover mukeys in survey areas
+    >>> mukeys = await get_mukey_by_areasymbol(["IA001", "IA002"])
+    >>> print(f"Found {len(mukeys)} map units")
+
+    # Then fetch components for those map units
+    >>> components = await fetch_by_keys(mukeys, "component", key_column="mukey")
+    >>> df = components.to_pandas()
+
+See Also:
+    get_cokey_by_mukey() - Discover cokeys from mukeys
+    fetch_by_keys() - Use discovered keys to fetch data

@@ -4,4 +4,8 @@
 exceptions.SDAMaintenanceError(message, details=None)
 ```
 
-Raised when the SDA service is under daily (or other) maintenance.
+Raised when the SDA service is under maintenance.
+
+SDA undergoes daily maintenance typically from 12:45 AM to 1 AM Central Time.
+This exception indicates temporary unavailability rather than a permanent error.
+It inherits from SDANetworkError as the service is temporarily unreachable.

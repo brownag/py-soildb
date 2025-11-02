@@ -5,3 +5,7 @@ exceptions.SDAQueryError(message, query=None, details=None)
 ```
 
 Raised when a query fails or returns invalid results.
+
+This includes SQL syntax errors, invalid table/column names, and other
+query-related failures. This does NOT include network errors (see SDANetworkError)
+or response parsing errors (see SDAResponseError).

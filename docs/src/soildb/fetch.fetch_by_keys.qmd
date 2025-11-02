@@ -12,47 +12,129 @@ fetch.fetch_by_keys(
 )
 ```
 
-Fetch data from a table using a list of key values with pagination.
+Fetch data from a table using a list of key values with pagination (PRIMARY INTERFACE).
 
-Similar to fetchSDA_spatial() in R soilDB, this function efficiently handles
-large lists of keys by breaking them into manageable chunks and combining results.
+This is the canonical function for bulk key-based fetching from SSURGO. It handles
+all table types, automatic pagination, and concurrent requests. Use this for most
+data fetching operations unless you need specialized behavior.
 
-Performance Notes:
+**WHEN TO USE THIS (Primary Interface)**:
+- You have a list of database keys (mukeys, cokeys, areasymbols, etc.)
+- You want to fetch data from any SSURGO table
+- You need customizable column selection
+- Standard use case for bulk operations
+
+**DESIGN - Abstraction Levels**:
+- TIER 1: fetch_by_keys() - Universal interface (RECOMMENDED)
+- TIER 2: fetch_component_by_mukey(), etc. - Deprecated wrappers
+- Migration: These Tier 2 functions wrap fetch_by_keys() for backward compatibility
+
+**WHEN NOT TO USE**:
+- For single records: Use Query + client.execute() directly
+- For spatial queries: Use spatial_query()
+- For complex multi-table operations: Use fetch_pedons_by_bbox() or fetch_pedon_horizons()
+
+**PERFORMANCE NOTES**:
 - Uses concurrent requests for chunked fetches (chunk_size < total_keys)
 - Recommended chunk_size: 500-2000 keys depending on key length and network
 - For very large datasets (>10,000 keys), consider processing in batches
-- Geometry inclusion increases response size significantly
+- Geometry inclusion increases response size significantly (~3-5x larger)
+- Optimization: Smaller chunk_size for long keys or slow network
+
+**PARAMETER GUIDE**:
+- keys: Single key (string/int) or list of keys
+- table: SSURGO table name (mapunit, component, chorizon, mupolygon, sapolygon, etc.)
+- key_column: Column to match keys against (auto-detected from table if None)
+- columns: Specific columns to retrieve (all columns if None)
+- chunk_size: Keys per query (default 1000, try 500-2000)
+- include_geometry: Add WKT geometry for spatial tables
+- client: Optional SDAClient instance (creates one if None)
+
+**TABLE KEY MAPPING** (auto-detected):
+- mapunit → mukey
+- component → cokey
+- chorizon → chkey
+- mupolygon → mukey
+- sapolygon → areasymbol
+- featpoint → featkey
+- And many others (see TABLE_KEY_MAPPING)
+
+**COLUMN SELECTION STRATEGIES**:
+- Default (None): Uses schema-defined default columns for table
+- List: ["mukey", "muname", "mustatus"] - explicit columns
+- String: "mukey, muname, mustatus" - comma-separated columns
 
 Args:
     keys: Key value(s) to fetch (single key or list of keys, e.g., mukeys, cokeys, areasymbols)
     table: Target SSURGO table name
     key_column: Column name for the key (auto-detected if None)
-    columns: Columns to select (default: all columns)
+    columns: Columns to select (default: all columns from schema, or key columns if no schema)
     chunk_size: Number of keys to process per query (default: 1000, recommended: 500-2000)
     include_geometry: Whether to include geometry as WKT for spatial tables
-    client: Optional SDA client instance
+    client: Optional SDA client instance (creates temporary client if None)
 
 Returns:
-    SDAResponse with combined results from all chunks
+    SDAResponse: Combined query results with all matching rows
+
+Raises:
+    FetchError: If keys list is empty, unknown table, or network error
+    TypeError: If keys/table parameters are invalid
 
 Examples:
-    # Fetch map unit data for specific mukeys
+    # Fetch map unit data for specific mukeys (RECOMMENDED)
     >>> mukeys = [123456, 123457, 123458]
     >>> response = await fetch_by_keys(mukeys, "mapunit")
     >>> df = response.to_pandas()
 
-    # Fetch component data with specific columns
-    >>> cokeys = ["12345:1", "12345:2", "12346:1"]
+    # With custom columns
     >>> response = await fetch_by_keys(
-    ...     cokeys, "component", columns=["cokey", "compname", "comppct_r"]
+    ...     mukeys, "mapunit",
+    ...     columns=["mukey", "muname", "muacres"]
     ... )
 
-    # Fetch spatial data with geometry
+    # Fetch components with map unit information
     >>> response = await fetch_by_keys(
-    ...     mukeys, "mupolygon", include_geometry=True
+    ...     mukeys, "component",
+    ...     key_column="mukey",
+    ...     columns=["cokey", "compname", "comppct_r"]
     ... )
-    >>> gdf = response.to_geodataframe()  # If GeoPandas available
 
-    # Fetch survey area polygons by areasymbol
-    >>> areas = ["IA109", "IA113", "MN001"]
-    >>> response = await fetch_by_keys(areas, "sapolygon")
+    # Large dataset with optimization
+    >>> large_keys = list(range(100000, 110000))  # 10,000 keys
+    >>> response = await fetch_by_keys(
+    ...     large_keys, "chorizon",
+    ...     key_column="cokey",
+    ...     chunk_size=500,  # Smaller chunks for large lists
+    ...     client=my_client
+    ... )
+    >>> df = response.to_pandas()
+    >>> print(f"Fetched {len(df)} horizon records")
+
+    # Fetch polygons with geometry for mapping
+    >>> response = await fetch_by_keys(
+    ...     ["IA001", "IA002"], "sapolygon",
+    ...     key_column="areasymbol",
+    ...     include_geometry=True
+    ... )
+    >>> gdf = response.to_geodataframe()  # Convert to GeoDataFrame
+    >>> gdf.plot()  # Map the survey area boundaries
+
+**MIGRATION FROM DEPRECATED FUNCTIONS**:
+Instead of: Use:
+    fetch_mapunit_polygon(mukeys) → fetch_by_keys(mukeys, "mupolygon")
+    fetch_component_by_mukey(mukeys) → fetch_by_keys(mukeys, "component", "mukey")
+    fetch_chorizon_by_cokey(cokeys) → fetch_by_keys(cokeys, "chorizon", "cokey")
+    fetch_survey_area_polygon(areas) → fetch_by_keys(areas, "sapolygon", "areasymbol")
+
+**ADVANCED USAGE**:
+For complex workflows combining multiple queries, consider:
+- Using get_cokey_by_mukey() to discover keys before fetching
+- Using fetch_pedons_by_bbox() for multi-table operations
+- Custom Query building for non-key-based filtering
+
+See Also:
+    fetch_by_keys_sync() - Synchronous version
+    fetch_pedons_by_bbox() - For complex multi-table operations
+    fetch_pedon_horizons() - For pedon horizon data
+    get_cokey_by_mukey() - Discover keys before fetching
+    get_mukey_by_areasymbol() - Discover keys before fetching

@@ -1,0 +1,49 @@
+# awdb.convenience.find_stations_by_criteria { #soildb.awdb.convenience.find_stations_by_criteria }
+
+```python
+awdb.convenience.find_stations_by_criteria(
+    network_codes=None,
+    state_codes=None,
+    station_triplets=None,
+    station_names=None,
+    elements=None,
+    active_only=True,
+    limit=None,
+    include_sensor_metadata=False,
+)
+```
+
+Find stations using advanced filtering criteria with wildcard support.
+
+This function leverages the full AWDB API filtering capabilities for efficient
+server-side filtering using wildcards. When include_sensor_metadata=True, it
+automatically queries station element details to provide complete sensor inventories.
+
+Args:
+    network_codes: Network codes with wildcards (e.g., ['*:OR:*'] for all networks in OR)
+    state_codes: State codes (e.g., ['OR', 'WA'])
+    station_triplets: Station triplets with wildcards (e.g., ['*:OR:SNTL'])
+    station_names: Station names with wildcards (e.g., ['*Lake*'])
+    elements: Elements with wildcards (e.g., ['SMS:*', 'STO:-20:*'])
+    active_only: Return only active stations
+    limit: Maximum number of stations to return
+    include_sensor_metadata: Include detailed sensor information for each station
+
+Returns:
+    List of station dictionaries with optional sensor metadata
+
+Examples:
+    # Find all SNOTEL stations in Oregon
+    stations = await find_stations_by_criteria(station_triplets=['*:OR:SNTL'])
+
+    # Find stations with soil moisture sensors in California
+    stations = await find_stations_by_criteria(elements=['SMS:*'], state_codes=['CA'])
+
+    # Find stations by name pattern
+    stations = await find_stations_by_criteria(station_names=['*River*'])
+
+    # Get sensor metadata for found stations
+    stations = await find_stations_by_criteria(
+        station_triplets=['*:OR:SNTL'],
+        include_sensor_metadata=True
+    )
