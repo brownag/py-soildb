@@ -42,11 +42,21 @@ security: ## Run security checks
 	safety check
 
 docs: ## Build documentation with Quarto
-	quartodoc build --config docs/_quarto.yml
+	@echo "Extracting version from pyproject.toml..."
+	@SOILDB_VERSION=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
+	echo "Version: $$SOILDB_VERSION"; \
+	sed "s/\$${SOILDB_VERSION}/$$SOILDB_VERSION/g" docs/_quarto.yml > docs/_quarto.yml.tmp && mv docs/_quarto.yml.tmp docs/_quarto.yml; \
+	quartodoc build --config docs/_quarto.yml; \
+	sed -i "s/\"version\": \"0.0.9999\"/\"version\": \"$$SOILDB_VERSION\"/g" docs/objects.json; \
 	quarto render docs
 
 docs-serve: ## Serve documentation with Quarto and watch for changes
-	quartodoc build --config docs/_quarto.yml
+	@echo "Extracting version from pyproject.toml..."
+	@SOILDB_VERSION=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
+	echo "Version: $$SOILDB_VERSION"; \
+	sed "s/\$${SOILDB_VERSION}/$$SOILDB_VERSION/g" docs/_quarto.yml > docs/_quarto.yml.tmp && mv docs/_quarto.yml.tmp docs/_quarto.yml; \
+	quartodoc build --config docs/_quarto.yml; \
+	sed -i "s/\"version\": \"0.0.9999\"/\"version\": \"$$SOILDB_VERSION\"/g" docs/objects.json; \
 	quarto preview docs
 
 clean: ## Clean build artifacts
