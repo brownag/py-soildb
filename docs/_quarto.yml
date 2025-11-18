@@ -33,6 +33,7 @@ format:
 
 quartodoc:
   package: soildb
+  version: "0.3.0.dev0"
   dir: "src/soildb"
   sections:
     - title: "Client"
