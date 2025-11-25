@@ -48,7 +48,7 @@ async def main():
         print()
         
         if response.is_empty():
-            print("⚠️  No data retrieved.")
+            print("No data retrieved.")
             return None
         
         # Get all data as dict
@@ -75,7 +75,7 @@ async def main():
                 site_id_col="cokey"
             )
             
-            print("✅ Conversion successful!")
+            print("Conversion successful.")
             print()
             print("Results:")
             print(f"  Profiles: {len(spc)}")
@@ -101,7 +101,7 @@ async def main():
             return spc
             
         except Exception as e:
-            print(f"❌ Conversion error: {e}")
+            print(f"Conversion error: {e}")
             print(f"   Available columns: {response.columns}")
             return None
 

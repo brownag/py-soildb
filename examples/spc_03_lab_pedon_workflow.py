@@ -47,7 +47,7 @@ async def main():
         print()
         
         if response.is_empty():
-            print("❌ No data available. SDA service may be unavailable.")
+            print("No data available. SDA service may be unavailable.")
             return None
         
         # Show available presets
@@ -70,7 +70,7 @@ async def main():
                 warn_on_defaults=False
             )
             
-            print("✅ Conversion successful!")
+            print("Conversion successful.")
             print(f"  Profiles: {len(spc_std)}")
             print(f"  Horizons: {len(spc_std.horizons)}")
             print(f"  Horizon columns: {spc_std.horizons.columns.tolist()}")
@@ -102,7 +102,7 @@ async def main():
             return spc_std
             
         except Exception as e:
-            print(f"⚠️  Note: {type(e).__name__}: {e}")
+            print(f"Note: {type(e).__name__}: {e}")
             print()
             print("This may occur if:")
             print("  - Horizons have depth gaps in the queried data")
