@@ -17,7 +17,7 @@ import soildb
 [![PyPI version](https://badge.fury.io/py/soildb.svg)](https://pypi.org/project/soildb/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Python client for the USDA-NRCS Soil Data Access (SDA) web service and other National Cooperative Soil Survey data sources.
+Python client for the USDA-NRCS Soil Data Access (SDA) web service, Air and Water Database (AWDB), and other National Cooperative Soil Survey data sources.
 
 ## Overview
 
@@ -50,6 +50,10 @@ pip install soildb[all]
 - Spatial queries with points, bounding boxes, and polygons
 - Bulk data fetching with automatic pagination
 - Async I/O for high performance and concurrency
+- **NEW:** Access to AWDB (Air and Water Database) for real-time monitoring data
+- **NEW:** SCAN/SNOTEL station data with soil moisture, temperature, snow, and weather data
+- **NEW:** Advanced station filtering with wildcards and sensor discovery
+- **NEW:** Multi-depth soil data queries and forecast data retrieval
 
 ## Quick Start
 
@@ -221,9 +225,99 @@ The `component` table has a hierarchical relationship:
  - mukey (map unit key) is the parent
  - cokey (component key) is the child
 
-So when fetching components, you typically want to filter by mukey to get all components for specific map units. 
+So when fetching components, you typically want to filter by mukey to get all components for specific map units.
 
 The specialized `fetch_component_by_mukey()` convenience function handles this, but above we use the lower-level `fetch_by_keys()` with the `"mukey"` as the `key_column` to achieve the same result and demonstrate pagination over chunks with `100` rows each.
+
+## AWDB (Air and Water Database) Access
+
+**NEW in soildb:** Access real-time monitoring data from SCAN, SNOTEL, and other NRCS networks!
+
+### Quick AWDB Start
+
+```python
+from soildb.awdb import AWDBClient
+
+# Get soil moisture data from SCAN stations
+async def awdb_example():
+    async with AWDBClient() as client:
+        # Find stations with soil moisture sensors in California
+        stations = await client.get_stations(
+            elements=['SMS:*'],  # Soil moisture sensors at any depth
+            state_codes=['CA']
+        )
+
+        # Get multi-depth soil moisture data
+        if stations:
+            station = stations[0]
+            data = await client.get_station_data(
+                station.station_triplet,
+                'SMS',  # Soil moisture element
+                '2024-01-01',
+                '2024-01-10'
+            )
+            print(f"Retrieved {len(data)} soil moisture readings")
+
+# Handle async execution
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(awdb_example())
+except RuntimeError:
+    asyncio.run(awdb_example())
+```
+
+### AWDB Features
+
+- **Station Discovery**: Find stations by location, network, sensors, or name patterns
+- **Multi-Depth Soil Data**: Query soil moisture and temperature at multiple depths
+- **Real-Time Weather**: Access precipitation, temperature, wind, and solar radiation
+- **Snow Data**: SNOTEL snow water equivalent, depth, and snowmelt data
+- **Forecast Data**: Water supply and drought forecasts
+- **Quality Control**: Access to quality flags and original values
+- **Wildcard Filtering**: Advanced station filtering with `*` wildcards
+
+### Advanced Station Filtering
+
+```python
+from soildb.awdb.convenience import find_stations_by_criteria
+
+# Find all SNOTEL stations in Oregon or Washington
+snotel_stations = await find_stations_by_criteria(
+    station_triplets=['*:OR:SNTL', '*:WA:SNTL']
+)
+
+# Find stations with soil moisture sensors in specific HUC area
+soil_stations = await find_stations_by_criteria(
+    elements=['SMS:*'],
+    hucs=['170601*']  # Columbia River basin
+)
+
+# Find stations by name pattern
+lake_stations = await find_stations_by_criteria(
+    station_names=['*Lake*']
+)
+```
+
+### Multi-Depth Soil Data
+
+```python
+from soildb.awdb.convenience import get_soil_moisture_data
+
+# Get soil moisture at multiple depths for a location
+soil_data = await get_soil_moisture_data(
+    latitude=37.5,
+    longitude=-120.5,
+    start_date='2024-01-01',
+    end_date='2024-01-10',
+    depths=[-2, -4, -8, -20, -40]  # Negative = depth below surface
+)
+
+# Each depth returns time series data
+for depth, readings in soil_data.items():
+    print(f"Depth {depth}\": {len(readings)} readings")
+```
 
 # Examples
 

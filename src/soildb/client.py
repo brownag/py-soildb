@@ -16,6 +16,7 @@ from .exceptions import (
 )
 from .query import BaseQuery, Query
 from .response import SDAResponse
+from .utils import add_sync_version
 
 
 class SDAClient:
@@ -80,6 +81,7 @@ class SDAClient:
             )
             self._event_loop = current_loop
 
+    @add_sync_version
     async def close(self) -> None:
         """Close the HTTP client."""
         if self._client is not None:
@@ -87,6 +89,7 @@ class SDAClient:
             self._client = None
             self._event_loop = None
 
+    @add_sync_version
     async def connect(self) -> bool:
         """
         Test connection to SDA service.
@@ -105,6 +108,7 @@ class SDAClient:
         except Exception as e:
             raise SDAConnectionError(f"Connection test failed: {e}") from e
 
+    @add_sync_version
     async def execute(self, query: Union[BaseQuery, str]) -> SDAResponse:
         """
         Execute a query against SDA.
@@ -129,6 +133,7 @@ class SDAClient:
         sql = query.to_sql()
         return await self.execute_sql(sql)
 
+    @add_sync_version
     async def execute_sql(self, sql: str) -> SDAResponse:
         """
         Execute a raw SQL query against SDA.
@@ -245,6 +250,7 @@ class SDAClient:
         # Should never reach here, but just in case
         raise SDAQueryError("Maximum retries exceeded", query=sql)
 
+    @add_sync_version
     async def execute_many(self, queries: list[BaseQuery]) -> list[SDAResponse]:
         """
         Execute multiple queries concurrently.

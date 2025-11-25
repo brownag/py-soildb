@@ -47,13 +47,13 @@ async def main():
         component_schema = get_schema("component")
         if component_schema:
             print(
-                f"   ✓ Component schema auto-registered with {len(component_schema.columns)} columns"
+                f"    Component schema auto-registered with {len(component_schema.columns)} columns"
             )
             print(
                 f"   Default columns: {component_schema.get_default_columns()[:5]}..."
             )
         else:
-            print("   ✗ Component schema not found")
+            print("    Component schema not found")
 
         print()
 
@@ -70,11 +70,11 @@ async def main():
         mapunit_schema = get_schema("mapunit")
         if mapunit_schema:
             print(
-                f"   ✓ Mapunit schema auto-registered with {len(mapunit_schema.columns)} columns"
+                f"    Mapunit schema auto-registered with {len(mapunit_schema.columns)} columns"
             )
             print(f"   Default columns: {mapunit_schema.get_default_columns()[:5]}...")
         else:
-            print("   ✗ Mapunit schema not found")
+            print("    Mapunit schema not found")
 
         print()
 
@@ -104,10 +104,10 @@ async def main():
 
         final_schema_count = len(component_schema.columns) if component_schema else 0
         if initial_schema_count == final_schema_count:
-            print("   ✓ Schema not re-registered (counts match)")
+            print("    Schema not re-registered (counts match)")
         else:
             print(
-                f"   ✗ Schema was re-registered ({initial_schema_count} -> {final_schema_count})"
+                f"    Schema was re-registered ({initial_schema_count} -> {final_schema_count})"
             )
 
         print("\n=== Example Complete ===")

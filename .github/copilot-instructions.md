@@ -5,7 +5,7 @@ py-soildb is an async Python client for the USDA-NRCS Soil Data Access (SDA) web
 
 ## Architecture
 - **Core**: `SDAClient` (httpx-based async HTTP client) executes `Query` objects against SDA endpoints
-- **Data Hierarchy**: Mapunit → Component → Horizon (see `ColumnSets` in `query.py` for standard column groups)
+- **Data Hierarchy**: Mapunit -> Component -> Horizon (see `ColumnSets` in `query.py` for standard column groups)
 - **Async First**: All public APIs are async; use `asyncio.run()` or nest_asyncio in Jupyter
 - **Key Modules**:
   - `client.py`: HTTP client with retry logic

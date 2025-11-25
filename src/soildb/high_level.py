@@ -25,6 +25,7 @@ from .models import (
     SoilMapUnit,
 )
 from .schema_system import PedonHorizon, get_schema  # type: ignore
+from .utils import add_sync_version
 
 
 def _create_pedon_horizon_from_row(
@@ -87,6 +88,7 @@ def _create_pedon_horizon_from_row(
     )
 
 
+@add_sync_version
 async def fetch_mapunit_struct_by_point(
     latitude: float,
     longitude: float,
@@ -306,6 +308,7 @@ async def fetch_mapunit_struct_by_point(
     return map_unit  # type: ignore
 
 
+@add_sync_version
 async def fetch_pedon_struct_by_bbox(
     min_x: float,
     min_y: float,
@@ -379,10 +382,10 @@ async def fetch_pedon_struct_by_bbox(
         pedon = PedonData(
             pedon_key=processed["pedon_key"],
             pedon_id=processed["pedon_id"],
-            series=processed.get("series"),
+            taxonname=processed.get("taxonname"),
             latitude=processed.get("latitude"),
             longitude=processed.get("longitude"),
-            soil_classification=processed.get("soil_classification"),
+            taxclname=processed.get("taxclname"),
             extra_fields=processed.get("extra_fields", {}),
         )
         pedons.append(pedon)
@@ -411,6 +414,7 @@ async def fetch_pedon_struct_by_bbox(
     return pedons
 
 
+@add_sync_version
 async def fetch_pedon_struct_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
@@ -469,10 +473,10 @@ async def fetch_pedon_struct_by_id(
     pedon = PedonData(
         pedon_key=processed["pedon_key"],
         pedon_id=processed["pedon_id"],
-        series=processed.get("series"),
+        taxonname=processed.get("taxonname"),
         latitude=processed.get("latitude"),
         longitude=processed.get("longitude"),
-        soil_classification=processed.get("soil_classification"),
+        taxclname=processed.get("taxclname"),
         extra_fields=processed.get("extra_fields", {}),
     )
 
