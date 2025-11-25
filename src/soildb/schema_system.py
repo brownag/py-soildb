@@ -30,7 +30,7 @@ USAGE:
     from soildb.schemas import list_available_schemas
     available = list_available_schemas()
 
-For detailed schema design documentation, see: docs/SCHEMA_DESIGN.md
+For detailed schema design documentation, see: docs/SCHEMA_SYSTEM.md
 """
 
 from dataclasses import asdict, dataclass, field, make_dataclass

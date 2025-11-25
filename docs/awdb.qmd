@@ -62,7 +62,7 @@ async def find_property_data():
             auto_select_sensor=True  # Automatically finds best available sensor
         )
 
-        print("✅ Success!")
+        print("Success!")
         print(f"   Station: {result['site_name']} ({result['site_id']})")
         print(f"   Distance: {result['metadata']['distance_km']:.1f} km")
         print(f"   Sensor: {result['metadata']['element_string']}")
@@ -74,7 +74,7 @@ async def find_property_data():
             print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}")
 
     except Exception as e:
-        print(f"❌ Automatic selection failed: {e}")
+        print(f"Automatic selection failed: {e}")
 
     # Method 2: Advanced station discovery with sensor metadata
     print("\n2. Advanced station discovery with sensor inventory...")
@@ -94,7 +94,7 @@ async def find_property_data():
 
         # Show sensor inventory for each station
         for station in stations[:3]:  # Show first 3
-            print(f"\n📍 {station['name']} ({station['station_triplet']})")
+            print(f"\n{station['name']} ({station['station_triplet']})")
             print(f"   Distance: {station.get('distance_km', 'N/A')} km")
 
             # Show soil moisture sensors available
@@ -107,7 +107,7 @@ async def find_property_data():
                     print(f"     - Depth: {depth}\", Sensor: {ordinal}")
 
     except Exception as e:
-        print(f"❌ Station discovery failed: {e}")
+        print(f"Station discovery failed: {e}")
 
 # Run async code
 try:
@@ -172,7 +172,7 @@ async def property_based_search():
     """Find stations that measure specific environmental properties."""
 
     # Example 1: Find stations with comprehensive soil monitoring
-    print("🔍 Finding stations with soil moisture and temperature sensors...")
+    print("Finding stations with soil moisture and temperature sensors...")
 
     soil_stations = await find_stations_by_criteria(
         elements=['SMS:*', 'STO:*'],  # Soil moisture AND temperature sensors
@@ -186,7 +186,7 @@ async def property_based_search():
     print(f"Found {len(soil_stations)} SCAN stations with soil sensors")
 
     for station in soil_stations[:3]:  # Show first 3
-        print(f"\n📍 {station['name']} ({station['station_triplet']})")
+        print(f"\n{station['name']} ({station['station_triplet']})")
 
         # Show what soil sensors are available
         if 'sensor_metadata' in station:
@@ -196,7 +196,7 @@ async def property_based_search():
             print(f"   Soil temperature sensors: {soil_temp_count}")
 
     # Example 2: Find stations with snow measurements in mountainous areas
-    print("\n\n🏔️ Finding SNOTEL stations with snow data...")
+    print("\n\nFinding SNOTEL stations with snow data...")
 
     snow_stations = await find_stations_by_criteria(
         network_codes=['SNTL'],       # SNOTEL network
@@ -317,7 +317,7 @@ async def property_data_retrieval():
     """Get data for specific environmental properties with automatic sensor selection."""
 
     # Example 1: Soil moisture (automatically selects best available sensor)
-    print("🌱 Getting soil moisture data...")
+    print("Getting soil moisture data...")
     soil_result = await get_monitoring_station_data(
         latitude=39.7392,   # Denver, CO
         longitude=-104.9903,
@@ -327,13 +327,13 @@ async def property_data_retrieval():
         auto_select_sensor=True  # Automatically find best available sensor
     )
 
-    print(f"✅ Found soil moisture data at: {soil_result['site_name']}")
+    print(f"Found soil moisture data at: {soil_result['site_name']}")
     print(f"   Sensor: {soil_result['metadata']['element_string']}")
     print(f"   Data points: {len(soil_result['data_points'])}")
     print(f"   Unit: {soil_result.get('unit', 'N/A')}")
 
     # Example 2: Air temperature
-    print("\n🌡️ Getting air temperature data...")
+    print("\nGetting air temperature data...")
     temp_result = await get_monitoring_station_data(
         latitude=39.7392,
         longitude=-104.9903,
@@ -343,12 +343,12 @@ async def property_data_retrieval():
         auto_select_sensor=True
     )
 
-    print(f"✅ Found air temperature data at: {temp_result['site_name']}")
+    print(f"Found air temperature data at: {temp_result['site_name']}")
     print(f"   Data points: {len(temp_result['data_points'])}")
     print(f"   Unit: {temp_result.get('unit', 'N/A')}")
 
     # Example 3: Snow water equivalent (SWE)
-    print("\n❄️ Getting snow water equivalent data...")
+    print("\nGetting snow water equivalent data...")
     snow_result = await get_monitoring_station_data(
         latitude=39.7392,
         longitude=-104.9903,
@@ -358,7 +358,7 @@ async def property_data_retrieval():
         auto_select_sensor=True
     )
 
-    print(f"✅ Found SWE data at: {snow_result['site_name']}")
+    print(f"Found SWE data at: {snow_result['site_name']}")
     print(f"   Data points: {len(snow_result['data_points'])}")
     print(f"   Unit: {snow_result.get('unit', 'N/A')}")
 

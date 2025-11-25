@@ -47,7 +47,7 @@ async def main():
         print()
         
         if response.is_empty():
-            print("❌ No data available. SDA service may be unavailable.")
+            print("No data available. SDA service may be unavailable.")
             return None
         
         # Define custom column mappings
@@ -67,7 +67,7 @@ async def main():
         
         print(f"  Site ID column: {custom_config.site_id_col}")
         print(f"  Horizon ID column: {custom_config.horizon_id_col}")
-        print(f"  Depth columns: {custom_config.horizon_top_col} → {custom_config.horizon_bottom_col}")
+        print(f"  Depth columns: {custom_config.horizon_top_col} -> {custom_config.horizon_bottom_col}")
         print(f"  Optional columns: {len(custom_config.optional_columns or [])} columns")
         print()
         
@@ -80,7 +80,7 @@ async def main():
                 warn_on_defaults=False
             )
             
-            print("✅ Conversion successful!")
+            print("Conversion successful.")
             print()
             print("Results:")
             print(f"  Profiles: {len(spc)}")
@@ -110,7 +110,7 @@ async def main():
             return spc
             
         except Exception as e:
-            print(f"⚠️  Note: {type(e).__name__}: {e}")
+            print(f"Note: {type(e).__name__}: {e}")
             print()
             print("This may occur if:")
             print("  - Horizons have depth gaps (not all components have all depths)")

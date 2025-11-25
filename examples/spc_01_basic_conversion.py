@@ -52,14 +52,14 @@ async def main():
         print()
         
         if response.is_empty():
-            print("⚠️  No data retrieved. Try adjusting the query.")
+            print("No data retrieved. Try adjusting the query.")
             return None
         
         # Convert to SoilProfileCollection using default preset
         print("Converting to SoilProfileCollection...")
         spc = response.to_soilprofilecollection()
         
-        print("✅ Conversion successful!")
+        print("Conversion successful.")
         print()
         print("Results:")
         print(f"  Profiles (unique cokeys): {len(spc)}")

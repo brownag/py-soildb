@@ -168,7 +168,7 @@ async def run_awdb_example():
             auto_select_sensor=True,  # This is the key new feature!
         )
 
-        print("✅ Success with auto sensor selection!")
+        print("Success with auto sensor selection.")
         print(f"Station: {result['site_name']} ({result['site_id']})")
         print(f"Distance: {result['metadata']['distance_km']} km")
         print(f"Auto-selected element: {result['metadata']['element_string']}")
@@ -199,7 +199,7 @@ async def run_awdb_example():
             auto_select_sensor=False,  # Explicitly disable auto-selection
         )
 
-        print("✅ Success with manual sensor specification!")
+        print("Success with manual sensor specification.")
         print(f"Station: {result['site_name']} ({result['site_id']})")
         print(f"Element used: {result['metadata']['element_string']}")
         print(f"Data points: {len(result['data_points'])}")
@@ -258,7 +258,7 @@ async def run_awdb_example():
             v for v in variables if v["property_name"].startswith("unknown_")
         ]
 
-        print(f"✅ Known properties ({len(known_vars)}):")
+        print(f"Known properties ({len(known_vars)}):")
         for var in known_vars[:8]:  # Show first 8
             prop_name = var["property_name"]
             element_code = var["element_code"]
@@ -270,7 +270,7 @@ async def run_awdb_example():
             print(f"  ... and {len(known_vars) - 8} more known properties")
 
         if unknown_vars:
-            print(f"\n❓ Unknown properties ({len(unknown_vars)}):")
+            print(f"\nUnknown properties ({len(unknown_vars)}):")
             for var in unknown_vars[:3]:  # Show first 3
                 prop_name = var["property_name"]
                 element_code = var["element_code"]
@@ -281,13 +281,13 @@ async def run_awdb_example():
         print(f"Comprehensive inventory failed: {e}")
 
     print("\n\n=== Summary ===")
-    print("✅ Automatic sensor selection eliminates guesswork")
-    print("✅ Sensor metadata provides complete station inventories")
-    print("✅ Backward compatibility maintained for manual specification")
-    print("✅ Advanced filtering works with sensor metadata")
-    print("✅ Comprehensive property mapping covers all AWDB sensor types")
-    print("✅ Dynamic property discovery handles unknown elements gracefully")
-    print("✅ Enhanced AWDB client supports all API parameters and features")
+        print("Automatic sensor selection eliminates guesswork")
+    print("Sensor metadata provides complete station inventories")
+    print("Backward compatibility maintained for manual specification")
+    print("Advanced filtering works with sensor metadata")
+    print("Comprehensive property mapping covers all AWDB sensor types")
+    print("Dynamic property discovery handles unknown elements gracefully")
+    print("Enhanced AWDB client supports all API parameters and features")
 
 
 async def fetch_soil_moisture_example(client):

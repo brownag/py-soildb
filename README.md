@@ -21,8 +21,8 @@ Query soil survey data, environmental monitoring data, export to pandas/polars
 DataFrames, and handle spatial queries.
 
 **Note**: AWDB module provides complementary environmental data (soil moisture,
-temperature, precipitation). See [AWDB Integration Guide](docs/AWDB_INTEGRATION_GUIDE.md)
-for when and how to use AWDB with soil data.
+temperature, precipitation). See the documentation in `docs/awdb.qmd` for guidance
+on how to use AWDB with soil data.
 
 ## Installation
 
@@ -131,8 +131,7 @@ except RuntimeError:
 result
 ```
 
-For comprehensive async usage, see the [Async Programming
-Guide](docs/async.md).
+For comprehensive async usage, see the [Async Programming Guide](docs/async.qmd).
 
 ### Synchronous Usage
 

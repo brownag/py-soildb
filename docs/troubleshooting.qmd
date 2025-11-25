@@ -65,10 +65,10 @@ description: "Solutions to common issues with py-soildb"
    from soildb import fetch_by_keys
    
    # Instead of fetching all components at once:
-   # ❌ Too large for one query
+   # Bad: Too large for one query
    # all_components = await fetch_by_keys(all_mukeys, "component", "mukey")
    
-   # ✅ Break into batches
+   # Good: Break into batches
    batch_size = 100
    all_components = []
    for i in range(0, len(mukeys), batch_size):
@@ -81,7 +81,7 @@ description: "Solutions to common issues with py-soildb"
    ```python
    from soildb import Query
    
-   # ❌ Requesting too many columns and complex conditions
+   # Bad: Requesting too many columns and complex conditions
    complex_query = Query().select(
        "mukey", "muname", "muacres", "mapunitsymbol",
        "slopegradient", "flodfreqdcd", "comp_id", "coname",
@@ -91,7 +91,7 @@ description: "Solutions to common issues with py-soildb"
        "areasymbol IN ('IA001', 'IA003', 'IA005', 'IA007')"
    )
    
-   # ✅ Start with essential columns
+   # Good: Start with essential columns
    simple_query = Query().select(
        "mukey", "muname"
    ).from_("mapunit").where("areasymbol = 'IA001'")
@@ -127,10 +127,10 @@ description: "Solutions to common issues with py-soildb"
 
 1. **Check column names** (case-sensitive, no spaces)
    ```python
-   # ❌ Wrong column names
+   # Bad: Wrong column names
    bad_query = Query().select("muacres").from_("mapunit")
    
-   # ✅ Correct SSURGO names
+   # Good: Correct SSURGO names
    good_query = Query().select("muacres").from_("mapunit")
    ```
 
@@ -183,12 +183,12 @@ description: "Solutions to common issues with py-soildb"
    from soildb import Query
    
    # Too restrictive conditions?
-   # ❌ Might return nothing if no exact matches
+   # Bad: Might return nothing if no exact matches
    restrictive = Query().select("*").from_("mapunit").where(
        "areasymbol = 'IA109' AND muacres > 10000"
    )
    
-   # ✅ Start broad then filter
+   # Good: Start broad then filter
    broad = Query().select("mukey", "muname", "muacres").from_("mapunit").where(
        "areasymbol = 'IA109'"
    ).limit(100)
@@ -229,10 +229,10 @@ description: "Solutions to common issues with py-soildb"
 
 2. **Execute separate queries instead of complex joins**
    ```python
-   # ❌ Complex multi-table join
+   # Bad: Complex multi-table join
    # complex_query = Query().select(...).from_("mapunit").inner_join("component")...
    
-   # ✅ Multiple simple queries
+   # Good: Multiple simple queries
    from soildb import fetch_by_keys
    
    # Step 1: Get mapunits
@@ -388,10 +388,10 @@ description: "Solutions to common issues with py-soildb"
    from soildb import fetch_by_keys
    
    # Don't fetch too many keys at once
-   # ❌ Slow: All at once
+   # Bad: Slow: All at once
    # all_results = await fetch_by_keys(10000_keys, "component", "mukey")
    
-   # ✅ Fast: In batches
+   # Good: Fast: In batches
    batch_size = 100
    all_results = []
    for i in range(0, len(keys), batch_size):
@@ -426,10 +426,10 @@ description: "Solutions to common issues with py-soildb"
    ```python
    from soildb import Query
    
-   # ❌ Slow: Select all columns
+   # Bad: Slow: Select all columns
    # query = Query().select("*").from_("chorizon").limit(10000)
    
-   # ✅ Fast: Select only needed columns
+   # Good: Fast: Select only needed columns
    query = Query().select("chorizonkey", "cokey", "hzname").from_("chorizon").limit(10000)
    ```
 

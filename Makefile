@@ -81,6 +81,6 @@ pre-commit-run: ## Run pre-commit on all files
 
 examples: ## Run example scripts (basic functionality test)
 	@echo "Testing basic examples..."
-	@python -c "import soildb; print('✓ Package imports successfully')"
+	@python -c "import soildb; print('Package imports successfully')"
 	@python examples/basic_examples.py
-	@echo "✓ All examples completed successfully"
+	@echo "All examples completed successfully"

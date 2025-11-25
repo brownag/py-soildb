@@ -66,13 +66,13 @@ async def step1_query_soil_properties():
     # Query a survey area (example: IA109 - Pocahontas County, Iowa)
     areasymbol = "IA109"
     
-    print(f"📍 Querying SDA for survey area: {areasymbol}")
+    print(f"Querying SDA for survey area: {areasymbol}")
     
     # Get horizon-level soil properties
     soil_response = await get_component_water_properties(areasymbol)
     soil_df = soil_response.to_pandas()
     
-    print(f"✓ Found {soil_df['cokey'].nunique()} components with {len(soil_df)} horizons")
+    print(f"Found {soil_df['cokey'].nunique()} components with {len(soil_df)} horizons")
     
     # Get water table depth (from mapunit aggregates)
     from soildb.awdb_integration import get_water_table_depth
@@ -80,7 +80,7 @@ async def step1_query_soil_properties():
     wtable_df = wtable_response.to_pandas()
     
     # Summary statistics
-    print("\n🌱 Soil Water Properties Summary (Horizon-Level):")
+    print("\nSoil Water Properties Summary (Horizon-Level):")
     print(f"  Available Water Capacity (AWC):")
     print(f"    Mean: {soil_df['awc_r'].mean():.3f} in/in")
     print(f"    Range: {soil_df['awc_r'].min():.3f} - {soil_df['awc_r'].max():.3f}")
@@ -111,7 +111,7 @@ soil_df = asyncio.run(step1_query_soil_properties())
 
 # Display sample data showing horizon structure
 display_cols = ['muname', 'compname', 'hzname', 'hzdept_r', 'hzdepb_r', 'awc_r', 'claytotal_r']
-print("\n📋 Sample horizon data:")
+print("\nSample horizon data:")
 soil_df[display_cols].head(15)
 ```
 
@@ -127,7 +127,7 @@ latitude = 42.0
 longitude = -94.6
 max_distance_km = 50
 
-print(f"🔍 Looking for SCAN stations near ({latitude:.2f}°N, {longitude:.2f}°W)")
+print(f"Looking for SCAN stations near ({latitude:.2f}°N, {longitude:.2f}°W)")
 print(f"   Search radius: {max_distance_km} km")
 ```
 
@@ -145,7 +145,7 @@ async def step3_query_scan_moisture():
     end_date = "2024-06-30"
     start_date = "2024-01-01"
     
-    print(f"📊 Querying SCAN soil moisture: {start_date} to {end_date}")
+    print(f"Querying SCAN soil moisture: {start_date} to {end_date}")
     
     try:
         moisture_data = await get_scan_soil_moisture_profile(
@@ -153,7 +153,7 @@ async def step3_query_scan_moisture():
         )
         
         # Print station info
-        print(f"\n✓ Station: {moisture_data['site_name']}")
+        print(f"\nStation: {moisture_data['site_name']}")
         print(f"  Triplet: {moisture_data['site_id']}")
         print(f"  Distance: {moisture_data['metadata']['distance_km']} km")
         print(f"  Network: {moisture_data['metadata']['network']}")
@@ -161,7 +161,7 @@ async def step3_query_scan_moisture():
         
         return moisture_data
     except Exception as e:
-        print(f"❌ Error fetching SCAN data: {e}")
+        print(f"Error fetching SCAN data: {e}")
         print(f"\n   Note: This example uses mock data if SCAN station is unavailable")
         # Return mock data structure for demonstration
         return {
@@ -190,17 +190,17 @@ async def step4_query_weather_data():
     end_date = "2024-06-30"
     
     try:
-        print("📈 Fetching soil temperature data...")
+        print("Fetching soil temperature data...")
         temp_data = await get_scan_soil_temperature_profile(
             latitude, longitude, start_date, end_date, max_distance_km
         )
-        print(f"  ✓ {len(temp_data['data_points'])} observations")
+        print(f"  {len(temp_data['data_points'])} observations")
         
-        print("🌧️  Fetching precipitation data...")
+        print("Fetching precipitation data...")
         precip_data = await get_precipitation_data(
             latitude, longitude, start_date, end_date, max_distance_km
         )
-        print(f"  ✓ {len(precip_data['data_points'])} observations")
+        print(f"  {len(precip_data['data_points'])} observations")
         
         return temp_data, precip_data
     except Exception as e:
@@ -225,7 +225,7 @@ async def step5_water_availability():
     start_date = "2024-04-01"
     end_date = "2024-06-30"
     
-    print("💧 Estimating soil water availability...")
+    print("Estimating soil water availability...")
     print(f"   Survey area: {areasymbol}")
     print(f"   Period: {start_date} to {end_date}")
     
@@ -282,7 +282,7 @@ def assess_stress_scenarios():
         ("Severe stress", 3),
     ]
     
-    print("💧 Water Stress Assessment")
+    print("Water Stress Assessment")
     print(f"Soil: AWC = {awc_in_per_in:.2f} in/in (typical loam)")
     print("\n" + "="*70)
     
@@ -293,7 +293,7 @@ def assess_stress_scenarios():
         print(f"  Current moisture: {current_moisture_pct}%")
         print(f"  Available capacity: {stress['awc_pct']:.1f}%")
         print(f"  Stress level: {stress['stress_level'].upper()}")
-        print(f"  → {stress['description']}")
+        print(f"  -> {stress['description']}")
 
 assess_stress_scenarios()
 ```
@@ -308,7 +308,7 @@ Select appropriate SCAN soil depths to monitor based on soil texture.
 def recommend_monitoring_depths():
     """Show recommended SCAN depths for different soil textures."""
     
-    print("🎯 Recommended SCAN soil depths by texture:")
+    print("Recommended SCAN soil depths by texture:")
     print("\nDepth selection balances drainage speed and water storage:\n")
     
     scenarios = [
@@ -322,12 +322,12 @@ def recommend_monitoring_depths():
     for soil_type, clay_pct in scenarios:
         depths = get_recommended_awdb_depths_for_soil(clay_pct)
         depths_str = ", ".join(str(d) for d in sorted(depths, reverse=True))
-        print(f"  {soil_type:30s} → depths: {depths_str} inches")
+        print(f"  {soil_type:30s} -> depths: {depths_str} inches")
     
     print("\nWhy different depths?")
-    print("  • Sandy soils: Moisture drains quickly → monitor shallow")
-    print("  • Clay soils: Moisture retained longer → monitor deeper")
-    print("  • Multiple depths: Capture vertical water movement")
+    print("  - Sandy soils: Moisture drains quickly -> monitor shallow")
+    print("  - Clay soils: Moisture retained longer -> monitor deeper")
+    print("  - Multiple depths: Capture vertical water movement")
 
 recommend_monitoring_depths()
 ```
@@ -346,14 +346,14 @@ recommend_monitoring_depths()
 
 ### When to Use AWDB with SDA
 
-✅ **Use AWDB if you need:**
+Use AWDB if you need:
 - Time-series soil moisture or temperature data
 - Real field measurements to validate predictions
 - Seasonal water availability patterns
 - Irrigation scheduling guidance
 - Soil water stress assessment
 
-❌ **Don't need AWDB if:**
+Don't need AWDB if:
 - Only static soil classifications needed
 - No temporal component to analysis
 - Budget/time constraints prohibit field monitoring
