@@ -89,12 +89,12 @@ class AWDBClient(BaseDataAccessClient):
         """
         try:
             # Try to get a simple endpoint that requires no parameters
-            await self._make_request("GET", f"{self.BASE_URL}/reference-data")
+            await self._make_request("reference-data")
             return True
         except Exception as e:
             raise AWDBConnectionError(f"Connection test failed: {e}") from e
 
-    async def _make_request(
+    async def _make_request(  # type: ignore[override]
         self, endpoint: str, params: Optional[Dict[str, str]] = None
     ) -> Any:
         """Make an async request to the AWDB API with error handling.

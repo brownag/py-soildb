@@ -535,11 +535,16 @@ def filter_metadata_by_bbox(
             and bbox.get("south") is not None
             and bbox.get("north") is not None
         ):
+            # Type narrowing: we know these are not None due to checks above
+            west_val: float = bbox["west"]  # type: ignore[assignment]
+            east_val: float = bbox["east"]  # type: ignore[assignment]
+            south_val: float = bbox["south"]  # type: ignore[assignment]
+            north_val: float = bbox["north"]  # type: ignore[assignment]
             if (
-                bbox["west"] < east
-                and bbox["east"] > west
-                and bbox["south"] < north
-                and bbox["north"] > south
+                west_val < east
+                and east_val > west
+                and south_val < north
+                and north_val > south
             ):
                 results.append(metadata)
 
@@ -621,7 +626,7 @@ def get_metadata_statistics(metadata_list: List[SurveyMetadata]) -> Dict[str, An
     return {
         "count": len(metadata_list),
         "avg_scale": int(avg_scale) if avg_scale else None,
-        "publishers": sorted(list(publishers)),
+        "publishers": sorted(publishers),
         "recent_surveys": recent_count,
         "has_contact": contact_count,
         "avg_keywords": round(avg_keywords, 1),

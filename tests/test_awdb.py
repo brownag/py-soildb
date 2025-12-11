@@ -431,12 +431,12 @@ class TestConvenienceFunctions:
                     "air_temp": [{"code": "AT", "depth": "0"}],
                 }
             }
-            
+
             with patch("soildb.awdb.convenience.get_property_unit_from_api") as mock_unit:
                 mock_unit.return_value = "pct"
-                
+
                 variables = await list_available_variables("301:CA:SNTL")
-                
+
                 # Verify the function returned the expected structure
                 assert len(variables) == 2
                 soil_moisture_vars = [

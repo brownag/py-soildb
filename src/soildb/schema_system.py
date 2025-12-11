@@ -26,7 +26,7 @@ USAGE:
     from soildb.schema_system import get_schema, SCHEMAS, create_dynamic_dataclass
     schema = get_schema("mapunit")
     schema_dict = SCHEMAS["component"]
-    
+
     from soildb.schemas import list_available_schemas
     available = list_available_schemas()
 
@@ -34,7 +34,7 @@ For detailed schema design documentation, see: docs/SCHEMA_SYSTEM.md
 """
 
 from dataclasses import asdict, dataclass, field, make_dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Type
 
 if TYPE_CHECKING:
     try:
@@ -43,14 +43,13 @@ if TYPE_CHECKING:
         pd = None  # type: ignore
 
 # Import base classes and registry from modular schema system
-from .schemas import ColumnSchema, TableSchema, get_schema as schemas_get_schema
-from .schemas import list_available_schemas
-from .schemas._registry import _load_schema, _SCHEMA_LOADERS
+from .schemas import ColumnSchema, TableSchema, list_available_schemas
+from .schemas._registry import _SCHEMA_LOADERS, _load_schema
 
 
 class _LazySchemaDict(dict):
     """Dictionary wrapper that lazy-loads schemas on access.
-    
+
     Provides backward compatibility with code that uses SCHEMAS["table_name"].
     Schemas are loaded on-demand rather than all at startup, improving performance.
     """
@@ -66,7 +65,7 @@ class _LazySchemaDict(dict):
         """Check if schema exists."""
         return key in _SCHEMA_LOADERS
 
-    def keys(self) -> list:
+    def keys(self) -> list[str]:  # type: ignore[override]
         """Get all available schema table names."""
         return sorted(_SCHEMA_LOADERS.keys())
 
@@ -74,15 +73,15 @@ class _LazySchemaDict(dict):
         """Get schema or return default."""
         return _load_schema(key) or default
 
-    def items(self) -> list:
+    def items(self) -> list[tuple[str, Optional[TableSchema]]]:  # type: ignore[override]
         """Get all schema items (loads all schemas)."""
         return [(k, _load_schema(k)) for k in sorted(_SCHEMA_LOADERS.keys())]
 
-    def values(self) -> list:
+    def values(self) -> list[Optional[TableSchema]]:  # type: ignore[override]
         """Get all schema values (loads all schemas)."""
         return [_load_schema(k) for k in sorted(_SCHEMA_LOADERS.keys())]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """Iterate over schema table names."""
         return iter(sorted(_SCHEMA_LOADERS.keys()))
 
@@ -97,16 +96,16 @@ SCHEMAS = _LazySchemaDict()
 
 def get_schema(table_name: str) -> Optional[TableSchema]:
     """Get schema for a table.
-    
+
     This function provides backward compatibility with existing code.
     Schemas are lazy-loaded on first access.
-    
+
     Args:
         table_name: Name of the table schema to retrieve
-        
+
     Returns:
         TableSchema if found, None otherwise
-        
+
     Example:
         schema = get_schema("mapunit")
         if schema:
@@ -117,17 +116,17 @@ def get_schema(table_name: str) -> Optional[TableSchema]:
 
 def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
     """Add a new column to an existing schema.
-    
+
     This allows dynamic schema extension at runtime.
-    
+
     Args:
         table_name: Name of the table
         column_schema: ColumnSchema object to add
-        
+
     Example:
         from soildb.schema_system import add_column_to_schema, ColumnSchema
         from soildb.type_processors import to_optional_str
-        
+
         new_col = ColumnSchema(
             "custom_field", str, to_optional_str,
             default=True, field_name="custom_field"
@@ -148,16 +147,16 @@ def create_dynamic_dataclass(
         schema: The table schema to create the dataclass from
         name: Name for the new dataclass
         base_class: Optional base class to inherit from (for complex models)
-        
+
     Returns:
         A new dataclass type with methods for accessing extra_fields
 
     Example:
         from soildb.schema_system import get_schema, create_dynamic_dataclass
-        
+
         schema = get_schema("mapunit")
         MapUnit = create_dynamic_dataclass(schema, "MapUnit")
-        
+
         # Create instances from row data
         data = {"mukey": "123456", "muname": "Miami", "extra_fields": {}}
         mu = MapUnit(**data)
@@ -304,17 +303,17 @@ class PedonData:
 
 
 # Create dynamic dataclasses from schemas
-PedonHorizon = create_dynamic_dataclass(get_schema("pedon_horizon"), "PedonHorizon")
+PedonHorizon = create_dynamic_dataclass(get_schema("pedon_horizon"), "PedonHorizon")  # type: ignore[arg-type]
 HorizonProperty = create_dynamic_dataclass(
-    get_schema("horizon_property"), "HorizonProperty"
+    get_schema("horizon_property"), "HorizonProperty"  # type: ignore[arg-type]
 )
 AggregateHorizon = create_dynamic_dataclass(
-    get_schema("aggregate_horizon"), "AggregateHorizon"
+    get_schema("aggregate_horizon"), "AggregateHorizon"  # type: ignore[arg-type]
 )
 MapUnitComponent = create_dynamic_dataclass(
-    get_schema("map_unit_component"), "MapUnitComponent"
+    get_schema("map_unit_component"), "MapUnitComponent"  # type: ignore[arg-type]
 )
-SoilMapUnit = create_dynamic_dataclass(get_schema("soil_map_unit"), "SoilMapUnit")
+SoilMapUnit = create_dynamic_dataclass(get_schema("soil_map_unit"), "SoilMapUnit")  # type: ignore[arg-type]
 
 
 # Export all dynamically created models

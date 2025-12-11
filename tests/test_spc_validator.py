@@ -3,12 +3,13 @@ Tests for SoilProfileCollection validation utilities.
 """
 
 import warnings
-import pytest
+
 import pandas as pd
+
 from soildb.spc_validator import (
-    SPCValidationError,
     SPCColumnValidator,
     SPCDepthValidator,
+    SPCValidationError,
     SPCWarnings,
     create_spc_validation_report,
 )
@@ -25,7 +26,7 @@ class TestSPCValidationError:
             available_columns=["col3", "col4"],
             suggestion="Use col3 instead"
         )
-        
+
         assert error.message == "Test error"
         assert error.missing_columns == ["col1", "col2"]
         assert error.available_columns == ["col3", "col4"]
@@ -38,7 +39,7 @@ class TestSPCValidationError:
             missing_columns=["cokey"],
             available_columns=["siteid"],
         )
-        
+
         error_str = str(error)
         assert "Column mismatch" in error_str
 
@@ -49,7 +50,7 @@ class TestSPCValidationError:
             missing_columns=None,
             available_columns=None,
         )
-        
+
         assert error.missing_columns == []
         assert error.available_columns == []
 
@@ -61,7 +62,7 @@ class TestSPCColumnValidator:
         """Test resolve_column with exact match."""
         available = ["cokey", "chkey", "hzdept_r"]
         result = SPCColumnValidator.resolve_column("cokey", available)
-        
+
         assert result == "cokey"
 
     def test_resolve_column_case_insensitive(self):
@@ -70,7 +71,7 @@ class TestSPCColumnValidator:
         # The actual implementation does exact matching, not case-insensitive
         # So this test checks that non-matching cases return None or use fallback
         result = SPCColumnValidator.resolve_column("cokey", available)
-        
+
         # Since "cokey" (lowercase) is not in available, it will try fallbacks
         assert result is None or isinstance(result, str)
 
@@ -78,7 +79,7 @@ class TestSPCColumnValidator:
         """Test resolve_column with partial match."""
         available = ["component_key", "horizon_key", "depth_top", "depth_bottom"]
         result = SPCColumnValidator.resolve_column("cokey", available)
-        
+
         # Should find something or return None
         assert result is None or isinstance(result, str)
 
@@ -86,24 +87,24 @@ class TestSPCColumnValidator:
         """Test resolve_column returns None when not found."""
         available = ["xyz", "abc", "def"]
         result = SPCColumnValidator.resolve_column("cokey", available)
-        
+
         assert result is None
 
     def test_resolve_column_empty_list(self):
         """Test resolve_column with empty available columns."""
         result = SPCColumnValidator.resolve_column("cokey", [])
-        
+
         assert result is None
 
     def test_validate_required_columns_all_present(self):
         """Test validate_required_columns with all columns present."""
         available = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
-        
+
         is_valid, error, resolved = SPCColumnValidator.validate_required_columns(
             required, available
         )
-        
+
         assert is_valid is True
         assert error is None
         assert isinstance(resolved, dict)
@@ -112,11 +113,11 @@ class TestSPCColumnValidator:
         """Test validate_required_columns with missing columns."""
         available = ["cokey", "chkey", "hzdept_r"]  # Missing hzdepb_r
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
-        
+
         is_valid, error, resolved = SPCColumnValidator.validate_required_columns(
             required, available
         )
-        
+
         assert is_valid is False
         assert error is not None
         assert isinstance(error, SPCValidationError)
@@ -126,11 +127,11 @@ class TestSPCColumnValidator:
         """Test validate_required_columns with extra columns."""
         available = ["cokey", "chkey", "hzdept_r", "hzdepb_r", "claytotal_r", "om"]
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
-        
+
         is_valid, error, resolved = SPCColumnValidator.validate_required_columns(
             required, available
         )
-        
+
         assert is_valid is True
         assert error is None
 
@@ -138,11 +139,11 @@ class TestSPCColumnValidator:
         """Test validate_required_columns returns resolved column mapping."""
         available = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
-        
+
         is_valid, error, resolved = SPCColumnValidator.validate_required_columns(
             required, available
         )
-        
+
         assert is_valid is True
         # When all columns match exactly, resolved dict should be empty or minimal
         assert isinstance(resolved, dict)
@@ -158,11 +159,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [0, 10, 0, 20],
             "hzdepb_r": [10, 30, 20, 50],
         })
-        
+
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         assert is_valid is True
         assert error is None
         assert invalid_count == 0
@@ -174,11 +175,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [30, 10],
             "hzdepb_r": [10, 30],  # Top > bottom
         })
-        
+
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         assert is_valid is False
         assert error is not None
         assert invalid_count > 0
@@ -190,11 +191,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [0, None],
             "hzdepb_r": [10, 30],
         })
-        
+
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         assert is_valid is False
         assert error is not None
         assert invalid_count > 0
@@ -206,11 +207,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [0, "invalid"],
             "hzdepb_r": [10, 30],
         })
-        
+
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         assert is_valid is False
         assert error is not None
         assert invalid_count > 0
@@ -222,11 +223,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [-10, 10],
             "hzdepb_r": [0, 30],
         })
-        
+
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         # Negative depths are invalid
         assert is_valid is False
         assert invalid_count > 0
@@ -238,11 +239,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [0, 10, 0, 20],
             "hzdepb_r": [10, 30, 20, 50],
         })
-        
+
         stats = SPCDepthValidator.get_depth_statistics(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         assert isinstance(stats, dict)
         assert "top_depth_min" in stats
         assert "top_depth_max" in stats
@@ -258,11 +259,11 @@ class TestSPCDepthValidator:
             "hzdept_r": [0],
             "hzdepb_r": [20],
         })
-        
+
         stats = SPCDepthValidator.get_depth_statistics(
             df, "hzdept_r", "hzdepb_r"
         )
-        
+
         assert stats["top_depth_min"] == 0
         assert stats["bottom_depth_max"] == 20
 
@@ -275,7 +276,7 @@ class TestSPCWarnings:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             SPCWarnings.warn_fallback_resolution("cokey", "CoKey")
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)
 
@@ -284,7 +285,7 @@ class TestSPCWarnings:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             SPCWarnings.warn_invalid_depths(2)
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)
 
@@ -293,7 +294,7 @@ class TestSPCWarnings:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             SPCWarnings.warn_missing_optional_columns(["claytotal_r", "om"])
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)
 
@@ -309,7 +310,7 @@ class TestCreateSPCValidationReport:
             "hzdept_r": [0, 10, 0, 20],
             "hzdepb_r": [10, 30, 20, 50],
         })
-        
+
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
             df,
@@ -318,7 +319,7 @@ class TestCreateSPCValidationReport:
             top_col="hzdept_r",
             bottom_col="hzdepb_r"
         )
-        
+
         assert isinstance(report, dict)
         assert "data_summary" in report
         assert "validation_details" in report
@@ -333,7 +334,7 @@ class TestCreateSPCValidationReport:
             "hzdept_r": [0, 0],
             "hzdepb_r": [10, 20],
         })
-        
+
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
             df,
@@ -342,7 +343,7 @@ class TestCreateSPCValidationReport:
             top_col="hzdept_r",
             bottom_col="hzdepb_r"
         )
-        
+
         summary = report["data_summary"]
         assert "total_rows" in summary
         assert "total_columns" in summary
@@ -355,7 +356,7 @@ class TestCreateSPCValidationReport:
             "chkey": [1, 2],
             # Missing depth columns
         })
-        
+
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
             df,
@@ -364,7 +365,7 @@ class TestCreateSPCValidationReport:
             top_col="hzdept_r",
             bottom_col="hzdepb_r"
         )
-        
+
         assert len(report["errors"]) > 0
 
     def test_validation_report_with_invalid_depths(self):
@@ -375,7 +376,7 @@ class TestCreateSPCValidationReport:
             "hzdept_r": [30, 10],  # First is deeper than bottom
             "hzdepb_r": [10, 30],
         })
-        
+
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
             df,
@@ -384,7 +385,7 @@ class TestCreateSPCValidationReport:
             top_col="hzdept_r",
             bottom_col="hzdepb_r"
         )
-        
+
         # Should detect the issue
         validation = report["validation_details"]
         assert validation["depths"]["valid"] is False
@@ -397,7 +398,7 @@ class TestCreateSPCValidationReport:
             "hzdept_r": [],
             "hzdepb_r": [],
         })
-        
+
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
             df,
@@ -406,7 +407,7 @@ class TestCreateSPCValidationReport:
             top_col="hzdept_r",
             bottom_col="hzdepb_r"
         )
-        
+
         assert report["data_summary"]["total_rows"] == 0
 
 
@@ -423,20 +424,20 @@ class TestSPCValidatorIntegration:
             "hzdepb_r": [10, 30, 20, 50],
             "claytotal_r": [25, 30, 15, 20],
         })
-        
+
         # Step 1: Validate columns
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         is_valid, error, resolved = SPCColumnValidator.validate_required_columns(
             required, df.columns.tolist()
         )
         assert is_valid is True
-        
+
         # Step 2: Validate depths
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
         )
         assert is_valid is True
-        
+
         # Step 3: Get statistics
         stats = SPCDepthValidator.get_depth_statistics(
             df, "hzdept_r", "hzdepb_r"
@@ -452,14 +453,14 @@ class TestSPCValidatorIntegration:
             "hzdept_r": [30, None, 0],  # Second is None, first is invalid
             "hzdepb_r": [10, 30, None],  # Third is None
         })
-        
+
         # Column validation should pass (all columns present)
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         is_valid, error, _ = SPCColumnValidator.validate_required_columns(
             required, df.columns.tolist()
         )
         assert is_valid is True
-        
+
         # Depth validation should fail
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"

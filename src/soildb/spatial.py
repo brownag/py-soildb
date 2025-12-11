@@ -12,7 +12,6 @@ All spatial queries should use spatial_query(). See that function's docstring fo
 comprehensive documentation, examples, and design rationale.
 """
 
-import warnings
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
 
 from .client import SDAClient
@@ -510,7 +509,7 @@ async def point_query(
     """
     if client is None:
         client = SDAClient()
-    
+
     point_wkt = f"POINT({longitude} {latitude})"
     return await spatial_query(
         point_wkt, table, return_type, spatial_relation, client=client
@@ -572,7 +571,7 @@ async def bbox_query(
     """
     if client is None:
         client = SDAClient()
-    
+
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await spatial_query(
         bbox, table, return_type, spatial_relation, client=client
@@ -610,9 +609,9 @@ async def mupolygon_in_bbox(
     """
     if client is None:
         client = SDAClient()
-    
+
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-    return await query_mupolygon(bbox, return_type, client=client)
+    return await spatial_query(bbox, table="mupolygon", return_type=return_type, client=client)
 
 
 async def sapolygon_in_bbox(
@@ -643,3 +642,8 @@ async def sapolygon_in_bbox(
         bbox_query() - More flexible bounding box queries
         spatial_query() - For full control
     """
+    if client is None:
+        client = SDAClient()
+
+    bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+    return await spatial_query(bbox, table="sapolygon", return_type=return_type, client=client)

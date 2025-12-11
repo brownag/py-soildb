@@ -1,7 +1,7 @@
 import pytest
 
-from soildb.client import SDAClient
 from soildb import query_templates
+from soildb.client import SDAClient
 
 
 @pytest.mark.asyncio

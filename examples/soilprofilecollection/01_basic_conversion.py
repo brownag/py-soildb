@@ -11,17 +11,18 @@ Use this when:
 """
 
 import asyncio
-from soildb import SDAClient, Query
+
+from soildb import Query, SDAClient
 
 
 async def main():
     """Convert horizon data to SoilProfileCollection."""
-    
+
     print("=" * 60)
     print("Example 1: Basic SoilProfileCollection Conversion")
     print("=" * 60)
     print()
-    
+
     async with SDAClient() as client:
         # Query component horizons
         query = Query().select(
@@ -37,28 +38,28 @@ async def main():
         ).order_by(
             "cokey, hzdept_r"
         ).limit(100)
-        
+
         print("Executing query...")
-        print(f"  SELECT: cokey, chkey, hzdept_r, hzdepb_r, claytotal_r, ...")
-        print(f"  FROM: chorizon")
-        print(f"  LIMIT: 100")
+        print("  SELECT: cokey, chkey, hzdept_r, hzdepb_r, claytotal_r, ...")
+        print("  FROM: chorizon")
+        print("  LIMIT: 100")
         print()
-        
+
         # Execute query
         response = await client.execute(query)
-        
+
         print(f"Query returned {len(response)} horizon records")
         print(f"Columns: {response.columns}")
         print()
-        
+
         if response.is_empty():
             print("No data retrieved. Try adjusting the query.")
             return None
-        
+
         # Convert to SoilProfileCollection using default preset
         print("Converting to SoilProfileCollection...")
         spc = response.to_soilprofilecollection()
-        
+
         print("Conversion successful.")
         print()
         print("Results:")
@@ -67,12 +68,12 @@ async def main():
         print(f"  ID column name: {spc.idname}")
         print(f"  Horizon ID column name: {spc.hzidname}")
         print()
-        
+
         # Show first few horizons
         print("First 5 horizon records:")
         print(spc.horizons[["cokey", "chkey", "hzdept_r", "hzdepb_r"]].head())
         print()
-        
+
         return spc
 
 

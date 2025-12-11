@@ -4,7 +4,6 @@ Response handling for SDA query results with proper data type conversion.
 
 import json
 import logging
-import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -46,12 +45,12 @@ class ResponseValidator:
     @staticmethod
     def _validate_base(response: "SDAResponse") -> "ValidationResult":
         """Perform base validation common to all response types.
-        
+
         Checks: empty responses, column structure, metadata, data integrity, types.
-        
+
         Args:
             response: SDAResponse object to validate
-            
+
         Returns:
             ValidationResult with detailed validation information
         """
@@ -167,15 +166,15 @@ class ResponseValidator:
         optional_columns: Optional[List[str]] = None,
     ) -> "ValidationResult":
         """Validate response schema against required columns.
-        
+
         Consolidated logic for mapunit, pedon, and other domain-specific validations.
-        
+
         Args:
             response: SDAResponse object to validate
             required_columns: List of required column names
             response_type: Type of response (e.g., "mapunit", "pedon")
             optional_columns: List of optional column names to check for
-            
+
         Returns:
             ValidationResult with schema validation details
         """
@@ -224,10 +223,10 @@ class ResponseValidator:
     @staticmethod
     def validate_general(response: "SDAResponse") -> "ValidationResult":
         """Validate a general SDA response for common issues.
-        
+
         Args:
             response: SDAResponse object to validate
-            
+
         Returns:
             ValidationResult with comprehensive validation details
         """
@@ -236,10 +235,10 @@ class ResponseValidator:
     @staticmethod
     def validate_mapunit(response: "SDAResponse") -> "ValidationResult":
         """Validate a mapunit response for required fields and data integrity.
-        
+
         Args:
             response: SDAResponse object to validate
-            
+
         Returns:
             ValidationResult with mapunit-specific validation details
         """
@@ -272,10 +271,10 @@ class ResponseValidator:
     @staticmethod
     def validate_pedon(response: "SDAResponse") -> "ValidationResult":
         """Validate a pedon response for required fields and data integrity.
-        
+
         Args:
             response: SDAResponse object to validate
-            
+
         Returns:
             ValidationResult with pedon-specific validation details
         """
@@ -311,13 +310,13 @@ class ResponseValidator:
         response: "SDAResponse", data_dicts: List[Dict[str, Any]]
     ) -> "ValidationResult":
         """Validate data types in transformed data.
-        
+
         Checks schema consistency, type violations, and range violations.
-        
+
         Args:
             response: SDAResponse object
             data_dicts: List of dictionaries from to_dict() conversion
-            
+
         Returns:
             ValidationResult with type system validation details
         """
@@ -647,18 +646,18 @@ class SDAResponse:
 
     def validate(self, response_type: str = "general") -> ValidationResult:
         """Validate the response based on its type.
-        
+
         Unified validation entry point that routes to appropriate validators.
-        
+
         Args:
             response_type: Type of response to validate:
                 - "general": General SDA response validation
                 - "mapunit": Mapunit-specific validation
                 - "pedon": Pedon-specific validation
-                
+
         Returns:
             ValidationResult with comprehensive validation details
-            
+
         Examples:
             >>> response = SDAResponse(data)
             >>> result = response.validate("mapunit")
@@ -680,10 +679,10 @@ class SDAResponse:
 
     def validate_response(self) -> ValidationResult:
         """Validate the response for common issues and return detailed results.
-        
+
         DEPRECATED: Use validate() instead for better API.
         This method is maintained for backward compatibility.
-        
+
         Examples:
             >>> response = SDAResponse(data)
             >>> result = response.validate_response()  # Deprecated
@@ -694,16 +693,16 @@ class SDAResponse:
     @staticmethod
     def validate_mapunit_response(response_data: Dict[str, Any]) -> ValidationResult:
         """Validate a mapunit response for required fields and data integrity.
-        
+
         DEPRECATED: Use response.validate("mapunit") instead.
         This static method is maintained for backward compatibility.
-        
+
         Args:
             response_data: SDAResponse object or dict with response data
-            
+
         Returns:
             ValidationResult with mapunit-specific validation details
-            
+
         Examples:
             >>> result = SDAResponse.validate_mapunit_response(response)  # Deprecated
             >>> result = response.validate("mapunit")  # Preferred
@@ -753,16 +752,16 @@ class SDAResponse:
     @staticmethod
     def validate_pedon_response(response_data: Dict[str, Any]) -> ValidationResult:
         """Validate a pedon response for required fields and data integrity.
-        
+
         DEPRECATED: Use response.validate("pedon") instead.
         This static method is maintained for backward compatibility.
-        
+
         Args:
             response_data: SDAResponse object or dict with response data
-            
+
         Returns:
             ValidationResult with pedon-specific validation details
-            
+
         Examples:
             >>> result = SDAResponse.validate_pedon_response(response)  # Deprecated
             >>> result = response.validate("pedon")  # Preferred
@@ -924,7 +923,7 @@ class SDAResponse:
 
     def _convert_value(self, value: Any, sda_type: str) -> Any:
         """Convert a single value based on SDA data type using unified TypeMap.
-        
+
         This delegates to the unified type conversion system which consolidates
         logic from response.py, type_processors.py, and schema_system.py.
         """
@@ -945,7 +944,7 @@ class SDAResponse:
     def _get_polars_dtype_mapping(self) -> Dict[str, Any]:
         """Get polars-compatible dtype mapping using unified TypeMap."""
         try:
-            import polars as pl
+            import polars  # noqa: F401
         except ImportError:
             return {}
 
@@ -1119,7 +1118,7 @@ class SDAResponse:
            - No → Use `to_pandas()` or `to_polars()` instead
 
         2. What type of data do you have?
-           - Standard SDA chorizon → Use `preset="standard_sda"` 
+           - Standard SDA chorizon → Use `preset="standard_sda"`
            - Lab pedon data → Use `preset="lab_pedon"`
            - Map unit + component → Use `preset="mapunit_component"`
            - Custom columns → Use `preset=CustomColumnConfig(...)`
@@ -1132,32 +1131,32 @@ class SDAResponse:
         Args:
             site_data: Optional pandas DataFrame containing site-level data.
                 This will be joined with the horizon data using site_id_col.
-                
+
             site_id_col: Column name for site/component identifier.
                 If not provided and preset is None, defaults to "cokey".
                 Can be: "cokey" (component), "pedon_id" (lab), "mukey" (mapunit)
-                
+
             hz_id_col: Column name for unique horizon identifier.
                 If not provided and preset is None, defaults to "chkey".
                 Can be: "chkey" (SDA), "pedon_key_horizon" (lab), "hzname" (other)
-                
+
             hz_top_col: Column name for horizon top depth.
                 If not provided and preset is None, defaults to "hzdept_r".
                 Must be in inches for standard SDA data.
-                
+
             hz_bot_col: Column name for horizon bottom depth.
                 If not provided and preset is None, defaults to "hzdepb_r".
                 Must be in inches for standard SDA data.
-                
+
             preset: Preset configuration. Can be:
                 - String name: "standard_sda", "lab_pedon", "pedon_site", "mapunit_component"
                 - ColumnConfig object: e.g., StandardSDAHorizonColumns()
                 - None: Use explicit column parameters (defaults to standard SDA)
-                
+
             validate_depths: Whether to validate depth values before conversion.
                 If True and invalid depths found, issues warning but continues.
                 Default: True
-                
+
             warn_on_defaults: Whether to warn when using default column names.
                 Set to False if you prefer silent defaults.
                 Default: True
@@ -1172,7 +1171,7 @@ class SDAResponse:
         Examples:
             >>> from soildb.spc_presets import StandardSDAHorizonColumns
             >>> from soildb import SDAClient, Query
-            >>> 
+            >>>
             >>> # Using preset
             >>> async with SDAClient() as client:
             ...     query = Query().select(
@@ -1181,7 +1180,7 @@ class SDAResponse:
             ...     ).from_("chorizon")
             ...     response = await client.execute(query)
             ...     spc = response.to_soilprofilecollection(preset="standard_sda")
-            
+
             >>> # Using explicit columns
             >>> spc = response.to_soilprofilecollection(
             ...     site_id_col="cokey",
@@ -1189,7 +1188,7 @@ class SDAResponse:
             ...     hz_top_col="hzdept_r",
             ...     hz_bot_col="hzdepb_r"
             ... )
-            
+
             >>> # With site data
             >>> import pandas as pd
             >>> site_data = pd.DataFrame({
@@ -1214,7 +1213,6 @@ class SDAResponse:
                 "pip install soildb[soil]"
             ) from None
 
-        import pandas as pd
 
         # Step 1: Resolve column configuration
         if preset is not None:
@@ -1227,7 +1225,7 @@ class SDAResponse:
                 raise TypeError(
                     f"preset must be string, ColumnConfig, or None; got {type(preset)}"
                 )
-            
+
             site_id_col = site_id_col or config.site_id_col
             hz_id_col = hz_id_col or config.horizon_id_col
             hz_top_col = hz_top_col or config.horizon_top_col
@@ -1238,7 +1236,7 @@ class SDAResponse:
             hz_id_col = hz_id_col or "chkey"
             hz_top_col = hz_top_col or "hzdept_r"
             hz_bot_col = hz_bot_col or "hzdepb_r"
-            
+
             if warn_on_defaults:
                 SPCWarnings.warn_default_columns()
 
@@ -1255,7 +1253,10 @@ class SDAResponse:
         )
 
         if not valid:
-            raise error
+            if error:
+                raise error
+            else:
+                raise SPCValidationError("Column validation failed")
 
         # Apply resolved column names
         if resolved:
@@ -1328,9 +1329,9 @@ class SDAResponse:
             ...     print("Validation errors:", report["errors"])
         """
         try:
-            import pandas as pd
+            import pandas  # noqa: F401
         except ImportError:
-            raise ImportError("pandas is required for validation")
+            raise ImportError("pandas is required for validation") from None
 
         df = self.to_pandas()
         available_cols = list(df.columns)

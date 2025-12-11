@@ -27,7 +27,7 @@ from typing import Optional
 
 class SoilDBError(Exception):
     """Base exception for all soildb errors.
-    
+
     All soildb-specific exceptions inherit from this class, allowing
     code to catch any soildb error with `except SoilDBError`.
     """
@@ -45,7 +45,7 @@ class SoilDBError(Exception):
 
 class SDANetworkError(SoilDBError):
     """Base for network-related SDA errors (connections, timeouts, maintenance).
-    
+
     Catch this exception to handle all network-related issues with the SDA service.
     Includes temporary unavailability (maintenance) and connection problems.
     """
@@ -55,7 +55,7 @@ class SDANetworkError(SoilDBError):
 
 class SDAConnectionError(SDANetworkError):
     """Raised when there are connection issues with the SDA service.
-    
+
     This includes HTTP errors, DNS failures, and other network connectivity problems.
     This does NOT include timeouts (see SDATimeoutError) or maintenance windows (see SDAMaintenanceError).
     """
@@ -70,7 +70,7 @@ class SDAConnectionError(SDANetworkError):
 
 class SDATimeoutError(SDANetworkError):
     """Raised when a request to SDA times out.
-    
+
     Timeouts can result from network latency, high server load, or queries
     that exceed the timeout threshold. This is semantically distinct from
     general connection errors and inherits from SDANetworkError.
@@ -83,7 +83,7 @@ class SDATimeoutError(SDANetworkError):
 
 class SDAMaintenanceError(SDANetworkError):
     """Raised when the SDA service is under maintenance.
-    
+
     SDA undergoes daily maintenance typically from 12:45 AM to 1 AM Central Time.
     This exception indicates temporary unavailability rather than a permanent error.
     It inherits from SDANetworkError as the service is temporarily unreachable.
@@ -96,7 +96,7 @@ class SDAMaintenanceError(SDANetworkError):
 
 class SDAQueryError(SoilDBError):
     """Raised when a query fails or returns invalid results.
-    
+
     This includes SQL syntax errors, invalid table/column names, and other
     query-related failures. This does NOT include network errors (see SDANetworkError)
     or response parsing errors (see SDAResponseError).
@@ -120,7 +120,7 @@ class SDAQueryError(SoilDBError):
 
 class SDAResponseError(SDAQueryError):
     """Raised when SDA returns an invalid or unexpected response format.
-    
+
     This occurs when the SDA service returns a response that cannot be parsed
     or validated. Unlike SDAQueryError, this indicates the query was accepted
     but the response was malformed.
@@ -138,7 +138,7 @@ class SDAResponseError(SDAQueryError):
 
 class AWDBError(SoilDBError):
     """Base exception for AWDB-related errors.
-    
+
     All AWDB-specific exceptions inherit from this class, allowing code to
     catch any AWDB error with `except AWDBError`.
     """
@@ -148,7 +148,7 @@ class AWDBError(SoilDBError):
 
 class AWDBConnectionError(AWDBError):
     """Raised when there are connection issues with the AWDB service.
-    
+
     This includes timeouts, network errors, rate limiting, and service unavailability.
     Mirror of SDANetworkError but for AWDB service.
     """
@@ -158,7 +158,7 @@ class AWDBConnectionError(AWDBError):
 
 class AWDBQueryError(AWDBError):
     """Raised when an AWDB query fails or returns invalid results.
-    
+
     This includes invalid parameters, missing data, and response parsing errors.
     Mirror of SDAQueryError but for AWDB service.
     """

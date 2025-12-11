@@ -5,16 +5,16 @@ Loads schemas on-demand rather than all at startup.
 Provides schema versioning and tracking.
 """
 
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 from ._base import TableSchema
 
 # Lazy-loading registry
 _SCHEMAS_CACHE: Dict[str, TableSchema] = {}
-_SCHEMA_LOADERS = {}  # Will be populated with lazy loaders
+_SCHEMA_LOADERS: Dict[str, Callable[[], TableSchema]] = {}  # Will be populated with lazy loaders
 
 
-def _register_loader(table_name: str, loader_func):
+def _register_loader(table_name: str, loader_func: Callable[[], TableSchema]) -> None:
     """Register a lazy loader for a schema."""
     _SCHEMA_LOADERS[table_name] = loader_func
 
@@ -35,10 +35,10 @@ def _load_schema(table_name: str) -> Optional[TableSchema]:
 
 def get_schema(table_name: str) -> Optional[TableSchema]:
     """Get a schema by table name, loading it if necessary.
-    
+
     Args:
         table_name: Name of the table/schema to retrieve
-        
+
     Returns:
         TableSchema if found, None otherwise
     """
@@ -50,7 +50,7 @@ def list_available_schemas() -> list:
     return sorted(_SCHEMA_LOADERS.keys())
 
 
-def register_schemas():
+def register_schemas() -> None:
     """Register all schema loaders. Call this once on module import."""
     from .chorizon import AGGREGATE_HORIZON_SCHEMA, CHORIZON_SCHEMA
     from .component import COMPONENT_SCHEMA, MAP_UNIT_COMPONENT_SCHEMA
@@ -75,27 +75,27 @@ def register_schemas():
 # Convenience access to commonly-used schemas
 def get_mapunit_schema() -> TableSchema:
     """Get the mapunit schema."""
-    return _load_schema("mapunit")
+    return _load_schema("mapunit")  # type: ignore[return-value]
 
 
 def get_component_schema() -> TableSchema:
     """Get the component schema."""
-    return _load_schema("component")
+    return _load_schema("component")  # type: ignore[return-value]
 
 
 def get_chorizon_schema() -> TableSchema:
     """Get the chorizon schema."""
-    return _load_schema("chorizon")
+    return _load_schema("chorizon")  # type: ignore[return-value]
 
 
 def get_pedon_schema() -> TableSchema:
     """Get the pedon schema."""
-    return _load_schema("pedon")
+    return _load_schema("pedon")  # type: ignore[return-value]
 
 
 def get_pedon_horizon_schema() -> TableSchema:
     """Get the pedon_horizon schema."""
-    return _load_schema("pedon_horizon")
+    return _load_schema("pedon_horizon")  # type: ignore[return-value]
 
 
 # Initialize schemas on module import
