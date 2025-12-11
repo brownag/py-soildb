@@ -244,12 +244,12 @@ class SPCWarnings:
     """Warning messages for implicit column assumptions."""
 
     @staticmethod
-    def warn_default_columns():
+    def warn_default_columns() -> None:
         """Placeholder for warning that default column names are being used."""
         return
 
     @staticmethod
-    def warn_fallback_resolution(original: str, resolved: str):
+    def warn_fallback_resolution(original: str, resolved: str) -> None:
         """Warn that a column was resolved to a fallback name."""
         warnings.warn(
             f"Column '{original}' not found; using fallback '{resolved}'. "
@@ -259,12 +259,12 @@ class SPCWarnings:
         )
 
     @staticmethod
-    def warn_missing_site_data():
+    def warn_missing_site_data() -> None:
         """Placeholder for warning that site-level data was not provided."""
         return
 
     @staticmethod
-    def warn_invalid_depths(invalid_count: int):
+    def warn_invalid_depths(invalid_count: int) -> None:
         """Warn about invalid depth records."""
         warnings.warn(
             f"Found {invalid_count} horizon records with invalid depth values "
@@ -275,7 +275,7 @@ class SPCWarnings:
         )
 
     @staticmethod
-    def warn_missing_optional_columns(missing: List[str]):
+    def warn_missing_optional_columns(missing: List[str]) -> None:
         """Warn about missing optional columns."""
         if missing:
             warnings.warn(
@@ -327,9 +327,9 @@ def create_spc_validation_report(
         required_cols, available_cols
     )
     if not valid:
-        report["is_valid"] = False
-        report["errors"].append(str(error))
-    report["validation_details"]["columns"] = {
+        report["is_valid"] = False  # type: ignore[index]
+        report["errors"].append(str(error))  # type: ignore[attr-defined]
+    report["validation_details"]["columns"] = {  # type: ignore[index]
         "valid": valid,
         "missing": error.missing_columns if error else [],
         "resolved_mappings": resolved,
@@ -341,8 +341,8 @@ def create_spc_validation_report(
             df, top_col, bottom_col
         )
         if not depth_valid:
-            report["warnings"].append(depth_error)
-        report["validation_details"]["depths"] = {
+            report["warnings"].append(depth_error)  # type: ignore[attr-defined]
+        report["validation_details"]["depths"] = {  # type: ignore[index]
             "valid": depth_valid,
             "invalid_count": invalid_count,
             "statistics": SPCDepthValidator.get_depth_statistics(df, top_col, bottom_col),

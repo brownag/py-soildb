@@ -642,3 +642,8 @@ async def sapolygon_in_bbox(
         bbox_query() - More flexible bounding box queries
         spatial_query() - For full control
     """
+    if client is None:
+        client = SDAClient()
+
+    bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+    return await spatial_query(bbox, table="sapolygon", return_type=return_type, client=client)

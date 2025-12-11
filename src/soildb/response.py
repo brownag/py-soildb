@@ -1253,7 +1253,10 @@ class SDAResponse:
         )
 
         if not valid:
-            raise error
+            if error:
+                raise error
+            else:
+                raise SPCValidationError("Column validation failed")
 
         # Apply resolved column names
         if resolved:

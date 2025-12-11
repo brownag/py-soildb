@@ -92,13 +92,13 @@ class SDAClient(BaseDataAccessClient):
         )
 
     @add_sync_version
-    async def close(self) -> None:
+    async def close(self) -> None:  # type: ignore[override]
         """Close the HTTP client and clean up resources."""
         await super().close()
 
 
     @add_sync_version
-    async def connect(self) -> bool:
+    async def connect(self) -> bool:  # type: ignore[override]
         """
         Test connection to SDA service.
 

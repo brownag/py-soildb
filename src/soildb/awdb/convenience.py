@@ -1,6 +1,7 @@
 """
 High-level convenience functions for AWDB data access.
 """
+# mypy: disable-error-code="attr-defined"
 
 from typing import Any, Dict, List, Optional
 

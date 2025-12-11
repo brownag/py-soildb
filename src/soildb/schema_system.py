@@ -34,7 +34,7 @@ For detailed schema design documentation, see: docs/SCHEMA_SYSTEM.md
 """
 
 from dataclasses import asdict, dataclass, field, make_dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Type
 
 if TYPE_CHECKING:
     try:
@@ -65,7 +65,7 @@ class _LazySchemaDict(dict):
         """Check if schema exists."""
         return key in _SCHEMA_LOADERS
 
-    def keys(self) -> list:
+    def keys(self) -> list[str]:  # type: ignore[override]
         """Get all available schema table names."""
         return sorted(_SCHEMA_LOADERS.keys())
 
@@ -73,15 +73,15 @@ class _LazySchemaDict(dict):
         """Get schema or return default."""
         return _load_schema(key) or default
 
-    def items(self) -> list:
+    def items(self) -> list[tuple[str, Optional[TableSchema]]]:  # type: ignore[override]
         """Get all schema items (loads all schemas)."""
         return [(k, _load_schema(k)) for k in sorted(_SCHEMA_LOADERS.keys())]
 
-    def values(self) -> list:
+    def values(self) -> list[Optional[TableSchema]]:  # type: ignore[override]
         """Get all schema values (loads all schemas)."""
         return [_load_schema(k) for k in sorted(_SCHEMA_LOADERS.keys())]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """Iterate over schema table names."""
         return iter(sorted(_SCHEMA_LOADERS.keys()))
 
@@ -303,17 +303,17 @@ class PedonData:
 
 
 # Create dynamic dataclasses from schemas
-PedonHorizon = create_dynamic_dataclass(get_schema("pedon_horizon"), "PedonHorizon")
+PedonHorizon = create_dynamic_dataclass(get_schema("pedon_horizon"), "PedonHorizon")  # type: ignore[arg-type]
 HorizonProperty = create_dynamic_dataclass(
-    get_schema("horizon_property"), "HorizonProperty"
+    get_schema("horizon_property"), "HorizonProperty"  # type: ignore[arg-type]
 )
 AggregateHorizon = create_dynamic_dataclass(
-    get_schema("aggregate_horizon"), "AggregateHorizon"
+    get_schema("aggregate_horizon"), "AggregateHorizon"  # type: ignore[arg-type]
 )
 MapUnitComponent = create_dynamic_dataclass(
-    get_schema("map_unit_component"), "MapUnitComponent"
+    get_schema("map_unit_component"), "MapUnitComponent"  # type: ignore[arg-type]
 )
-SoilMapUnit = create_dynamic_dataclass(get_schema("soil_map_unit"), "SoilMapUnit")
+SoilMapUnit = create_dynamic_dataclass(get_schema("soil_map_unit"), "SoilMapUnit")  # type: ignore[arg-type]
 
 
 # Export all dynamically created models

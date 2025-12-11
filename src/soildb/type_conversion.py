@@ -303,12 +303,12 @@ class TypeMap:
         bytes: "object",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the type map with default processors."""
         self._processors: Dict[str, Callable[[Any], Any]] = {}
         self._python_types: Dict[str, Type] = self.SDA_TYPE_TO_PYTHON.copy()
-        self._pandas_dtypes: Dict[str, str] = self.PYTHON_TO_PANDAS_DTYPE.copy()
-        self._polars_dtypes: Dict[str, Any] = {}  # Built lazily
+        self._pandas_dtypes: Dict[Type, str] = self.PYTHON_TO_PANDAS_DTYPE.copy()
+        self._polars_dtypes: Dict[Type, Any] = {}  # Built lazily
         self._type_processor_cache: Dict[str, Callable[[Any], Any]] = {}
 
         # Initialize default processors

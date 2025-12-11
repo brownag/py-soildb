@@ -101,7 +101,7 @@ class StandardSDAHorizonColumns(ColumnConfig):
         >>> all_cols = preset.get_all_columns()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             site_id_col="cokey",
             horizon_id_col="chkey",
@@ -138,7 +138,7 @@ class LabPedonHorizonColumns(ColumnConfig):
         >>> config = preset.get_config_dict()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             site_id_col="pedon_id",
             horizon_id_col="hzname",
@@ -171,7 +171,7 @@ class PedonSiteHorizonColumns(ColumnConfig):
         >>> preset = PedonSiteHorizonColumns()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             site_id_col="pedon_id",
             horizon_id_col="pedon_key_horizon",
@@ -202,7 +202,7 @@ class MapunitComponentHorizonColumns(ColumnConfig):
         >>> preset = MapunitComponentHorizonColumns()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             site_id_col="mukey",
             horizon_id_col="cokey",
