@@ -261,7 +261,7 @@ def query_available_survey_areas(
 
     if columns is None:
         if table == "sacatalog":
-            columns = ["areasymbol", "areaname", "saversion"]
+            columns = ["areasymbol", "areaname", "saversion", "saverest"]
         else:
             columns = ColumnSets.LEGEND_BASIC
 
