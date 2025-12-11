@@ -831,7 +831,10 @@ class SDAResponse:
             try:
                 import pandas as pd
 
-                df = pd.DataFrame(data_dict)
+                if data_dict:
+                    df = pd.DataFrame(data_dict)
+                else:
+                    df = pd.DataFrame(columns=self._columns)
 
                 if convert_types and not df.empty:
                     # Apply dtype conversion
@@ -870,7 +873,10 @@ class SDAResponse:
             try:
                 import polars as pl
 
-                df = pl.DataFrame(data_dict)
+                if data_dict:
+                    df = pl.DataFrame(data_dict)
+                else:
+                    df = pl.DataFrame(schema=self._columns)
 
                 if convert_types and not df.is_empty():
                     # Apply dtype conversion
@@ -1002,18 +1008,6 @@ class SDAResponse:
 
         horizons_df = self.to_pandas()
 
-        if horizons_df.empty:
-            logger.warning("Converting empty SDA response to SoilProfileCollection")
-            # For empty DataFrames, we skip column validation since there are no columns to validate.
-            # The site_data parameter is passed through as-is, assuming the caller has validated it.
-            return SoilProfileCollection(
-                horizons=horizons_df,
-                site=site_data,
-                idname=site_id_col,
-                hzidname=hz_id_col,
-                depthcols=(hz_top_col, hz_bot_col),
-            )
-
         required_cols = [hz_id_col, site_id_col, hz_top_col, hz_bot_col]
         missing_cols = [col for col in required_cols if col not in horizons_df.columns]
 
@@ -1051,6 +1045,18 @@ class SDAResponse:
                     f"Available columns: {available_cols}. "
                     f"Consider using fallback column names or providing custom column parameters."
                 )
+
+        if horizons_df.empty:
+            logger.warning("Converting empty SDA response to SoilProfileCollection")
+            # For empty DataFrames, we skip depth validation since there are no rows to validate.
+            # The site_data parameter is passed through as-is, assuming the caller has validated it.
+            return SoilProfileCollection(
+                horizons=horizons_df,
+                site=site_data,
+                idname=site_id_col,
+                hzidname=hz_id_col,
+                depthcols=(hz_top_col, hz_bot_col),
+            )
 
         # Validate depth values
         try:
