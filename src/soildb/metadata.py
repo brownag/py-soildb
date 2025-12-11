@@ -621,7 +621,7 @@ def get_metadata_statistics(metadata_list: List[SurveyMetadata]) -> Dict[str, An
     return {
         "count": len(metadata_list),
         "avg_scale": int(avg_scale) if avg_scale else None,
-        "publishers": sorted(list(publishers)),
+        "publishers": sorted(publishers),
         "recent_surveys": recent_count,
         "has_contact": contact_count,
         "avg_keywords": round(avg_keywords, 1),

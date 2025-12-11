@@ -8,10 +8,10 @@ column mappings for common query types without manual configuration.
 Example:
     >>> from soildb.spc_presets import StandardSDAHorizonColumns
     >>> from soildb import SDAClient, Query
-    >>> 
+    >>>
     >>> # Use preset for standard SDA horizon query
     >>> preset = StandardSDAHorizonColumns()
-    >>> 
+    >>>
     >>> async with SDAClient() as client:
     ...     query = Query().select(
     ...         *preset.get_all_columns()
@@ -21,13 +21,13 @@ Example:
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
 class ColumnConfig:
     """Configuration for SoilProfileCollection column mapping.
-    
+
     Attributes:
         site_id_col: Column name for site/component identifier
         horizon_id_col: Column name for unique horizon identifier
@@ -37,7 +37,7 @@ class ColumnConfig:
         required_columns: List of all required columns for this configuration
         optional_columns: List of commonly included optional columns
     """
-    
+
     site_id_col: str
     horizon_id_col: str
     horizon_top_col: str
@@ -45,7 +45,7 @@ class ColumnConfig:
     description: str = ""
     required_columns: Optional[List[str]] = None
     optional_columns: Optional[List[str]] = None
-    
+
     def get_config_dict(self) -> Dict[str, str]:
         """Get configuration as dictionary for to_soilprofilecollection()."""
         return {
@@ -54,7 +54,7 @@ class ColumnConfig:
             "hz_top_col": self.horizon_top_col,
             "hz_bot_col": self.horizon_bottom_col,
         }
-    
+
     def get_required_columns(self) -> List[str]:
         """Get list of all required columns for this configuration."""
         if self.required_columns is None:
@@ -65,7 +65,7 @@ class ColumnConfig:
                 self.horizon_bottom_col,
             ]
         return self.required_columns
-    
+
     def get_all_columns(self) -> List[str]:
         """Get list of all required + optional columns."""
         required = self.get_required_columns()
@@ -76,15 +76,15 @@ class ColumnConfig:
 class StandardSDAHorizonColumns(ColumnConfig):
     """
     Standard SDA horizon columns (USDA-NRCS standard naming).
-    
+
     Use this preset when querying the chorizon table with standard columns.
-    
+
     Required columns:
     - cokey: Component key (site identifier)
     - chkey: Child horizon key (unique horizon identifier)
     - hzdept_r: Horizon top depth (representative, in inches)
     - hzdepb_r: Horizon bottom depth (representative, in inches)
-    
+
     Common optional columns:
     - hzname: Horizon name (e.g., "A", "Bt")
     - claytotal_r: Total clay percentage
@@ -92,7 +92,7 @@ class StandardSDAHorizonColumns(ColumnConfig):
     - silttotal_r: Total silt percentage
     - awc_r: Available water capacity (in/in)
     - ksat_r: Saturated hydraulic conductivity (µm/s)
-    
+
     Example:
         >>> preset = StandardSDAHorizonColumns()
         >>> # Get just required columns
@@ -100,7 +100,7 @@ class StandardSDAHorizonColumns(ColumnConfig):
         >>> # Get all common columns
         >>> all_cols = preset.get_all_columns()
     """
-    
+
     def __init__(self):
         super().__init__(
             site_id_col="cokey",
@@ -119,25 +119,25 @@ class StandardSDAHorizonColumns(ColumnConfig):
 class LabPedonHorizonColumns(ColumnConfig):
     """
     Laboratory pedon horizon columns (USDA soil characterization data).
-    
+
     Use this preset when working with pedon/site horizon data from soil
     characterization laboratories.
-    
+
     Required columns:
     - siteiid: Site IISYM (site identifier)
     - pedon_id: Pedon identifier (used as site ID for SPC)
     - hzname: Horizon name (serves as unique identifier)
     - hzdept_r: Horizon top depth
     - hzdepb_r: Horizon bottom depth
-    
+
     Note: Lab pedon data may have different column names. Verify with your
     data source and use CustomColumnConfig if names differ.
-    
+
     Example:
         >>> preset = LabPedonHorizonColumns()
         >>> config = preset.get_config_dict()
     """
-    
+
     def __init__(self):
         super().__init__(
             site_id_col="pedon_id",
@@ -157,20 +157,20 @@ class LabPedonHorizonColumns(ColumnConfig):
 class PedonSiteHorizonColumns(ColumnConfig):
     """
     Pedon site horizon columns (for pedon_id + pedon_key scenario).
-    
+
     Use this when you have both pedon_id (site identifier) and pedon_key
     or pedon_key_horizon (unique horizon identifier).
-    
+
     Required columns:
     - pedon_id: Pedon identifier (site ID)
     - pedon_key_horizon: Unique horizon key
     - hzdept_r: Horizon top depth (in inches)
     - hzdepb_r: Horizon bottom depth (in inches)
-    
+
     Example:
         >>> preset = PedonSiteHorizonColumns()
     """
-    
+
     def __init__(self):
         super().__init__(
             site_id_col="pedon_id",
@@ -186,22 +186,22 @@ class PedonSiteHorizonColumns(ColumnConfig):
 class MapunitComponentHorizonColumns(ColumnConfig):
     """
     Map unit component horizon columns (for mapunit -> component -> horizon workflow).
-    
+
     Use this when you have joined mapunit, component, and chorizon tables.
-    
+
     Required columns:
     - mukey: Map unit key (mapped to site_id)
     - cokey: Component key (horizon identifier)
     - hzdept_r: Horizon top depth
     - hzdepb_r: Horizon bottom depth
-    
+
     Note: This configuration groups by mukey, so each map unit becomes a "site"
     in the SoilProfileCollection.
-    
+
     Example:
         >>> preset = MapunitComponentHorizonColumns()
     """
-    
+
     def __init__(self):
         super().__init__(
             site_id_col="mukey",
@@ -217,10 +217,10 @@ class MapunitComponentHorizonColumns(ColumnConfig):
 class CustomColumnConfig(ColumnConfig):
     """
     Custom column configuration for non-standard data sources.
-    
+
     Use this when your data has different column names than the standard
     SDA or lab naming conventions.
-    
+
     Args:
         site_id_col: Column name for site/profile identifier
         horizon_id_col: Column name for unique horizon identifier
@@ -229,7 +229,7 @@ class CustomColumnConfig(ColumnConfig):
         description: Optional description of this configuration
         required_columns: Optional list of all required columns
         optional_columns: Optional list of commonly included columns
-    
+
     Example:
         >>> # For custom data with different column names
         >>> preset = CustomColumnConfig(
@@ -240,7 +240,7 @@ class CustomColumnConfig(ColumnConfig):
         ...     description="Custom profile data in centimeters"
         ... )
     """
-    
+
     def __init__(
         self,
         site_id_col: str,
@@ -274,17 +274,17 @@ PRESET_REGISTRY = {
 def get_preset(name: str) -> ColumnConfig:
     """
     Get a preset configuration by name.
-    
+
     Args:
         name: Name of the preset ('standard_sda', 'lab_pedon', 'pedon_site',
               'mapunit_component')
-    
+
     Returns:
         ColumnConfig instance
-    
+
     Raises:
         ValueError: If preset name is not found
-    
+
     Example:
         >>> preset = get_preset('standard_sda')
         >>> config = preset.get_config_dict()
@@ -300,10 +300,10 @@ def get_preset(name: str) -> ColumnConfig:
 def list_presets() -> Dict[str, str]:
     """
     List all available presets with descriptions.
-    
+
     Returns:
         Dictionary mapping preset names to descriptions
-    
+
     Example:
         >>> presets = list_presets()
         >>> for name, desc in presets.items():

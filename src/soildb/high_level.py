@@ -61,8 +61,8 @@ from . import (
     get_lab_pedons_by_bbox,
     get_mapunit_by_point,
 )
-from .fetch import fetch_by_keys
 from .client import SDAClient
+from .fetch import fetch_by_keys
 from .schema_system import (  # type: ignore
     AggregateHorizon,
     HorizonProperty,
@@ -155,30 +155,30 @@ async def fetch_mapunit_struct_by_point(
     ```python
     # Get map unit with components and horizons
     mapunit = await fetch_mapunit_struct_by_point(
-        latitude=42.0, 
+        latitude=42.0,
         longitude=-93.6
     )
-    
+
     # Access map unit properties
     print(f"Map Unit: {mapunit.map_unit_name}")
     print(f"Symbol: {mapunit.map_unit_symbol}")
-    
+
     # Iterate through components
     for component in mapunit.components:
         print(f"  Component: {component.component_name}")
         print(f"  Percentage: {component.component_percentage}%")
-        
+
         # Access component horizons
         for horizon in component.horizons:
             print(f"    Horizon {horizon.designation}: {horizon.texture_class}")
-    
+
     # Get only map unit (no components/horizons)
     mapunit = await fetch_mapunit_struct_by_point(
-        latitude=42.0, 
+        latitude=42.0,
         longitude=-93.6,
         fill_components=False
     )
-    
+
     # Compare with raw data API
     response = await get_mapunit_by_point(longitude=-93.6, latitude=42.0)
     df = response.to_pandas()
@@ -200,7 +200,7 @@ async def fetch_mapunit_struct_by_point(
 
     Returns:
         SoilMapUnit: Object with nested components and horizons (if fill_* options enabled).
-    
+
     Raises:
         ValueError: If no map unit found at specified location.
     """
@@ -412,30 +412,30 @@ async def fetch_pedon_struct_by_bbox(
     Fetch structured pedon data within a bounding box.
 
     Returns a list of PedonData objects with site information and laboratory-analyzed horizons.
-    
+
     **USAGE EXAMPLES:**
 
     ```python
     # Get all pedons in bounding box with horizons
     pedons = await fetch_pedon_struct_by_bbox(
         min_x=-94.0,
-        min_y=41.5, 
+        min_y=41.5,
         max_x=-93.0,
         max_y=42.5
     )
-    
+
     # Analyze pedon structure
     for pedon in pedons:
         print(f"Pedon {pedon.pedon_id}:")
         print(f"  Taxon: {pedon.taxonname}")
         print(f"  Total depth: {pedon.get_profile_depth()} cm")
-        
+
         # Access horizons
         for horizon in pedon.horizons:
             print(f"    {horizon.designation}: {horizon.texture_class}")
             for prop in horizon.properties:
                 print(f"      {prop.property_name}: {prop.representative_value}")
-    
+
     # Get pedons without horizons
     pedons = await fetch_pedon_struct_by_bbox(
         min_x=-94.0,
@@ -444,7 +444,7 @@ async def fetch_pedon_struct_by_bbox(
         max_y=42.5,
         fill_horizons=False
     )
-    
+
     # Compare with raw data API
     response = await get_lab_pedons_by_bbox(-94, 41.5, -93, 42.5)
     df = response.to_pandas()
@@ -559,13 +559,13 @@ async def fetch_pedon_struct_by_id(
     ```python
     # Get single pedon with all horizons
     pedon = await fetch_pedon_struct_by_id("S1999NY061001")
-    
+
     if pedon:
         print(f"Pedon: {pedon.pedon_id}")
         print(f"Taxon: {pedon.taxonname}")
         print(f"Location: ({pedon.latitude}, {pedon.longitude})")
         print(f"Total depth: {pedon.get_profile_depth()} cm")
-        
+
         # Analyze horizons
         for horizon in pedon.horizons:
             print(f"  {horizon.designation}: {horizon.texture_class}")
@@ -573,13 +573,13 @@ async def fetch_pedon_struct_by_id(
             depth_at = pedon.get_horizon_by_depth(50)  # Get horizon at 50 cm
             if depth_at:
                 print(f"    At 50 cm depth: {depth_at.designation}")
-    
+
     # Get pedon without horizons
     pedon = await fetch_pedon_struct_by_id(
         "S1999NY061001",
         fill_horizons=False
     )
-    
+
     # Compare with raw data API
     response = await get_lab_pedon_by_id("S1999NY061001")
     df = response.to_pandas()

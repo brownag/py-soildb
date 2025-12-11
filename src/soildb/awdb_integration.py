@@ -21,7 +21,6 @@ from .query import Query
 from .response import SDAResponse
 
 
-
 async def get_component_water_properties(
     areasymbol: str,
     client: Optional[SDAClient] = None,
@@ -34,7 +33,7 @@ async def get_component_water_properties(
     - Saturated hydraulic conductivity (ksat_r) - drainage/infiltration
     - Organic matter (om_r) - affects water holding capacity
     - Texture (clay, silt, sand percentages)
-    
+
     Also includes component and mapunit info.
 
     Args:
@@ -80,7 +79,7 @@ async def get_component_water_properties(
         return await client.execute(query)
     finally:
         if close_client:
-            await client.aclose()
+            await client.close()
 
 
 async def get_water_table_depth(
@@ -152,7 +151,7 @@ async def get_water_table_depth(
         return await client.execute(query)
     finally:
         if close_client:
-            await client.aclose()
+            await client.close()
 
 
 async def get_scan_soil_moisture_profile(

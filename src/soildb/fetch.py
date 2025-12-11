@@ -45,12 +45,12 @@ ARCHITECTURE DIAGRAM:
         ├── fetch_component_by_mukey()  │ ← TIER 2 (deprecated, wrap
         ├── fetch_chorizon_by_cokey()   │   fetch_by_keys)
         └── fetch_survey_area_polygon() │
-    
+
     ┌─────────────────────────────────────┐
     │ fetch_pedons_by_bbox()              │ ← TIER 3 (complex)
     │ fetch_pedon_horizons()              │
     └─────────────────────────────────────┘
-    
+
     ┌─────────────────────────────────────┐
     │ get_mukey_by_areasymbol()           │ ← TIER 4 (helpers)
     │ get_cokey_by_mukey()                │
@@ -60,14 +60,14 @@ RECOMMENDED USAGE PATTERNS:
 
 1. Simple fetch by keys (MOST COMMON):
    >>> response = await fetch_by_keys([123, 456], "component")
-   
+
 2. For common tables with specific column needs:
    >>> response = await fetch_by_keys(mukeys, "mapunit", columns=["mukey", "muname"])
-   
+
 3. Discover keys for multi-step operations:
    >>> mukeys = await get_mukey_by_areasymbol(["IA001"])
    >>> components = await fetch_by_keys(mukeys, "component")
-   
+
 4. Complex operations with relationships:
    >>> spc = await fetch_pedons_by_bbox(bbox, return_type="soilprofilecollection")
 """
@@ -76,14 +76,12 @@ import asyncio
 import logging
 import math
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
-import warnings
 
 from .client import SDAClient
 from .exceptions import SoilDBError
 from .query import Query
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
-from .schema_system import SCHEMAS, get_schema
 from .utils import add_sync_version
 
 logger = logging.getLogger(__name__)
@@ -731,7 +729,7 @@ def _combine_responses(
             logger.debug(f"Response {response_idx} is empty, skipping")
             continue
 
-        for row_idx, row in enumerate(response.data):
+        for _row_idx, row in enumerate(response.data):
             # Extract first column value as key for deduplication
             if deduplicate and row:
                 row_key = next(iter(row.values())) if isinstance(row, dict) else row[0]
@@ -1166,7 +1164,7 @@ async def get_mukey_by_areasymbol(
         # Discover mukeys in survey areas
         >>> mukeys = await get_mukey_by_areasymbol(["IA001", "IA002"])
         >>> print(f"Found {len(mukeys)} map units")
-        
+
         # Then fetch components for those map units
         >>> components = await fetch_by_keys(mukeys, "component", key_column="mukey")
         >>> df = components.to_pandas()
@@ -1228,11 +1226,11 @@ async def get_cokey_by_mukey(
         # Discover cokeys in map units
         >>> cokeys = await get_cokey_by_mukey([123456, 123457])
         >>> print(f"Found {len(cokeys)} components")
-        
+
         # Then fetch horizons for those components
         >>> horizons = await fetch_by_keys(cokeys, "chorizon", key_column="cokey")
         >>> df = horizons.to_pandas()
-        
+
         # Include minor components
         >>> all_cokeys = await get_cokey_by_mukey([123456], major_components_only=False)
 

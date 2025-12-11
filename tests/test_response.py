@@ -405,6 +405,7 @@ class TestSoilProfileCollectionIntegration:
         """Test conversion with CustomColumnConfig preset."""
         try:
             from soilprofilecollection import SoilProfileCollection
+
             from soildb.spc_presets import CustomColumnConfig
         except ImportError:
             pytest.skip("soilprofilecollection not installed")
@@ -455,7 +456,8 @@ class TestSoilProfileCollectionIntegration:
     def test_to_soilprofilecollection_with_invalid_depths(self):
         """Test conversion with invalid depth values raises error."""
         try:
-            from soilprofilecollection import SoilProfileCollection
+            from soilprofilecollection import SoilProfileCollection  # noqa: F401
+
             from soildb.spc_validator import SPCValidationError
         except ImportError:
             pytest.skip("soilprofilecollection not installed")
@@ -476,9 +478,8 @@ class TestSoilProfileCollectionIntegration:
             ]
         }
         response = SDAResponse(invalid_data)
-        
+
         # With validation enabled, should warn about invalid depth records and raise error
-        import warnings
         with pytest.warns(UserWarning, match="Found 1 horizon records with invalid depth values"):
             with pytest.raises(SPCValidationError, match="Depth validation failed"):
                 response.to_soilprofilecollection(validate_depths=True)
@@ -492,7 +493,7 @@ class TestSoilProfileCollectionIntegration:
 
         # Use valid data - note that SoilProfileCollection still validates internally
         response = SDAResponse(MOCK_HORIZON_DATA)
-        
+
         # With validation disabled, we skip our validation but SPC still validates
         spc = response.to_soilprofilecollection(validate_depths=False)
         assert isinstance(spc, SoilProfileCollection)

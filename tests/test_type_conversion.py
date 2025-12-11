@@ -5,9 +5,16 @@ Tests the TypeMap class and type conversion functionality to ensure
 all conversion flows (SDA->Python->Pandas->Polars) work correctly.
 """
 
-import pytest
 from datetime import datetime
-from soildb.type_conversion import TypeMap, TypeProcessor, convert_value, get_default_type_map
+
+import pytest
+
+from soildb.type_conversion import (
+    TypeMap,
+    TypeProcessor,
+    convert_value,
+    get_default_type_map,
+)
 
 
 class TestTypeProcessor:
@@ -139,35 +146,35 @@ class TestTypeMap:
     def test_get_python_type_int(self):
         """Test getting Python type for integer SDA types."""
         tm = TypeMap.default()
-        assert tm.get_python_type("int") == int
-        assert tm.get_python_type("integer") == int
-        assert tm.get_python_type("bigint") == int
+        assert tm.get_python_type("int") is int
+        assert tm.get_python_type("integer") is int
+        assert tm.get_python_type("bigint") is int
 
     def test_get_python_type_float(self):
         """Test getting Python type for float SDA types."""
         tm = TypeMap.default()
-        assert tm.get_python_type("float") == float
-        assert tm.get_python_type("decimal") == float
-        assert tm.get_python_type("money") == float
+        assert tm.get_python_type("float") is float
+        assert tm.get_python_type("decimal") is float
+        assert tm.get_python_type("money") is float
 
     def test_get_python_type_string(self):
         """Test getting Python type for string SDA types."""
         tm = TypeMap.default()
-        assert tm.get_python_type("varchar") == str
-        assert tm.get_python_type("nvarchar") == str
-        assert tm.get_python_type("text") == str
+        assert tm.get_python_type("varchar") is str
+        assert tm.get_python_type("nvarchar") is str
+        assert tm.get_python_type("text") is str
 
     def test_get_python_type_datetime(self):
         """Test getting Python type for datetime SDA types."""
         tm = TypeMap.default()
-        assert tm.get_python_type("datetime") == datetime
-        assert tm.get_python_type("date") == datetime
-        assert tm.get_python_type("timestamp") == datetime
+        assert tm.get_python_type("datetime") is datetime
+        assert tm.get_python_type("date") is datetime
+        assert tm.get_python_type("timestamp") is datetime
 
     def test_get_python_type_unknown(self):
         """Test getting Python type for unknown SDA type."""
         tm = TypeMap.default()
-        assert tm.get_python_type("unknown_type") == str
+        assert tm.get_python_type("unknown_type") is str
 
     def test_get_pandas_dtype_int(self):
         """Test getting Pandas dtype for integer types."""
@@ -291,7 +298,7 @@ class TestTypeMap:
     def test_register_processor_overrides_default(self):
         """Test that registering a processor overrides defaults."""
         tm = TypeMap.default()
-        
+
         # Register custom int processor that multiplies by 2
         def double_processor(v):
             result = TypeProcessor.to_int(v)
@@ -367,11 +374,11 @@ class TestEdgeCases:
     def test_convert_value_strict_mode(self):
         """Test strict mode for error handling."""
         tm = TypeMap.default()
-        
+
         # Non-strict mode (default) returns None on invalid conversion
         result = tm.convert_value("invalid", "int", strict=False)
         assert result is None or result == 0  # Numeric extraction may return 0
-        
+
         # Note: Strict mode not fully implemented in current version,
         # falls back to non-strict behavior
 
@@ -413,7 +420,7 @@ class TestIntegration:
     def test_integration_with_response(self):
         """Test integration with response module."""
         from soildb.response import SDAResponse
-        
+
         # Create a simple response
         response_data = {
             "Table": [
@@ -423,10 +430,10 @@ class TestIntegration:
                 ["789012", "Ames", "20.0"],
             ]
         }
-        
+
         response = SDAResponse(response_data)
         converted = response.to_dict()
-        
+
         assert len(converted) == 2
         # to_dict() returns string values - conversion happens during to_pandas/to_polars
         assert converted[0]["mukey"] == "123456"
@@ -436,13 +443,13 @@ class TestIntegration:
     def test_consistency_across_frameworks(self):
         """Test that type conversions are consistent across frameworks."""
         tm = TypeMap.default()
-        
+
         # Same SDA type should map to compatible Python/Pandas/Polars types
         python_type = tm.get_python_type("int")
         pandas_dtype = tm.get_pandas_dtype("int")
         polars_dtype = tm.get_polars_dtype("int")
-        
-        assert python_type == int
+
+        assert python_type is int
         assert pandas_dtype == "Int64"
         assert polars_dtype is not None
 

@@ -13,18 +13,19 @@ Use this when:
 """
 
 import asyncio
-from soildb import SDAClient, Query
+
+from soildb import Query, SDAClient
 from soildb.spc_presets import CustomColumnConfig
 
 
 async def main():
     """Convert data using custom column configuration."""
-    
+
     print("=" * 60)
     print("Example 4: Custom Column Configuration")
     print("=" * 60)
     print()
-    
+
     async with SDAClient() as client:
         # Query standard SDA data
         print("Querying horizon data from SDA...")
@@ -41,15 +42,15 @@ async def main():
         ).order_by(
             "cokey, hzdept_r"
         ).limit(100)
-        
+
         response = await client.execute(query)
         print(f"  Retrieved {len(response)} horizon records")
         print()
-        
+
         if response.is_empty():
             print("No data available. SDA service may be unavailable.")
             return None
-        
+
         # Define custom column mappings
         print("Defining custom column configuration...")
         custom_config = CustomColumnConfig(
@@ -64,13 +65,13 @@ async def main():
                 "om_r"
             ]
         )
-        
+
         print(f"  Site ID column: {custom_config.site_id_col}")
         print(f"  Horizon ID column: {custom_config.horizon_id_col}")
         print(f"  Depth columns: {custom_config.horizon_top_col} -> {custom_config.horizon_bottom_col}")
         print(f"  Optional columns: {len(custom_config.optional_columns or [])} columns")
         print()
-        
+
         # Convert using custom config
         print("Converting to SoilProfileCollection with custom config...")
         try:
@@ -79,14 +80,14 @@ async def main():
                 validate_depths=False,  # Don't pre-validate; SoilProfileCollection will validate
                 warn_on_defaults=False
             )
-            
+
             print("Conversion successful.")
             print()
             print("Results:")
             print(f"  Profiles: {len(spc)}")
             print(f"  Horizons: {len(spc.horizons)}")
             print()
-            
+
             # Show structure
             print("Profile structure:")
             print(f"  Site ID name: {spc.idname}")
@@ -94,7 +95,7 @@ async def main():
             print(f"  Site columns: {spc.site.columns.tolist()}")
             print(f"  Horizon columns: {spc.horizons.columns.tolist()}")
             print()
-            
+
             # Show sample data
             print("Sample horizons (first 5):")
             display_cols = [
@@ -106,9 +107,9 @@ async def main():
             ]
             available = [col for col in display_cols if col in spc.horizons.columns]
             print(spc.horizons[available].head())
-            
+
             return spc
-            
+
         except Exception as e:
             print(f"Note: {type(e).__name__}: {e}")
             print()

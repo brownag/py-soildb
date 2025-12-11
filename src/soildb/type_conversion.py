@@ -90,9 +90,8 @@ Type conversion uses a "fail gracefully" strategy:
 
 import logging
 import re
-import warnings
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
 logger = logging.getLogger(__name__)
 
@@ -413,15 +412,15 @@ class TypeMap:
             self._processors[sda_type.lower()] = processor
         else:
             # Use default processor for this type
-            if python_type == int:
+            if python_type is int:
                 self._processors[sda_type.lower()] = TypeProcessor.to_int
-            elif python_type == float:
+            elif python_type is float:
                 self._processors[sda_type.lower()] = TypeProcessor.to_float
-            elif python_type == bool:
+            elif python_type is bool:
                 self._processors[sda_type.lower()] = TypeProcessor.to_bool
-            elif python_type == datetime:
+            elif python_type is datetime:
                 self._processors[sda_type.lower()] = TypeProcessor.to_datetime
-            elif python_type == bytes:
+            elif python_type is bytes:
                 self._processors[sda_type.lower()] = TypeProcessor.to_bytes
             else:
                 # Default to string processor

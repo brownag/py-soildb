@@ -20,7 +20,7 @@ R = TypeVar("R")
 
 class AsyncSyncBridge:
     """Handles conversion of async functions to synchronous versions.
-    
+
     This class provides utilities for running async code synchronously,
     managing event loops, and handling client instantiation.
     """
@@ -82,7 +82,7 @@ class AsyncSyncBridge:
         # Run the coroutine
         try:
             return asyncio.run(_call_and_cleanup())
-        except RuntimeError as e:
+        except RuntimeError:
             # Fallback for environments where asyncio.run() doesn't work
             loop = asyncio.new_event_loop()
             try:
@@ -109,7 +109,7 @@ class AsyncSyncBridge:
         origin = get_origin(annotation)
         if origin is Union:
             args = get_args(annotation)
-            non_none_args = [arg for arg in args if arg != type(None)]
+            non_none_args = [arg for arg in args if arg is not type(None)]
             if non_none_args:
                 arg = non_none_args[0]
                 if isinstance(arg, type):

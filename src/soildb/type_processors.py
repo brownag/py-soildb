@@ -45,10 +45,10 @@ from typing import Any, Optional
 def _notna(value: Any) -> bool:
     """
     Check if a value is not NaN/null, without requiring pandas.
-    
+
     Internal utility used by type processors to determine if a value should be
     converted or returned as None.
-    
+
     Recognizes:
     - None values
     - float NaN, inf, -inf
@@ -76,9 +76,9 @@ def _notna(value: Any) -> bool:
 def to_optional_float(value: Any) -> Optional[float]:
     """
     Convert to float, returning None if the value is null/NaN.
-    
+
     Used for numeric SDA columns that may be missing or null.
-    
+
     Examples:
         >>> to_optional_float("3.14")
         3.14
@@ -93,9 +93,9 @@ def to_optional_float(value: Any) -> Optional[float]:
 def to_optional_int(value: Any) -> Optional[int]:
     """
     Convert to int, returning None if the value is null/NaN.
-    
+
     Used for integer SDA columns that may be missing or null.
-    
+
     Examples:
         >>> to_optional_int("42")
         42
@@ -110,10 +110,10 @@ def to_optional_int(value: Any) -> Optional[int]:
 def to_str(value: Any) -> str:
     """
     Convert to string, returning empty string if null/NaN.
-    
+
     Used for required string columns in SDA data. Always returns a string
     (never None) to ensure fields are never null.
-    
+
     Examples:
         >>> to_str("hello")
         'hello'
@@ -128,9 +128,9 @@ def to_str(value: Any) -> str:
 def to_optional_str(value: Any) -> Optional[str]:
     """
     Convert to string or None if the value is null/NaN.
-    
+
     Used for optional string columns in SDA data that may be genuinely null.
-    
+
     Examples:
         >>> to_optional_str("hello")
         'hello'
@@ -145,15 +145,15 @@ def to_optional_str(value: Any) -> Optional[str]:
 def to_datetime(value: Any) -> Optional[datetime]:
     """
     Convert value to datetime, handling various SDA datetime formats.
-    
+
     Attempts to parse common datetime formats from SDA responses:
     - ISO formats: "2023-01-15T10:30:00Z", "2023-01-15T10:30:00.123456"
     - Standard SQL: "2023-01-15 10:30:00", "2023-01-15"
     - US format: "01/15/2023"
-    
+
     If dateutil is installed, uses flexible parsing for other formats.
     Returns None if parsing fails or value is null.
-    
+
     Examples:
         >>> to_datetime("2023-01-15").date()
         datetime.date(2023, 1, 15)

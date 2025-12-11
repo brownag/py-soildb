@@ -3,16 +3,16 @@ Tests for SoilProfileCollection presets and column configurations.
 """
 
 import pytest
+
 from soildb.spc_presets import (
-    ColumnConfig,
-    StandardSDAHorizonColumns,
-    LabPedonHorizonColumns,
-    PedonSiteHorizonColumns,
-    MapunitComponentHorizonColumns,
+    PRESET_REGISTRY,
     CustomColumnConfig,
+    LabPedonHorizonColumns,
+    MapunitComponentHorizonColumns,
+    PedonSiteHorizonColumns,
+    StandardSDAHorizonColumns,
     get_preset,
     list_presets,
-    PRESET_REGISTRY,
 )
 
 
@@ -22,7 +22,7 @@ class TestColumnConfig:
     def test_column_config_attributes(self):
         """Test ColumnConfig base class has required attributes."""
         config = StandardSDAHorizonColumns()
-        
+
         assert hasattr(config, "site_id_col")
         assert hasattr(config, "horizon_id_col")
         assert hasattr(config, "horizon_top_col")
@@ -35,7 +35,7 @@ class TestColumnConfig:
         """Test get_config_dict returns proper structure."""
         config = StandardSDAHorizonColumns()
         config_dict = config.get_config_dict()
-        
+
         assert isinstance(config_dict, dict)
         assert "site_id_col" in config_dict
         assert "hz_id_col" in config_dict
@@ -46,7 +46,7 @@ class TestColumnConfig:
         """Test get_required_columns returns list of column names."""
         config = StandardSDAHorizonColumns()
         required = config.get_required_columns()
-        
+
         assert isinstance(required, list)
         assert len(required) == 4
         assert config.site_id_col in required
@@ -58,7 +58,7 @@ class TestColumnConfig:
         """Test get_all_columns includes all column names."""
         config = StandardSDAHorizonColumns()
         all_cols = config.get_all_columns()
-        
+
         assert isinstance(all_cols, list)
         assert len(all_cols) >= 4
         # Should include at least the required columns
@@ -73,7 +73,7 @@ class TestStandardSDAHorizonColumns:
     def test_standard_sda_defaults(self):
         """Test StandardSDAHorizonColumns has correct default values."""
         config = StandardSDAHorizonColumns()
-        
+
         assert config.site_id_col == "cokey"
         assert config.horizon_id_col == "chkey"
         assert config.horizon_top_col == "hzdept_r"
@@ -83,7 +83,7 @@ class TestStandardSDAHorizonColumns:
         """Test StandardSDAHorizonColumns config dict."""
         config = StandardSDAHorizonColumns()
         config_dict = config.get_config_dict()
-        
+
         assert config_dict["site_id_col"] == "cokey"
         assert config_dict["hz_id_col"] == "chkey"
         assert config_dict["hz_top_col"] == "hzdept_r"
@@ -93,7 +93,7 @@ class TestStandardSDAHorizonColumns:
         """Test StandardSDAHorizonColumns required columns."""
         config = StandardSDAHorizonColumns()
         required = config.get_required_columns()
-        
+
         assert required == ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
 
 
@@ -103,7 +103,7 @@ class TestLabPedonHorizonColumns:
     def test_lab_pedon_defaults(self):
         """Test LabPedonHorizonColumns has correct default values."""
         config = LabPedonHorizonColumns()
-        
+
         assert config.site_id_col == "pedon_id"
         assert config.horizon_id_col == "hzname"
         assert config.horizon_top_col == "hzdept_r"
@@ -113,7 +113,7 @@ class TestLabPedonHorizonColumns:
         """Test LabPedonHorizonColumns config dict."""
         config = LabPedonHorizonColumns()
         config_dict = config.get_config_dict()
-        
+
         assert config_dict["site_id_col"] == "pedon_id"
         assert config_dict["hz_id_col"] == "hzname"
         assert config_dict["hz_top_col"] == "hzdept_r"
@@ -126,7 +126,7 @@ class TestPedonSiteHorizonColumns:
     def test_pedon_site_defaults(self):
         """Test PedonSiteHorizonColumns has correct default values."""
         config = PedonSiteHorizonColumns()
-        
+
         assert config.site_id_col == "pedon_id"
         assert config.horizon_id_col == "pedon_key_horizon"
         assert config.horizon_top_col == "hzdept_r"
@@ -136,7 +136,7 @@ class TestPedonSiteHorizonColumns:
         """Test PedonSiteHorizonColumns config dict."""
         config = PedonSiteHorizonColumns()
         config_dict = config.get_config_dict()
-        
+
         assert config_dict["site_id_col"] == "pedon_id"
         assert config_dict["hz_id_col"] == "pedon_key_horizon"
 
@@ -147,7 +147,7 @@ class TestMapunitComponentHorizonColumns:
     def test_mapunit_component_defaults(self):
         """Test MapunitComponentHorizonColumns has correct default values."""
         config = MapunitComponentHorizonColumns()
-        
+
         assert config.site_id_col == "mukey"
         assert config.horizon_id_col == "cokey"
         assert config.horizon_top_col == "hzdept_r"
@@ -157,7 +157,7 @@ class TestMapunitComponentHorizonColumns:
         """Test MapunitComponentHorizonColumns includes mukey."""
         config = MapunitComponentHorizonColumns()
         all_cols = config.get_all_columns()
-        
+
         assert "mukey" in all_cols
 
 
@@ -172,7 +172,7 @@ class TestCustomColumnConfig:
             horizon_top_col="top_depth",
             horizon_bottom_col="bottom_depth"
         )
-        
+
         assert config.site_id_col == "site_id"
         assert config.horizon_id_col == "horizon_id"
         assert config.horizon_top_col == "top_depth"
@@ -187,7 +187,7 @@ class TestCustomColumnConfig:
             horizon_bottom_col="depth_bottom"
         )
         config_dict = config.get_config_dict()
-        
+
         assert config_dict["site_id_col"] == "profile_id"
         assert config_dict["hz_id_col"] == "layer_id"
         assert config_dict["hz_top_col"] == "depth_top"
@@ -202,7 +202,7 @@ class TestCustomColumnConfig:
             horizon_bottom_col="bot"
         )
         required = config.get_required_columns()
-        
+
         assert required == ["sid", "hid", "top", "bot"]
 
 
@@ -237,7 +237,7 @@ class TestGetPreset:
     def test_get_preset_standard_sda(self):
         """Test get_preset returns StandardSDAHorizonColumns."""
         config = get_preset("standard_sda")
-        
+
         assert isinstance(config, StandardSDAHorizonColumns)
         assert config.site_id_col == "cokey"
         assert config.horizon_id_col == "chkey"
@@ -245,21 +245,21 @@ class TestGetPreset:
     def test_get_preset_lab_pedon(self):
         """Test get_preset returns LabPedonHorizonColumns."""
         config = get_preset("lab_pedon")
-        
+
         assert isinstance(config, LabPedonHorizonColumns)
         assert config.site_id_col == "pedon_id"
 
     def test_get_preset_pedon_site(self):
         """Test get_preset returns PedonSiteHorizonColumns."""
         config = get_preset("pedon_site")
-        
+
         assert isinstance(config, PedonSiteHorizonColumns)
         assert config.site_id_col == "pedon_id"
 
     def test_get_preset_mapunit_component(self):
         """Test get_preset returns MapunitComponentHorizonColumns."""
         config = get_preset("mapunit_component")
-        
+
         assert isinstance(config, MapunitComponentHorizonColumns)
         assert "mukey" in config.get_all_columns()
 
@@ -280,38 +280,38 @@ class TestListPresets:
     def test_list_presets_returns_dict(self):
         """Test list_presets returns a dictionary."""
         presets = list_presets()
-        
+
         assert isinstance(presets, dict)
         assert len(presets) > 0
 
     def test_list_presets_includes_standard_sda(self):
         """Test list_presets includes standard_sda."""
         presets = list_presets()
-        
+
         assert "standard_sda" in presets
 
     def test_list_presets_includes_lab_pedon(self):
         """Test list_presets includes lab_pedon."""
         presets = list_presets()
-        
+
         assert "lab_pedon" in presets
 
     def test_list_presets_includes_pedon_site(self):
         """Test list_presets includes pedon_site."""
         presets = list_presets()
-        
+
         assert "pedon_site" in presets
 
     def test_list_presets_includes_mapunit_component(self):
         """Test list_presets includes mapunit_component."""
         presets = list_presets()
-        
+
         assert "mapunit_component" in presets
 
     def test_list_presets_has_descriptions(self):
         """Test list_presets values are descriptions."""
         presets = list_presets()
-        
+
         for name, description in presets.items():
             assert isinstance(name, str)
             assert isinstance(description, str)
@@ -329,7 +329,7 @@ class TestPresetIntegration:
             PedonSiteHorizonColumns(),
             MapunitComponentHorizonColumns(),
         ]
-        
+
         for preset in presets:
             required = preset.get_required_columns()
             assert len(required) == 4
@@ -344,14 +344,14 @@ class TestPresetIntegration:
             horizon_top_col=standard.horizon_top_col,
             horizon_bottom_col=standard.horizon_bottom_col
         )
-        
+
         assert custom.get_required_columns() == standard.get_required_columns()
 
     def test_get_preset_returns_independent_instances(self):
         """Test get_preset returns independent instances."""
         config1 = get_preset("standard_sda")
         config2 = get_preset("standard_sda")
-        
+
         # Different instances
         assert config1 is not config2
         # But same values

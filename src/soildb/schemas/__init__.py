@@ -12,7 +12,7 @@ Schema Structure:
 
 Usage:
     from soildb.schemas import get_schema, list_available_schemas
-    
+
     schema = get_schema("mapunit")
     available = list_available_schemas()
 

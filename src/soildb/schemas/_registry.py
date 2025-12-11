@@ -35,10 +35,10 @@ def _load_schema(table_name: str) -> Optional[TableSchema]:
 
 def get_schema(table_name: str) -> Optional[TableSchema]:
     """Get a schema by table name, loading it if necessary.
-    
+
     Args:
         table_name: Name of the table/schema to retrieve
-        
+
     Returns:
         TableSchema if found, None otherwise
     """

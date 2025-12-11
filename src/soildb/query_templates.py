@@ -18,7 +18,7 @@ Examples:
     query = query_pedons_intersecting_bbox(-94.0, 42.0, -93.0, 43.0)
 """
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from .query import ColumnSets, Query
 from .sanitization import (

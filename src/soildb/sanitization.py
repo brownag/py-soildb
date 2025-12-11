@@ -14,8 +14,7 @@ All user input that appears in SQL must be:
 """
 
 import re
-from typing import List, Optional, Union
-
+from typing import List, Union
 
 # SQL Identifier validation pattern: letters, numbers, underscores, periods (for alias.column)
 _IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$"

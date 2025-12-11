@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from soildb.client import SDAClient
-from soildb.convenience import get_mapunit_by_areasymbol
 from soildb.fetch import (
     TABLE_KEY_MAPPING,
     FetchError,
@@ -629,7 +628,7 @@ class TestResponseCombining:
         response2.is_empty.return_value = False
         response2.validation_result = None
 
-        combined = _combine_responses([response1, response2])
+        _combine_responses([response1, response2])
 
         # Check that appropriate log messages were generated
         assert any("Combining" in record.message for record in caplog.records)
@@ -662,7 +661,7 @@ class TestResponseCombining:
         response2.is_empty.return_value = False
         response2.validation_result = None
 
-        combined = _combine_responses([response1, response2], deduplicate=True)
+        _combine_responses([response1, response2], deduplicate=True)
 
         # Check that deduplication warning was logged
         assert any("Deduplication" in record.message for record in caplog.records)

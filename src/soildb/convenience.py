@@ -4,9 +4,9 @@ Utility functions that add value beyond basic query building.
 
 from typing import Optional
 
+from . import query_templates
 from .client import SDAClient
 from .fetch import fetch_pedons_by_bbox
-from . import query_templates
 from .query import ColumnSets, Query
 from .response import SDAResponse
 from .sanitization import sanitize_sql_string
@@ -34,10 +34,10 @@ async def get_mapunit_by_areasymbol(
     Examples:
         # Async usage without explicit client (automatic)
         response = await get_mapunit_by_areasymbol("IA015")
-        
+
         # Sync usage (automatic client management)
         response = get_mapunit_by_areasymbol.sync("IA015")
-        
+
         # With explicit client
         async with SDAClient() as client:
             response = await get_mapunit_by_areasymbol("IA015", client=client)

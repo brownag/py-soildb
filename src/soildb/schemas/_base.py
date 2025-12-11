@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 @dataclass
 class ColumnSchema:
     """Schema definition for a single column.
-    
+
     Attributes:
         name: Column name in the database
         type_hint: Python type hint for the column
@@ -35,7 +35,7 @@ class ColumnSchema:
 @dataclass
 class TableSchema:
     """Schema definition for a table/entity type.
-    
+
     Attributes:
         name: Table name in the database
         columns: Mapping of column name to ColumnSchema
@@ -60,11 +60,11 @@ class TableSchema:
         self, row: Any, requested_columns: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Process a data row according to the schema.
-        
+
         Args:
             row: Row data (dict-like with index)
             requested_columns: Which columns to process (defaults to default columns)
-            
+
         Returns:
             Dictionary with processed data ready for dataclass initialization
         """

@@ -7,7 +7,7 @@ Version: 1.0 (Last updated: 2025-10-27)
 
 from typing import Optional
 
-from ..type_processors import to_optional_float, to_optional_str, to_str
+from ..type_processors import to_optional_float, to_str
 from ._base import ColumnSchema, TableSchema
 
 SCHEMA_VERSION = "1.0"
