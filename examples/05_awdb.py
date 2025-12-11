@@ -281,7 +281,7 @@ async def run_awdb_example():
         print(f"Comprehensive inventory failed: {e}")
 
     print("\n\n=== Summary ===")
-        print("Automatic sensor selection eliminates guesswork")
+    print("Automatic sensor selection eliminates guesswork")
     print("Sensor metadata provides complete station inventories")
     print("Backward compatibility maintained for manual specification")
     print("Advanced filtering works with sensor metadata")
