@@ -26,20 +26,24 @@ async def get_mapunit_by_areasymbol(
     Args:
         areasymbol: Survey area symbol (e.g., 'IA015') to retrieve map units for
         columns: List of columns to return. If None, returns basic map unit columns
-        client: SDA client instance (required)
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse containing map unit data for the specified survey area
 
-    Raises:
-        TypeError: If client is not provided
-
     Examples:
-        # Basic usage
+        # Async usage without explicit client (automatic)
         response = await get_mapunit_by_areasymbol("IA015")
+        
+        # Sync usage (automatic client management)
+        response = get_mapunit_by_areasymbol.sync("IA015")
+        
+        # With explicit client
+        async with SDAClient() as client:
+            response = await get_mapunit_by_areasymbol("IA015", client=client)
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     query = query_templates.query_mapunits_by_legend(areasymbol, columns)
     response = await client.execute(query)
@@ -61,16 +65,13 @@ async def get_mapunit_by_point(
         longitude: Longitude of the point
         latitude: Latitude of the point
         columns: List of columns to return. If None, returns basic map unit columns
-        client: SDA client instance (required)
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse containing map unit data at the specified point
-
-    Raises:
-        TypeError: If client is not provided
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     # Convert columns list to comma-separated string for spatial_query
     what = ", ".join(columns) if columns else None
@@ -96,16 +97,13 @@ async def get_mapunit_by_bbox(
         max_x: Eastern boundary (longitude)
         max_y: Northern boundary (latitude)
         columns: List of columns to return. If None, returns basic map unit columns
-        client: SDA client instance (required)
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse containing map unit data
-
-    Raises:
-        TypeError: If client is not provided
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     query = query_templates.query_mapunits_intersecting_bbox(min_x, min_y, max_x, max_y, columns)
     return await client.execute(query)
@@ -120,31 +118,27 @@ async def get_sacatalog(
 
     Args:
         columns: List of columns to return. If None, returns ['areasymbol', 'areaname', 'saversion']
-        client: SDA client instance (required)
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse containing sacatalog data
 
-    Raises:
-        TypeError: If client is not provided
-
     Examples:
-        # Get basic survey area info
-        client = SDAClient()
-        response = await get_sacatalog(client=client)
+        # Async usage without explicit client (automatic)
+        response = await get_sacatalog()
         df = response.to_pandas()  # areasymbol, areaname, saversion
 
-        # Get all available columns
-        response = await get_sacatalog(columns=['areasymbol', 'areaname', 'saversion', 'saverest'], client=client)
+        # Sync usage (automatic client management)
+        response = get_sacatalog.sync()
         df = response.to_pandas()
 
-        # Get just survey area symbols
-        response = await get_sacatalog(columns=['areasymbol'], client=client)
+        # Get specific columns
+        response = await get_sacatalog(columns=['areasymbol', 'areaname'])
         df = response.to_pandas()
         symbols = df['areasymbol'].tolist()
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     query = query_templates.query_available_survey_areas(columns)
     return await client.execute(query)
@@ -168,16 +162,13 @@ async def get_lab_pedons_by_bbox(
         max_x: Eastern boundary (longitude)
         max_y: Northern boundary (latitude)
         columns: List of columns to return. If None, returns basic pedon columns
-        client: SDA client instance (required)
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse containing lab pedon data
-
-    Raises:
-        TypeError: If client is not provided
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     bbox = (min_x, min_y, max_x, max_y)
     return await fetch_pedons_by_bbox(bbox, columns, client=client)  # type: ignore
@@ -195,16 +186,13 @@ async def get_lab_pedon_by_id(
     Args:
         pedon_id: Pedon key or user pedon ID
         columns: List of columns to return. If None, returns basic pedon columns
-        client: SDA client instance (required)
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse containing lab pedon data
-
-    Raises:
-        TypeError: If client is not provided
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     # First try as pedon_key
     query = query_templates.query_pedon_by_pedon_key(pedon_id, columns)

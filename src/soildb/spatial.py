@@ -370,13 +370,12 @@ async def spatial_query(
               If None, uses sensible defaults based on table and return_type.
         geom_column: Custom geometry column name (e.g., "geometry", "the_geom").
                      If None, auto-detected based on table.
-        client: Optional SDA client instance. Required unless using wrapper functions.
+        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
     Returns:
         SDAResponse: Query results with methods like .to_pandas(), .to_geodataframe()
 
     Raises:
-        TypeError: If client is None
         ValueError: If geometry cannot be parsed
 
     Examples:
@@ -449,7 +448,7 @@ async def spatial_query(
     - soilDB R package documentation - For additional spatial query patterns
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     builder = SpatialQueryBuilder(client)
     query = builder.query(
@@ -509,6 +508,9 @@ async def point_query(
         spatial_query() - For full control over geometry and parameters
         bbox_query() - For bounding box queries
     """
+    if client is None:
+        client = SDAClient()
+    
     point_wkt = f"POINT({longitude} {latitude})"
     return await spatial_query(
         point_wkt, table, return_type, spatial_relation, client=client
@@ -568,6 +570,9 @@ async def bbox_query(
         mupolygon_in_bbox() - Specialized for map unit polygons
         sapolygon_in_bbox() - Specialized for survey area polygons
     """
+    if client is None:
+        client = SDAClient()
+    
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await spatial_query(
         bbox, table, return_type, spatial_relation, client=client
@@ -603,6 +608,9 @@ async def mupolygon_in_bbox(
         bbox_query() - More flexible bounding box queries
         spatial_query() - For full control
     """
+    if client is None:
+        client = SDAClient()
+    
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await query_mupolygon(bbox, return_type, client=client)
 

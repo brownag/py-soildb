@@ -476,7 +476,7 @@ async def fetch_by_keys(
         raise FetchError("The 'keys' parameter cannot be an empty list.")
 
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     # Auto-detect key column if not provided
     if key_column is None:
@@ -1024,7 +1024,7 @@ async def fetch_pedons_by_bbox(
     min_lon, min_lat, max_lon, max_lat = bbox
 
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     # Fetch site data
     from . import query_templates
@@ -1123,7 +1123,7 @@ async def fetch_pedon_horizons(
         pedon_keys = [pedon_keys]
 
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     from . import query_templates
     query = query_templates.query_pedon_horizons_by_pedon_keys(pedon_keys)
@@ -1176,7 +1176,7 @@ async def get_mukey_by_areasymbol(
         fetch_by_keys() - Use discovered keys to fetch data
     """
     if client is None:
-        raise TypeError("client parameter is required")
+        client = SDAClient()
 
     # Use the existing get_mapunits_by_legend pattern but for multiple areas
     key_strings = sanitize_sql_string_list(areasymbols)
