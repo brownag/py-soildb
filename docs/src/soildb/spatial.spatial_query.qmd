@@ -9,7 +9,6 @@ spatial.spatial_query(
     what=None,
     geom_column=None,
     client=None,
-    enrich_with_geoenv=False,
 )
 ```
 
@@ -75,14 +74,12 @@ Args:
           If None, uses sensible defaults based on table and return_type.
     geom_column: Custom geometry column name (e.g., "geometry", "the_geom").
                  If None, auto-detected based on table.
-    client: Optional SDA client instance. Required unless using wrapper functions.
-    enrich_with_geoenv: If True, enrich results with environmental context from geoenv.
+    client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
 Returns:
     SDAResponse: Query results with methods like .to_pandas(), .to_geodataframe()
 
 Raises:
-    TypeError: If client is None
     ValueError: If geometry cannot be parsed
 
 Examples:

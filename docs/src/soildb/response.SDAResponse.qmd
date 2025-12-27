@@ -218,7 +218,7 @@ soil profile collection.
    - No → Use `to_pandas()` or `to_polars()` instead
 
 2. What type of data do you have?
-   - Standard SDA chorizon → Use `preset="standard_sda"` 
+   - Standard SDA chorizon → Use `preset="standard_sda"`
    - Lab pedon data → Use `preset="lab_pedon"`
    - Map unit + component → Use `preset="mapunit_component"`
    - Custom columns → Use `preset=CustomColumnConfig(...)`
@@ -271,7 +271,7 @@ Raises:
 Examples:
     >>> from soildb.spc_presets import StandardSDAHorizonColumns
     >>> from soildb import SDAClient, Query
-    >>> 
+    >>>
     >>> # Using preset
     >>> async with SDAClient() as client:
     ...     query = Query().select(

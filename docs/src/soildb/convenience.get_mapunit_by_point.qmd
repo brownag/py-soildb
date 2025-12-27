@@ -10,10 +10,7 @@ Args:
     longitude: Longitude of the point
     latitude: Latitude of the point
     columns: List of columns to return. If None, returns basic map unit columns
-    client: SDA client instance (required)
+    client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
 
 Returns:
     SDAResponse containing map unit data at the specified point
-
-Raises:
-    TypeError: If client is not provided
