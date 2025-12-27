@@ -191,9 +191,7 @@ async def get_scan_soil_moisture_profile(
         )
         return data
     except AWDBError as e:
-        raise AWDBError(
-            f"Could not fetch SCAN soil moisture data: {e}"
-        ) from e
+        raise AWDBError(f"Could not fetch SCAN soil moisture data: {e}") from e
 
 
 async def get_scan_soil_temperature_profile(
@@ -229,9 +227,7 @@ async def get_scan_soil_temperature_profile(
         )
         return data
     except AWDBError as e:
-        raise AWDBError(
-            f"Could not fetch SCAN soil temperature data: {e}"
-        ) from e
+        raise AWDBError(f"Could not fetch SCAN soil temperature data: {e}") from e
 
 
 async def get_precipitation_data(
@@ -266,9 +262,7 @@ async def get_precipitation_data(
         )
         return data
     except AWDBError as e:
-        raise AWDBError(
-            f"Could not fetch precipitation data: {e}"
-        ) from e
+        raise AWDBError(f"Could not fetch precipitation data: {e}") from e
 
 
 async def estimate_water_availability(
@@ -313,7 +307,9 @@ async def estimate_water_availability(
     moisture_data = await get_scan_soil_moisture_profile(
         latitude, longitude, start_date, end_date
     )
-    precip_data = await get_precipitation_data(latitude, longitude, start_date, end_date)
+    precip_data = await get_precipitation_data(
+        latitude, longitude, start_date, end_date
+    )
     temp_data = await get_scan_soil_temperature_profile(
         latitude, longitude, start_date, end_date
     )
@@ -333,14 +329,18 @@ async def estimate_water_availability(
         "depth_range": {
             "shallow_ft": soil_df["hzdept_r"].min() / 12,  # Convert to feet
             "deep_ft": soil_df["hzdepb_r"].max() / 12,
-        }
+        },
     }
 
     # Add water table depth if available
     if not wtable_df.empty:
         soil_summary["water_table"] = {
-            "min_depth_ft": wtable_df["wtdepannmin"].mean() / 12 if "wtdepannmin" in wtable_df.columns else None,
-            "max_depth_ft": wtable_df["wtdepannmax"].mean() / 12 if "wtdepannmax" in wtable_df.columns else None,
+            "min_depth_ft": wtable_df["wtdepannmin"].mean() / 12
+            if "wtdepannmin" in wtable_df.columns
+            else None,
+            "max_depth_ft": wtable_df["wtdepannmax"].mean() / 12
+            if "wtdepannmax" in wtable_df.columns
+            else None,
         }
 
     # Extract measurements from AWDB data

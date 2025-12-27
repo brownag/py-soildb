@@ -428,11 +428,11 @@ class TypeMap:
 
         # Invalidate cache
         self._type_processor_cache.clear()
-        logger.info(f"Registered processor for SDA type '{sda_type}' -> {python_type.__name__}")
+        logger.info(
+            f"Registered processor for SDA type '{sda_type}' -> {python_type.__name__}"
+        )
 
-    def convert_value(
-        self, value: Any, sda_type: str, strict: bool = False
-    ) -> Any:
+    def convert_value(self, value: Any, sda_type: str, strict: bool = False) -> Any:
         """
         Convert a single value from SDA type to Python type.
 

@@ -11,7 +11,9 @@ from ._base import TableSchema
 
 # Lazy-loading registry
 _SCHEMAS_CACHE: Dict[str, TableSchema] = {}
-_SCHEMA_LOADERS: Dict[str, Callable[[], TableSchema]] = {}  # Will be populated with lazy loaders
+_SCHEMA_LOADERS: Dict[
+    str, Callable[[], TableSchema]
+] = {}  # Will be populated with lazy loaders
 
 
 def _register_loader(table_name: str, loader_func: Callable[[], TableSchema]) -> None:

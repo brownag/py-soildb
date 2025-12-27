@@ -62,7 +62,6 @@ class AWDBClient(BaseDataAccessClient):
         """
         return self._config.timeout
 
-
     def _create_http_client(self) -> httpx.AsyncClient:
         """Create HTTP client with AWDB-specific configuration.
 
@@ -137,7 +136,9 @@ class AWDBClient(BaseDataAccessClient):
                     f"HTTP error {e.response.status_code}: {e}"
                 ) from e
         except httpx.TimeoutException as e:
-            raise AWDBConnectionError(f"Request timeout after {self._config.timeout}s") from e
+            raise AWDBConnectionError(
+                f"Request timeout after {self._config.timeout}s"
+            ) from e
         except httpx.RequestError as e:
             raise AWDBConnectionError(f"Network error: {e}") from e
         except json.JSONDecodeError as e:

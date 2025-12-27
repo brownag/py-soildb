@@ -706,9 +706,7 @@ def _combine_responses(
         logger.debug("Single response, returning as-is")
         return responses[0]
 
-    logger.debug(
-        f"Combining {len(responses)} responses, deduplicate={deduplicate}"
-    )
+    logger.debug(f"Combining {len(responses)} responses, deduplicate={deduplicate}")
 
     # Validate schema consistency across all responses
     try:
@@ -787,7 +785,7 @@ def _combine_responses(
     if deduplicate and deduped_count > 0:
         logger.warning(
             f"Deduplication removed {deduped_count} duplicate rows "
-            f"({100*deduped_count/total_input_rows:.1f}% reduction). "
+            f"({100 * deduped_count / total_input_rows:.1f}% reduction). "
             f"Check if chunking strategy is causing overlaps."
         )
 
@@ -925,7 +923,9 @@ def _merge_validation_state(
             logger.debug(
                 f"Merged validation state: {len(all_errors)} errors, "
                 f"{len(all_warnings)} warnings, "
-                f"avg quality score: {avg_score:.2f}" if quality_scores else ""
+                f"avg quality score: {avg_score:.2f}"
+                if quality_scores
+                else ""
             )
 
     except Exception as e:
@@ -1026,6 +1026,7 @@ async def fetch_pedons_by_bbox(
 
     # Fetch site data
     from . import query_templates
+
     query = query_templates.query_pedons_intersecting_bbox(
         min_lon, min_lat, max_lon, max_lat, columns
     )
@@ -1124,6 +1125,7 @@ async def fetch_pedon_horizons(
         client = SDAClient()
 
     from . import query_templates
+
     query = query_templates.query_pedon_horizons_by_pedon_keys(pedon_keys)
     return await client.execute(query)
 
@@ -1135,6 +1137,7 @@ async def fetch_pedon_horizons(
 # Use before complex multi-step operations to plan key lists.
 # Small results: Immediate execution (no chunking).
 # ============================================================================
+
 
 @add_sync_version
 async def get_mukey_by_areasymbol(

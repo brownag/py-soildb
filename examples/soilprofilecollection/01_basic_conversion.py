@@ -25,19 +25,21 @@ async def main():
 
     async with SDAClient() as client:
         # Query component horizons
-        query = Query().select(
-            "cokey",          # Component key (site ID)
-            "chkey",          # Component horizon key (horizon ID)
-            "hzdept_r",       # Horizon top depth (cm)
-            "hzdepb_r",       # Horizon bottom depth (cm)
-            "claytotal_r",    # Clay percentage
-            "sandtotal_r",    # Sand percentage
-            "om_r"            # Organic matter
-        ).from_(
-            "chorizon"
-        ).order_by(
-            "cokey, hzdept_r"
-        ).limit(100)
+        query = (
+            Query()
+            .select(
+                "cokey",  # Component key (site ID)
+                "chkey",  # Component horizon key (horizon ID)
+                "hzdept_r",  # Horizon top depth (cm)
+                "hzdepb_r",  # Horizon bottom depth (cm)
+                "claytotal_r",  # Clay percentage
+                "sandtotal_r",  # Sand percentage
+                "om_r",  # Organic matter
+            )
+            .from_("chorizon")
+            .order_by("cokey, hzdept_r")
+            .limit(100)
+        )
 
         print("Executing query...")
         print("  SELECT: cokey, chkey, hzdept_r, hzdepb_r, claytotal_r, ...")

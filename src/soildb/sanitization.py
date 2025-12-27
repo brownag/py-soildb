@@ -20,7 +20,9 @@ from typing import List, Union
 _IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$"
 
 # WKT geometry type pattern
-_WKT_PATTERN = r"^(POINT|POLYGON|MULTIPOLYGON|LINESTRING|MULTILINESTRING|GEOMETRYCOLLECTION)\s*\("
+_WKT_PATTERN = (
+    r"^(POINT|POLYGON|MULTIPOLYGON|LINESTRING|MULTILINESTRING|GEOMETRYCOLLECTION)\s*\("
+)
 
 
 def sanitize_sql_string(value: str) -> str:
@@ -49,7 +51,9 @@ def sanitize_sql_string(value: str) -> str:
         "'O''Brien'"
     """
     if not isinstance(value, str):
-        raise ValueError(f"sanitize_sql_string requires str, got {type(value).__name__}")
+        raise ValueError(
+            f"sanitize_sql_string requires str, got {type(value).__name__}"
+        )
     # Escape single quotes by doubling them (SQL standard)
     escaped = value.replace("'", "''")
     return f"'{escaped}'"
@@ -87,7 +91,9 @@ def sanitize_sql_numeric(value: Union[int, float, str]) -> str:
         float(value)
         return str(value)
     except (ValueError, TypeError) as err:
-        raise ValueError(f"sanitize_sql_numeric requires numeric value, got {value!r}") from err
+        raise ValueError(
+            f"sanitize_sql_numeric requires numeric value, got {value!r}"
+        ) from err
 
 
 def validate_sql_identifier(identifier: str) -> str:
@@ -119,7 +125,9 @@ def validate_sql_identifier(identifier: str) -> str:
         ValueError: Invalid SQL identifier: mapunit; DROP TABLE
     """
     if not re.match(_IDENTIFIER_PATTERN, identifier):
-        raise ValueError(f"Invalid SQL identifier: {identifier!r}. Must be alphanumeric + underscore.")
+        raise ValueError(
+            f"Invalid SQL identifier: {identifier!r}. Must be alphanumeric + underscore."
+        )
     return identifier
 
 

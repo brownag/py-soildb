@@ -75,7 +75,11 @@ class SDAClient(BaseDataAccessClient):
                 config.base_url = base_url
 
         super().__init__(config)
-        self.base_url = config.base_url.rstrip("/") if config.base_url else "https://sdmdataaccess.sc.egov.usda.gov"
+        self.base_url = (
+            config.base_url.rstrip("/")
+            if config.base_url
+            else "https://sdmdataaccess.sc.egov.usda.gov"
+        )
 
     def _create_http_client(self) -> httpx.AsyncClient:
         """Create HTTP client with SDA-specific configuration.
@@ -95,7 +99,6 @@ class SDAClient(BaseDataAccessClient):
     async def close(self) -> None:  # type: ignore[override]
         """Close the HTTP client and clean up resources."""
         await super().close()
-
 
     @add_sync_version
     async def connect(self) -> bool:  # type: ignore[override]

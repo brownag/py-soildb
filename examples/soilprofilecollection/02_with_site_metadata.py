@@ -29,21 +29,24 @@ async def main():
         # Query with proper join to get both horizons and component metadata
         print("Querying horizon data with component metadata...")
 
-        query = Query().select(
-            "c.cokey",
-            "ch.chkey",
-            "ch.hzdept_r",
-            "ch.hzdepb_r",
-            "ch.claytotal_r",
-            "ch.sandtotal_r",
-            "ch.om_r",
-            "c.compname",
-            "c.comppct_r"
-        ).from_("chorizon ch").inner_join(
-            "component c", "ch.cokey = c.cokey"
-        ).order_by(
-            "cokey, hzdept_r"
-        ).limit(100)
+        query = (
+            Query()
+            .select(
+                "c.cokey",
+                "ch.chkey",
+                "ch.hzdept_r",
+                "ch.hzdepb_r",
+                "ch.claytotal_r",
+                "ch.sandtotal_r",
+                "ch.om_r",
+                "c.compname",
+                "c.comppct_r",
+            )
+            .from_("chorizon ch")
+            .inner_join("component c", "ch.cokey = c.cokey")
+            .order_by("cokey, hzdept_r")
+            .limit(100)
+        )
 
         response = await client.execute(query)
         print(f"  Retrieved {len(response)} records")
@@ -58,8 +61,8 @@ async def main():
 
         # Create separate horizon and site DataFrames
         print("Creating site metadata DataFrame...")
-        site_df = pd.DataFrame(data).drop_duplicates(subset=['cokey'])
-        site_data = site_df[['cokey', 'compname', 'comppct_r']]
+        site_df = pd.DataFrame(data).drop_duplicates(subset=["cokey"])
+        site_data = site_df[["cokey", "compname", "comppct_r"]]
 
         print(f"  Site data: {site_data.shape[0]} unique components")
         print(f"  Columns: {site_data.columns.tolist()}")
@@ -73,8 +76,7 @@ async def main():
         print("Converting to SoilProfileCollection with site metadata...")
         try:
             spc = response.to_soilprofilecollection(
-                site_data=site_data,
-                site_id_col="cokey"
+                site_data=site_data, site_id_col="cokey"
             )
 
             print("Conversion successful.")
@@ -87,7 +89,11 @@ async def main():
 
             # Show site data with component info
             print("Site data with component info:")
-            display_cols = [col for col in ['cokey', 'compname', 'comppct_r'] if col in spc.site.columns]
+            display_cols = [
+                col
+                for col in ["cokey", "compname", "comppct_r"]
+                if col in spc.site.columns
+            ]
             print(spc.site[display_cols].head())
             print()
 
@@ -96,8 +102,11 @@ async def main():
                 first_cokey = spc.site.iloc[0]["cokey"]
                 print(f"Horizons for component {first_cokey}:")
                 hz_subset = spc.horizons[spc.horizons["cokey"] == first_cokey]
-                hz_cols = [col for col in ['chkey', 'hzdept_r', 'hzdepb_r', 'claytotal_r', 'om_r']
-                          if col in hz_subset.columns]
+                hz_cols = [
+                    col
+                    for col in ["chkey", "hzdept_r", "hzdepb_r", "claytotal_r", "om_r"]
+                    if col in hz_subset.columns
+                ]
                 print(hz_subset[hz_cols])
 
             return spc

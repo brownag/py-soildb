@@ -611,7 +611,9 @@ async def mupolygon_in_bbox(
         client = SDAClient()
 
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-    return await spatial_query(bbox, table="mupolygon", return_type=return_type, client=client)
+    return await spatial_query(
+        bbox, table="mupolygon", return_type=return_type, client=client
+    )
 
 
 async def sapolygon_in_bbox(
@@ -646,4 +648,6 @@ async def sapolygon_in_bbox(
         client = SDAClient()
 
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-    return await spatial_query(bbox, table="sapolygon", return_type=return_type, client=client)
+    return await spatial_query(
+        bbox, table="sapolygon", return_type=return_type, client=client
+    )

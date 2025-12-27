@@ -24,7 +24,7 @@ class TestSPCValidationError:
             message="Test error",
             missing_columns=["col1", "col2"],
             available_columns=["col3", "col4"],
-            suggestion="Use col3 instead"
+            suggestion="Use col3 instead",
         )
 
         assert error.message == "Test error"
@@ -154,11 +154,13 @@ class TestSPCDepthValidator:
 
     def test_validate_depths_valid_data(self):
         """Test validate_depths with valid depth data."""
-        df = pd.DataFrame({
-            "cokey": [101, 101, 102, 102],
-            "hzdept_r": [0, 10, 0, 20],
-            "hzdepb_r": [10, 30, 20, 50],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101, 102, 102],
+                "hzdept_r": [0, 10, 0, 20],
+                "hzdepb_r": [10, 30, 20, 50],
+            }
+        )
 
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
@@ -170,11 +172,13 @@ class TestSPCDepthValidator:
 
     def test_validate_depths_invalid_range(self):
         """Test validate_depths detects invalid depth ranges."""
-        df = pd.DataFrame({
-            "cokey": [101, 101],
-            "hzdept_r": [30, 10],
-            "hzdepb_r": [10, 30],  # Top > bottom
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101],
+                "hzdept_r": [30, 10],
+                "hzdepb_r": [10, 30],  # Top > bottom
+            }
+        )
 
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
@@ -186,11 +190,13 @@ class TestSPCDepthValidator:
 
     def test_validate_depths_missing_values(self):
         """Test validate_depths detects missing values."""
-        df = pd.DataFrame({
-            "cokey": [101, 101],
-            "hzdept_r": [0, None],
-            "hzdepb_r": [10, 30],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101],
+                "hzdept_r": [0, None],
+                "hzdepb_r": [10, 30],
+            }
+        )
 
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
@@ -202,11 +208,13 @@ class TestSPCDepthValidator:
 
     def test_validate_depths_non_numeric(self):
         """Test validate_depths detects non-numeric values."""
-        df = pd.DataFrame({
-            "cokey": [101, 101],
-            "hzdept_r": [0, "invalid"],
-            "hzdepb_r": [10, 30],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101],
+                "hzdept_r": [0, "invalid"],
+                "hzdepb_r": [10, 30],
+            }
+        )
 
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
@@ -218,11 +226,13 @@ class TestSPCDepthValidator:
 
     def test_validate_depths_negative_values(self):
         """Test validate_depths with negative depths."""
-        df = pd.DataFrame({
-            "cokey": [101, 101],
-            "hzdept_r": [-10, 10],
-            "hzdepb_r": [0, 30],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101],
+                "hzdept_r": [-10, 10],
+                "hzdepb_r": [0, 30],
+            }
+        )
 
         is_valid, error, invalid_count = SPCDepthValidator.validate_depths(
             df, "hzdept_r", "hzdepb_r"
@@ -234,15 +244,15 @@ class TestSPCDepthValidator:
 
     def test_get_depth_statistics(self):
         """Test get_depth_statistics returns proper statistics."""
-        df = pd.DataFrame({
-            "cokey": [101, 101, 102, 102],
-            "hzdept_r": [0, 10, 0, 20],
-            "hzdepb_r": [10, 30, 20, 50],
-        })
-
-        stats = SPCDepthValidator.get_depth_statistics(
-            df, "hzdept_r", "hzdepb_r"
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101, 102, 102],
+                "hzdept_r": [0, 10, 0, 20],
+                "hzdepb_r": [10, 30, 20, 50],
+            }
         )
+
+        stats = SPCDepthValidator.get_depth_statistics(df, "hzdept_r", "hzdepb_r")
 
         assert isinstance(stats, dict)
         assert "top_depth_min" in stats
@@ -254,15 +264,15 @@ class TestSPCDepthValidator:
 
     def test_get_depth_statistics_single_horizon(self):
         """Test get_depth_statistics with single horizon."""
-        df = pd.DataFrame({
-            "cokey": [101],
-            "hzdept_r": [0],
-            "hzdepb_r": [20],
-        })
-
-        stats = SPCDepthValidator.get_depth_statistics(
-            df, "hzdept_r", "hzdepb_r"
+        df = pd.DataFrame(
+            {
+                "cokey": [101],
+                "hzdept_r": [0],
+                "hzdepb_r": [20],
+            }
         )
+
+        stats = SPCDepthValidator.get_depth_statistics(df, "hzdept_r", "hzdepb_r")
 
         assert stats["top_depth_min"] == 0
         assert stats["bottom_depth_max"] == 20
@@ -304,12 +314,14 @@ class TestCreateSPCValidationReport:
 
     def test_validation_report_valid_data(self):
         """Test validation report with valid data."""
-        df = pd.DataFrame({
-            "cokey": [101, 101, 102, 102],
-            "chkey": [1, 2, 3, 4],
-            "hzdept_r": [0, 10, 0, 20],
-            "hzdepb_r": [10, 30, 20, 50],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101, 102, 102],
+                "chkey": [1, 2, 3, 4],
+                "hzdept_r": [0, 10, 0, 20],
+                "hzdepb_r": [10, 30, 20, 50],
+            }
+        )
 
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
@@ -317,7 +329,7 @@ class TestCreateSPCValidationReport:
             required_cols=required_cols,
             available_cols=df.columns.tolist(),
             top_col="hzdept_r",
-            bottom_col="hzdepb_r"
+            bottom_col="hzdepb_r",
         )
 
         assert isinstance(report, dict)
@@ -328,12 +340,14 @@ class TestCreateSPCValidationReport:
 
     def test_validation_report_summary_structure(self):
         """Test validation report summary structure."""
-        df = pd.DataFrame({
-            "cokey": [101, 102],
-            "chkey": [1, 2],
-            "hzdept_r": [0, 0],
-            "hzdepb_r": [10, 20],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 102],
+                "chkey": [1, 2],
+                "hzdept_r": [0, 0],
+                "hzdepb_r": [10, 20],
+            }
+        )
 
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
@@ -341,7 +355,7 @@ class TestCreateSPCValidationReport:
             required_cols=required_cols,
             available_cols=df.columns.tolist(),
             top_col="hzdept_r",
-            bottom_col="hzdepb_r"
+            bottom_col="hzdepb_r",
         )
 
         summary = report["data_summary"]
@@ -351,11 +365,13 @@ class TestCreateSPCValidationReport:
 
     def test_validation_report_with_missing_columns(self):
         """Test validation report detects missing columns."""
-        df = pd.DataFrame({
-            "cokey": [101, 102],
-            "chkey": [1, 2],
-            # Missing depth columns
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 102],
+                "chkey": [1, 2],
+                # Missing depth columns
+            }
+        )
 
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
@@ -363,19 +379,21 @@ class TestCreateSPCValidationReport:
             required_cols=required_cols,
             available_cols=df.columns.tolist(),
             top_col="hzdept_r",
-            bottom_col="hzdepb_r"
+            bottom_col="hzdepb_r",
         )
 
         assert len(report["errors"]) > 0
 
     def test_validation_report_with_invalid_depths(self):
         """Test validation report detects invalid depths."""
-        df = pd.DataFrame({
-            "cokey": [101, 101],
-            "chkey": [1, 2],
-            "hzdept_r": [30, 10],  # First is deeper than bottom
-            "hzdepb_r": [10, 30],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101],
+                "chkey": [1, 2],
+                "hzdept_r": [30, 10],  # First is deeper than bottom
+                "hzdepb_r": [10, 30],
+            }
+        )
 
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
@@ -383,7 +401,7 @@ class TestCreateSPCValidationReport:
             required_cols=required_cols,
             available_cols=df.columns.tolist(),
             top_col="hzdept_r",
-            bottom_col="hzdepb_r"
+            bottom_col="hzdepb_r",
         )
 
         # Should detect the issue
@@ -392,12 +410,14 @@ class TestCreateSPCValidationReport:
 
     def test_validation_report_empty_dataframe(self):
         """Test validation report with empty dataframe."""
-        df = pd.DataFrame({
-            "cokey": [],
-            "chkey": [],
-            "hzdept_r": [],
-            "hzdepb_r": [],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [],
+                "chkey": [],
+                "hzdept_r": [],
+                "hzdepb_r": [],
+            }
+        )
 
         required_cols = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
         report = create_spc_validation_report(
@@ -405,7 +425,7 @@ class TestCreateSPCValidationReport:
             required_cols=required_cols,
             available_cols=df.columns.tolist(),
             top_col="hzdept_r",
-            bottom_col="hzdepb_r"
+            bottom_col="hzdepb_r",
         )
 
         assert report["data_summary"]["total_rows"] == 0
@@ -417,13 +437,15 @@ class TestSPCValidatorIntegration:
     def test_full_validation_workflow(self):
         """Test complete validation workflow."""
         # Create test data
-        df = pd.DataFrame({
-            "cokey": [101, 101, 102, 102],
-            "chkey": [1, 2, 3, 4],
-            "hzdept_r": [0, 10, 0, 20],
-            "hzdepb_r": [10, 30, 20, 50],
-            "claytotal_r": [25, 30, 15, 20],
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101, 102, 102],
+                "chkey": [1, 2, 3, 4],
+                "hzdept_r": [0, 10, 0, 20],
+                "hzdepb_r": [10, 30, 20, 50],
+                "claytotal_r": [25, 30, 15, 20],
+            }
+        )
 
         # Step 1: Validate columns
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]
@@ -439,20 +461,20 @@ class TestSPCValidatorIntegration:
         assert is_valid is True
 
         # Step 3: Get statistics
-        stats = SPCDepthValidator.get_depth_statistics(
-            df, "hzdept_r", "hzdepb_r"
-        )
+        stats = SPCDepthValidator.get_depth_statistics(df, "hzdept_r", "hzdepb_r")
         assert stats["top_depth_min"] == 0
 
     def test_validation_catches_multiple_errors(self):
         """Test validation catches multiple error types."""
         # Create problematic data
-        df = pd.DataFrame({
-            "cokey": [101, 101, 102],
-            "chkey": [1, 2, 3],
-            "hzdept_r": [30, None, 0],  # Second is None, first is invalid
-            "hzdepb_r": [10, 30, None],  # Third is None
-        })
+        df = pd.DataFrame(
+            {
+                "cokey": [101, 101, 102],
+                "chkey": [1, 2, 3],
+                "hzdept_r": [30, None, 0],  # Second is None, first is invalid
+                "hzdepb_r": [10, 30, None],  # Third is None
+            }
+        )
 
         # Column validation should pass (all columns present)
         required = ["cokey", "chkey", "hzdept_r", "hzdepb_r"]

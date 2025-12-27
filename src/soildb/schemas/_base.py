@@ -104,7 +104,5 @@ class TableSchema:
     def get_columns_for_field(self, field_name: str) -> List[str]:
         """Get all database columns that map to a specific field."""
         return [
-            col.name
-            for col in self.columns.values()
-            if col.field_name == field_name
+            col.name for col in self.columns.values() if col.field_name == field_name
         ]

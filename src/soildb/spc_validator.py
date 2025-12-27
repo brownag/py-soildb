@@ -50,7 +50,13 @@ class SPCColumnValidator:
         "cokey": ["compkey", "component_key", "site_key", "component_id"],
         "chkey": ["horizon_key", "hzkey", "horizon_id", "layer_id"],
         "hzdept_r": ["top_depth", "depth_top", "hz_top", "depth_from", "top_cm"],
-        "hzdepb_r": ["bottom_depth", "depth_bottom", "hz_bottom", "depth_to", "bottom_cm"],
+        "hzdepb_r": [
+            "bottom_depth",
+            "depth_bottom",
+            "hz_bottom",
+            "depth_to",
+            "bottom_cm",
+        ],
         "pedon_id": ["pedon_key", "site_id", "profile_id"],
         "hzname": ["horizon_name", "layer_name"],
     }
@@ -173,11 +179,11 @@ class SPCDepthValidator:
 
         # Find invalid rows
         invalid_mask = (
-            top_depths.isna() |  # Non-numeric or NULL top depth
-            bottom_depths.isna() |  # Non-numeric or NULL bottom depth
-            (top_depths < 0) |  # Negative top depth
-            (bottom_depths < 0) |  # Negative bottom depth
-            (top_depths >= bottom_depths)  # Top >= bottom
+            top_depths.isna()  # Non-numeric or NULL top depth
+            | bottom_depths.isna()  # Non-numeric or NULL bottom depth
+            | (top_depths < 0)  # Negative top depth
+            | (bottom_depths < 0)  # Negative bottom depth
+            | (top_depths >= bottom_depths)  # Top >= bottom
         )
 
         invalid_count = invalid_mask.sum()
@@ -234,9 +240,15 @@ class SPCDepthValidator:
             "top_depth_min": float(top_valid.min()) if len(top_valid) > 0 else None,
             "top_depth_max": float(top_valid.max()) if len(top_valid) > 0 else None,
             "top_depth_mean": float(top_valid.mean()) if len(top_valid) > 0 else None,
-            "bottom_depth_min": float(bottom_valid.min()) if len(bottom_valid) > 0 else None,
-            "bottom_depth_max": float(bottom_valid.max()) if len(bottom_valid) > 0 else None,
-            "bottom_depth_mean": float(bottom_valid.mean()) if len(bottom_valid) > 0 else None,
+            "bottom_depth_min": float(bottom_valid.min())
+            if len(bottom_valid) > 0
+            else None,
+            "bottom_depth_max": float(bottom_valid.max())
+            if len(bottom_valid) > 0
+            else None,
+            "bottom_depth_mean": float(bottom_valid.mean())
+            if len(bottom_valid) > 0
+            else None,
         }
 
 
@@ -345,7 +357,9 @@ def create_spc_validation_report(
         report["validation_details"]["depths"] = {  # type: ignore[index]
             "valid": depth_valid,
             "invalid_count": invalid_count,
-            "statistics": SPCDepthValidator.get_depth_statistics(df, top_col, bottom_col),
+            "statistics": SPCDepthValidator.get_depth_statistics(
+                df, top_col, bottom_col
+            ),
         }
 
     return report

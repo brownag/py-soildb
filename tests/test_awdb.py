@@ -424,7 +424,9 @@ class TestConvenienceFunctions:
         from soildb.awdb.convenience import list_available_variables
 
         # Mock the underlying API call to avoid real network requests
-        with patch("soildb.awdb.convenience.get_station_sensor_metadata") as mock_metadata:
+        with patch(
+            "soildb.awdb.convenience.get_station_sensor_metadata"
+        ) as mock_metadata:
             mock_metadata.return_value = {
                 "sensors": {
                     "soil_moisture": [{"code": "SMS", "depth": "-20"}],
@@ -432,7 +434,9 @@ class TestConvenienceFunctions:
                 }
             }
 
-            with patch("soildb.awdb.convenience.get_property_unit_from_api") as mock_unit:
+            with patch(
+                "soildb.awdb.convenience.get_property_unit_from_api"
+            ) as mock_unit:
                 mock_unit.return_value = "pct"
 
                 variables = await list_available_variables("301:CA:SNTL")

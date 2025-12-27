@@ -67,7 +67,7 @@ class TestSanitizeSqlString:
             sanitize_sql_string(None)
 
         with pytest.raises(ValueError, match="sanitize_sql_string requires str"):
-            sanitize_sql_string(['a', 'b'])
+            sanitize_sql_string(["a", "b"])
 
 
 class TestSanitizeSqlNumeric:
@@ -100,22 +100,30 @@ class TestSanitizeSqlNumeric:
 
     def test_sql_injection_attempt_numeric(self):
         """Test that SQL injection attempt through numeric is rejected."""
-        with pytest.raises(ValueError, match="sanitize_sql_numeric requires numeric value"):
+        with pytest.raises(
+            ValueError, match="sanitize_sql_numeric requires numeric value"
+        ):
             sanitize_sql_numeric("42; DROP TABLE")
 
     def test_sql_injection_attempt_or_expression(self):
         """Test that 'OR 1=1' injection is rejected."""
-        with pytest.raises(ValueError, match="sanitize_sql_numeric requires numeric value"):
+        with pytest.raises(
+            ValueError, match="sanitize_sql_numeric requires numeric value"
+        ):
             sanitize_sql_numeric("1 OR 1=1")
 
     def test_non_numeric_string_raises_error(self):
         """Test that non-numeric string raises ValueError."""
-        with pytest.raises(ValueError, match="sanitize_sql_numeric requires numeric value"):
+        with pytest.raises(
+            ValueError, match="sanitize_sql_numeric requires numeric value"
+        ):
             sanitize_sql_numeric("not_a_number")
 
     def test_none_raises_error(self):
         """Test that None raises ValueError."""
-        with pytest.raises(ValueError, match="sanitize_sql_numeric requires numeric value"):
+        with pytest.raises(
+            ValueError, match="sanitize_sql_numeric requires numeric value"
+        ):
             sanitize_sql_numeric(None)
 
 
@@ -188,12 +196,16 @@ class TestValidateWktGeometry:
 
     def test_valid_polygon(self):
         """Test valid POLYGON geometry."""
-        result = validate_wkt_geometry("POLYGON((-93 42, -92 42, -92 43, -93 43, -93 42))")
+        result = validate_wkt_geometry(
+            "POLYGON((-93 42, -92 42, -92 43, -93 43, -93 42))"
+        )
         assert result == "POLYGON((-93 42, -92 42, -92 43, -93 43, -93 42))"
 
     def test_valid_multipolygon(self):
         """Test valid MULTIPOLYGON geometry."""
-        result = validate_wkt_geometry("MULTIPOLYGON(((-93 42, -92 42, -92 43, -93 42)))")
+        result = validate_wkt_geometry(
+            "MULTIPOLYGON(((-93 42, -92 42, -92 43, -93 42)))"
+        )
         assert result == "MULTIPOLYGON(((-93 42, -92 42, -92 43, -93 42)))"
 
     def test_valid_linestring(self):
@@ -203,12 +215,16 @@ class TestValidateWktGeometry:
 
     def test_valid_multilinestring(self):
         """Test valid MULTILINESTRING geometry."""
-        result = validate_wkt_geometry("MULTILINESTRING((-93 42, -92 42), (-92 43, -93 43))")
+        result = validate_wkt_geometry(
+            "MULTILINESTRING((-93 42, -92 42), (-92 43, -93 43))"
+        )
         assert result == "MULTILINESTRING((-93 42, -92 42), (-92 43, -93 43))"
 
     def test_valid_geometrycollection(self):
         """Test valid GEOMETRYCOLLECTION geometry."""
-        result = validate_wkt_geometry("GEOMETRYCOLLECTION(POINT(-93 42), LINESTRING(-93 42, -92 42))")
+        result = validate_wkt_geometry(
+            "GEOMETRYCOLLECTION(POINT(-93 42), LINESTRING(-93 42, -92 42))"
+        )
         assert result == "GEOMETRYCOLLECTION(POINT(-93 42), LINESTRING(-93 42, -92 42))"
 
     def test_case_insensitive(self):

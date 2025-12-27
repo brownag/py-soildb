@@ -28,20 +28,22 @@ async def main():
     async with SDAClient() as client:
         # Query standard horizon data
         print("Querying horizon data...")
-        query = Query().select(
-            "cokey",
-            "chkey",
-            "hzdept_r",
-            "hzdepb_r",
-            "claytotal_r",
-            "sandtotal_r",
-            "silttotal_r",
-            "om_r"
-        ).from_(
-            "chorizon"
-        ).order_by(
-            "cokey, hzdept_r"
-        ).limit(100)
+        query = (
+            Query()
+            .select(
+                "cokey",
+                "chkey",
+                "hzdept_r",
+                "hzdepb_r",
+                "claytotal_r",
+                "sandtotal_r",
+                "silttotal_r",
+                "om_r",
+            )
+            .from_("chorizon")
+            .order_by("cokey, hzdept_r")
+            .limit(100)
+        )
 
         response = await client.execute(query)
         print(f"  Retrieved {len(response)} horizon records")
@@ -58,7 +60,7 @@ async def main():
             preset = get_preset(preset_name)
             print(f"  - {preset_name}")
             print(f"    Description: {preset.description}")
-            if hasattr(preset, 'selected_columns'):
+            if hasattr(preset, "selected_columns"):
                 print(f"    Columns: {len(preset.selected_columns)} columns")
         print()
 
@@ -68,7 +70,7 @@ async def main():
             spc_std = response.to_soilprofilecollection(
                 preset="standard_sda",
                 validate_depths=False,  # Disable depth validation for example data
-                warn_on_defaults=False
+                warn_on_defaults=False,
             )
 
             print("Conversion successful.")
@@ -96,8 +98,17 @@ async def main():
 
                 # Show sample horizons
                 print("Sample horizons (first 5):")
-                sample_cols = [col for col in ['cokey', 'hzdept_r', 'hzdepb_r', 'claytotal_r', 'sandtotal_r']
-                              if col in spc_std.horizons.columns]
+                sample_cols = [
+                    col
+                    for col in [
+                        "cokey",
+                        "hzdept_r",
+                        "hzdepb_r",
+                        "claytotal_r",
+                        "sandtotal_r",
+                    ]
+                    if col in spc_std.horizons.columns
+                ]
                 print(spc_std.horizons[sample_cols].head())
 
             return spc_std

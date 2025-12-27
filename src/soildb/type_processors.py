@@ -72,7 +72,6 @@ def _notna(value: Any) -> bool:
     return True
 
 
-
 def to_optional_float(value: Any) -> Optional[float]:
     """
     Convert to float, returning None if the value is null/NaN.

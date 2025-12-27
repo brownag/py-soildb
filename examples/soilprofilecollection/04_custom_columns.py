@@ -29,19 +29,21 @@ async def main():
     async with SDAClient() as client:
         # Query standard SDA data
         print("Querying horizon data from SDA...")
-        query = Query().select(
-            "cokey",
-            "chkey",
-            "hzdept_r",
-            "hzdepb_r",
-            "claytotal_r",
-            "sandtotal_r",
-            "om_r"
-        ).from_(
-            "chorizon"
-        ).order_by(
-            "cokey, hzdept_r"
-        ).limit(100)
+        query = (
+            Query()
+            .select(
+                "cokey",
+                "chkey",
+                "hzdept_r",
+                "hzdepb_r",
+                "claytotal_r",
+                "sandtotal_r",
+                "om_r",
+            )
+            .from_("chorizon")
+            .order_by("cokey, hzdept_r")
+            .limit(100)
+        )
 
         response = await client.execute(query)
         print(f"  Retrieved {len(response)} horizon records")
@@ -59,17 +61,17 @@ async def main():
             horizon_id_col="chkey",
             horizon_top_col="hzdept_r",
             horizon_bottom_col="hzdepb_r",
-            optional_columns=[
-                "claytotal_r",
-                "sandtotal_r",
-                "om_r"
-            ]
+            optional_columns=["claytotal_r", "sandtotal_r", "om_r"],
         )
 
         print(f"  Site ID column: {custom_config.site_id_col}")
         print(f"  Horizon ID column: {custom_config.horizon_id_col}")
-        print(f"  Depth columns: {custom_config.horizon_top_col} -> {custom_config.horizon_bottom_col}")
-        print(f"  Optional columns: {len(custom_config.optional_columns or [])} columns")
+        print(
+            f"  Depth columns: {custom_config.horizon_top_col} -> {custom_config.horizon_bottom_col}"
+        )
+        print(
+            f"  Optional columns: {len(custom_config.optional_columns or [])} columns"
+        )
         print()
 
         # Convert using custom config
@@ -78,7 +80,7 @@ async def main():
             spc = response.to_soilprofilecollection(
                 preset=custom_config,
                 validate_depths=False,  # Don't pre-validate; SoilProfileCollection will validate
-                warn_on_defaults=False
+                warn_on_defaults=False,
             )
 
             print("Conversion successful.")
@@ -103,7 +105,7 @@ async def main():
                 custom_config.horizon_id_col,
                 custom_config.horizon_top_col,
                 custom_config.horizon_bottom_col,
-                "claytotal_r"
+                "claytotal_r",
             ]
             available = [col for col in display_cols if col in spc.horizons.columns]
             print(spc.horizons[available].head())

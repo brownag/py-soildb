@@ -34,10 +34,15 @@ class TestSyncWrappers:
     async def test_sync_in_async_context_raises_error(self):
         """Test that calling .sync from async context raises RuntimeError."""
         import warnings
+
         with warnings.catch_warnings():
             # Suppress the expected RuntimeWarning about unawaited coroutine
             # when we intentionally raise an error in async context
-            warnings.filterwarnings("ignore", category=RuntimeWarning, message="coroutine.*was never awaited")
+            warnings.filterwarnings(
+                "ignore",
+                category=RuntimeWarning,
+                message="coroutine.*was never awaited",
+            )
             with pytest.raises(RuntimeError, match="event loop"):
                 soildb.get_sacatalog.sync()
 

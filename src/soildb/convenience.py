@@ -105,7 +105,9 @@ async def get_mapunit_by_bbox(
     if client is None:
         client = SDAClient()
 
-    query = query_templates.query_mapunits_intersecting_bbox(min_x, min_y, max_x, max_y, columns)
+    query = query_templates.query_mapunits_intersecting_bbox(
+        min_x, min_y, max_x, max_y, columns
+    )
     return await client.execute(query)
 
 

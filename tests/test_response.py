@@ -431,7 +431,7 @@ class TestSoilProfileCollectionIntegration:
             site_id_col="site_id",
             horizon_id_col="horizon_id",
             horizon_top_col="top_depth",
-            horizon_bottom_col="bottom_depth"
+            horizon_bottom_col="bottom_depth",
         )
         spc = response.to_soilprofilecollection(preset=preset)
 
@@ -480,7 +480,9 @@ class TestSoilProfileCollectionIntegration:
         response = SDAResponse(invalid_data)
 
         # With validation enabled, should warn about invalid depth records and raise error
-        with pytest.warns(UserWarning, match="Found 1 horizon records with invalid depth values"):
+        with pytest.warns(
+            UserWarning, match="Found 1 horizon records with invalid depth values"
+        ):
             with pytest.raises(SPCValidationError, match="Depth validation failed"):
                 response.to_soilprofilecollection(validate_depths=True)
 
@@ -539,7 +541,7 @@ class TestSoilProfileCollectionIntegration:
             site_id_col="cokey",
             hz_id_col="chkey",
             hz_top_col="hzdept_r",
-            hz_bot_col="hzdepb_r"
+            hz_bot_col="hzdepb_r",
         )
 
         assert isinstance(spc, SoilProfileCollection)

@@ -392,7 +392,7 @@ class TestResponseCombining:
             response = AsyncMock(spec=SDAResponse)
             response.columns = ["mukey", "muname"]
             response.metadata = ["Int", "NVarChar"]
-            response.data = [{"mukey": i + 1, "muname": f"Unit {i+1}"}]
+            response.data = [{"mukey": i + 1, "muname": f"Unit {i + 1}"}]
             response.is_empty.return_value = False
             response.validation_result = None
             responses.append(response)
@@ -554,7 +554,10 @@ class TestResponseCombining:
 
             # Each chunk has 1000 rows
             response.data = [
-                {"mukey": chunk_idx * 1000 + i, "muname": f"Unit {chunk_idx * 1000 + i}"}
+                {
+                    "mukey": chunk_idx * 1000 + i,
+                    "muname": f"Unit {chunk_idx * 1000 + i}",
+                }
                 for i in range(1000)
             ]
             response.is_empty.return_value = False
@@ -700,7 +703,9 @@ class TestFetchIntegration:
             # Take first few mukeys to avoid large queries
             test_mukeys = mukeys[:5]
 
-            response = await fetch_by_keys(test_mukeys, "component", "mukey", client=client)
+            response = await fetch_by_keys(
+                test_mukeys, "component", "mukey", client=client
+            )
             df = response.to_pandas()
 
             assert not df.empty
@@ -732,7 +737,9 @@ class TestFetchIntegration:
             mukeys = await get_mukey_by_areasymbol(["CA630"], client)
             test_mukeys = mukeys[:3]  # Small sample
 
-            response = await fetch_by_keys(test_mukeys, "mupolygon", include_geometry=True, client=client)
+            response = await fetch_by_keys(
+                test_mukeys, "mupolygon", include_geometry=True, client=client
+            )
             df = response.to_pandas()
 
             assert not df.empty

@@ -187,8 +187,12 @@ class ResponseValidator:
         # Check required columns
         missing_cols = [col for col in required_columns if col not in response.columns]
         if missing_cols:
-            result.add_error(f"Missing required {response_type} columns: {missing_cols}")
-            result.add_transformation(f"missing_required_columns_detected_{response_type}")
+            result.add_error(
+                f"Missing required {response_type} columns: {missing_cols}"
+            )
+            result.add_transformation(
+                f"missing_required_columns_detected_{response_type}"
+            )
 
         # Check optional columns
         if optional_columns:
@@ -199,7 +203,9 @@ class ResponseValidator:
                 result.add_warning(
                     f"Optional {response_type} columns not found: {missing_optional}"
                 )
-                result.add_transformation(f"missing_optional_columns_detected_{response_type}")
+                result.add_transformation(
+                    f"missing_optional_columns_detected_{response_type}"
+                )
 
         # Validate data in required columns
         if required_columns and response.data:
@@ -256,7 +262,9 @@ class ResponseValidator:
         base_result.errors.extend(schema_result.errors)
         base_result.warnings.extend(schema_result.warnings)
         base_result.metadata.update(schema_result.metadata)
-        base_result.transformations_applied.extend(schema_result.transformations_applied)
+        base_result.transformations_applied.extend(
+            schema_result.transformations_applied
+        )
 
         # Adjust quality score for schema-specific issues
         base_result.data_quality_score = max(
@@ -293,7 +301,9 @@ class ResponseValidator:
         base_result.errors.extend(schema_result.errors)
         base_result.warnings.extend(schema_result.warnings)
         base_result.metadata.update(schema_result.metadata)
-        base_result.transformations_applied.extend(schema_result.transformations_applied)
+        base_result.transformations_applied.extend(
+            schema_result.transformations_applied
+        )
 
         # Adjust quality score for schema-specific issues
         base_result.data_quality_score = max(
@@ -1213,11 +1223,11 @@ class SDAResponse:
                 "pip install soildb[soil]"
             ) from None
 
-
         # Step 1: Resolve column configuration
         if preset is not None:
             if isinstance(preset, str):
                 from .spc_presets import get_preset
+
                 config = get_preset(preset)
             elif isinstance(preset, ColumnConfig):
                 config = preset

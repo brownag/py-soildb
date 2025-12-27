@@ -305,13 +305,16 @@ class PedonData:
 # Create dynamic dataclasses from schemas
 PedonHorizon = create_dynamic_dataclass(get_schema("pedon_horizon"), "PedonHorizon")  # type: ignore[arg-type]
 HorizonProperty = create_dynamic_dataclass(
-    get_schema("horizon_property"), "HorizonProperty"  # type: ignore[arg-type]
+    get_schema("horizon_property"),  # type: ignore[arg-type]
+    "HorizonProperty",
 )
 AggregateHorizon = create_dynamic_dataclass(
-    get_schema("aggregate_horizon"), "AggregateHorizon"  # type: ignore[arg-type]
+    get_schema("aggregate_horizon"),  # type: ignore[arg-type]
+    "AggregateHorizon",
 )
 MapUnitComponent = create_dynamic_dataclass(
-    get_schema("map_unit_component"), "MapUnitComponent"  # type: ignore[arg-type]
+    get_schema("map_unit_component"),  # type: ignore[arg-type]
+    "MapUnitComponent",
 )
 SoilMapUnit = create_dynamic_dataclass(get_schema("soil_map_unit"), "SoilMapUnit")  # type: ignore[arg-type]
 

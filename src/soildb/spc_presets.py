@@ -70,7 +70,9 @@ class ColumnConfig:
         """Get list of all required + optional columns."""
         required = self.get_required_columns()
         optional = self.optional_columns or []
-        return list(dict.fromkeys(required + optional))  # Remove duplicates, preserve order
+        return list(
+            dict.fromkeys(required + optional)
+        )  # Remove duplicates, preserve order
 
 
 class StandardSDAHorizonColumns(ColumnConfig):
@@ -110,8 +112,15 @@ class StandardSDAHorizonColumns(ColumnConfig):
             description="Standard USDA-NRCS horizon columns from chorizon table",
             required_columns=["cokey", "chkey", "hzdept_r", "hzdepb_r"],
             optional_columns=[
-                "hzname", "claytotal_r", "sandtotal_r", "silttotal_r",
-                "awc_r", "ksat_r", "om_r", "dbthirdbar_r", "wthirdbar_r"
+                "hzname",
+                "claytotal_r",
+                "sandtotal_r",
+                "silttotal_r",
+                "awc_r",
+                "ksat_r",
+                "om_r",
+                "dbthirdbar_r",
+                "wthirdbar_r",
             ],
         )
 
@@ -147,9 +156,13 @@ class LabPedonHorizonColumns(ColumnConfig):
             description="Laboratory pedon soil characterization horizon columns",
             required_columns=["pedon_id", "hzname", "hzdept_r", "hzdepb_r"],
             optional_columns=[
-                "siteiid", "total_carbon_ncs", "carbonate_carbon_volumetric",
-                "claytotal_psa", "sandtotal_psa", "silttotal_psa",
-                "organic_carbon_walkley_black"
+                "siteiid",
+                "total_carbon_ncs",
+                "carbonate_carbon_volumetric",
+                "claytotal_psa",
+                "sandtotal_psa",
+                "silttotal_psa",
+                "organic_carbon_walkley_black",
             ],
         )
 
@@ -179,7 +192,13 @@ class PedonSiteHorizonColumns(ColumnConfig):
             horizon_bottom_col="hzdepb_r",
             description="Pedon site horizon columns using pedon_key_horizon",
             required_columns=["pedon_id", "pedon_key_horizon", "hzdept_r", "hzdepb_r"],
-            optional_columns=["hzname", "hzdom", "hzsubname", "distinctness", "topography"],
+            optional_columns=[
+                "hzname",
+                "hzdom",
+                "hzsubname",
+                "distinctness",
+                "topography",
+            ],
         )
 
 
@@ -291,9 +310,7 @@ def get_preset(name: str) -> ColumnConfig:
     """
     if name not in PRESET_REGISTRY:
         available = ", ".join(PRESET_REGISTRY.keys())
-        raise ValueError(
-            f"Unknown preset '{name}'. Available presets: {available}"
-        )
+        raise ValueError(f"Unknown preset '{name}'. Available presets: {available}")
     return PRESET_REGISTRY[name]()
 
 

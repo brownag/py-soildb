@@ -170,7 +170,7 @@ class TestCustomColumnConfig:
             site_id_col="site_id",
             horizon_id_col="horizon_id",
             horizon_top_col="top_depth",
-            horizon_bottom_col="bottom_depth"
+            horizon_bottom_col="bottom_depth",
         )
 
         assert config.site_id_col == "site_id"
@@ -184,7 +184,7 @@ class TestCustomColumnConfig:
             site_id_col="profile_id",
             horizon_id_col="layer_id",
             horizon_top_col="depth_top",
-            horizon_bottom_col="depth_bottom"
+            horizon_bottom_col="depth_bottom",
         )
         config_dict = config.get_config_dict()
 
@@ -199,7 +199,7 @@ class TestCustomColumnConfig:
             site_id_col="sid",
             horizon_id_col="hid",
             horizon_top_col="top",
-            horizon_bottom_col="bot"
+            horizon_bottom_col="bot",
         )
         required = config.get_required_columns()
 
@@ -342,7 +342,7 @@ class TestPresetIntegration:
             site_id_col=standard.site_id_col,
             horizon_id_col=standard.horizon_id_col,
             horizon_top_col=standard.horizon_top_col,
-            horizon_bottom_col=standard.horizon_bottom_col
+            horizon_bottom_col=standard.horizon_bottom_col,
         )
 
         assert custom.get_required_columns() == standard.get_required_columns()

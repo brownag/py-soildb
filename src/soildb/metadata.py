@@ -631,4 +631,3 @@ def get_metadata_statistics(metadata_list: List[SurveyMetadata]) -> Dict[str, An
         "has_contact": contact_count,
         "avg_keywords": round(avg_keywords, 1),
     }
-

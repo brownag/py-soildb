@@ -164,5 +164,3 @@ class AWDBQueryError(AWDBError):
     """
 
     pass
-
-
