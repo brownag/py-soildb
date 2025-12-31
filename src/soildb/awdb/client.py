@@ -410,56 +410,73 @@ class AWDBClient(BaseDataAccessClient):
                 if "error" in station_data:
                     raise AWDBQueryError(f"API error: {station_data['error']}")
 
-                # Get the first element's data (should be the one we requested)
-                element_data = station_data["data"][0]
-                if "values" not in element_data:
-                    continue
-
-                for value_item in element_data["values"]:
-                    try:
-                        # Parse timestamp - handle different formats
-                        date_str = value_item.get("date", "")
-                        if not date_str:
-                            continue
-
-                        # Handle ISO format with timezone
-                        if "T" in date_str:
-                            # Remove Z suffix if present and add UTC
-                            date_str = date_str.replace("Z", "+00:00")
-                            timestamp = datetime.fromisoformat(date_str)
-                        else:
-                            # Assume YYYY-MM-DD format
-                            timestamp = datetime.strptime(date_str, "%Y-%m-%d")
-
-                        # Build flags list from available flag fields
-                        flags = []
-                        if value_item.get("qcFlag"):
-                            flags.append(f"QC:{value_item['qcFlag']}")
-                        if value_item.get("qaFlag"):
-                            flags.append(f"QA:{value_item['qaFlag']}")
-                        if value_item.get("origQcFlag"):
-                            flags.append(f"ORIG_QC:{value_item['origQcFlag']}")
-
-                        data_point = TimeSeriesDataPoint(
-                            timestamp=timestamp,
-                            value=value_item.get("value"),
-                            flags=flags,
-                            qc_flag=value_item.get("qcFlag"),
-                            qa_flag=value_item.get("qaFlag"),
-                            orig_value=value_item.get("origValue"),
-                            orig_qc_flag=value_item.get("origQcFlag"),
-                            average=value_item.get("average"),
-                            median=value_item.get("median"),
-                            month=value_item.get("month"),
-                            month_part=value_item.get("monthPart"),
-                            year=value_item.get("year"),
-                            collection_date=value_item.get("collectionDate"),
-                        )
-                        processed_data.append(data_point)
-
-                    except (ValueError, TypeError):
-                        # Skip invalid data points
+                # Process ALL elements in the response (not just the first one)
+                for element_data in station_data["data"]:
+                    if "values" not in element_data or not element_data["values"]:
                         continue
+
+                    # Extract element code from station element metadata
+                    element_code = None
+                    if "stationElement" in element_data:
+                        station_elem = element_data["stationElement"]
+                        # Reconstruct element code: elementCode:heightDepth:ordinal
+                        elem_code = station_elem.get("elementCode", "")
+                        height_depth = station_elem.get("heightDepth", 0)
+                        ordinal = station_elem.get("ordinal", 1)
+                        if elem_code:
+                            element_code = f"{elem_code}:{height_depth}:{ordinal}"
+
+                    for value_item in element_data["values"]:
+                        try:
+                            # Parse timestamp - handle different formats
+                            date_str = value_item.get("date", "")
+                            if not date_str:
+                                continue
+
+                            # Handle ISO format with timezone
+                            if "T" in date_str:
+                                # Remove Z suffix if present and add UTC
+                                date_str = date_str.replace("Z", "+00:00")
+                                timestamp = datetime.fromisoformat(date_str)
+                            elif " " in date_str:
+                                # Handle space-separated datetime format (e.g., "2024-12-01 00:00" for HOURLY)
+                                timestamp = datetime.strptime(
+                                    date_str, "%Y-%m-%d %H:%M"
+                                )
+                            else:
+                                # Assume YYYY-MM-DD format (DAILY)
+                                timestamp = datetime.strptime(date_str, "%Y-%m-%d")
+
+                            # Build flags list from available flag fields
+                            flags = []
+                            if value_item.get("qcFlag"):
+                                flags.append(f"QC:{value_item['qcFlag']}")
+                            if value_item.get("qaFlag"):
+                                flags.append(f"QA:{value_item['qaFlag']}")
+                            if value_item.get("origQcFlag"):
+                                flags.append(f"ORIG_QC:{value_item['origQcFlag']}")
+
+                            data_point = TimeSeriesDataPoint(
+                                timestamp=timestamp,
+                                value=value_item.get("value"),
+                                flags=flags,
+                                element_code=element_code,  # Track which element this data came from
+                                qc_flag=value_item.get("qcFlag"),
+                                qa_flag=value_item.get("qaFlag"),
+                                orig_value=value_item.get("origValue"),
+                                orig_qc_flag=value_item.get("origQcFlag"),
+                                average=value_item.get("average"),
+                                median=value_item.get("median"),
+                                month=value_item.get("month"),
+                                month_part=value_item.get("monthPart"),
+                                year=value_item.get("year"),
+                                collection_date=value_item.get("collectionDate"),
+                            )
+                            processed_data.append(data_point)
+
+                        except (ValueError, TypeError):
+                            # Skip invalid data points
+                            continue
 
             return processed_data
 
