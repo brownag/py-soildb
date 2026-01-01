@@ -441,6 +441,231 @@ except RuntimeError:
 
 **Note:** `get_soil_moisture_data()` is a high-level convenience function that automatically finds nearby stations with soil moisture sensors and retrieves data at the specified depths. For more control, use the lower-level `AWDBClient` methods.
 
+### Hourly Data Retrieval
+
+AWDB supports sub-daily data retrieval with hourly granularity for supported monitoring networks (SCAN and SNOTEL). Hourly data provides much higher temporal resolution than daily data and is useful for studying rapid changes in soil moisture, temperature, and weather conditions.
+
+#### Basic Hourly Data Retrieval
+
+To retrieve hourly data, use the `duration='HOURLY'` parameter:
+
+```{python}
+#| eval: false
+from soildb.awdb import AWDBClient
+
+async def hourly_data_retrieval():
+    """Retrieve hourly soil moisture data."""
+
+    async with AWDBClient() as client:
+        # Get hourly soil moisture from Alabama Hills SCAN station (2237:CA:SCAN)
+        # Note: Use duration='HOURLY' for sub-daily data
+        hourly_data = await client.get_station_data(
+            station_triplet='2237:CA:SCAN',  # Alabama Hills
+            elements='SMS:-2:1',  # Soil moisture sensor at -2 inches depth, ordinal 1
+            start_date='2024-12-01',
+            end_date='2024-12-07',
+            duration='HOURLY'  # Use 'HOURLY' for sub-daily retrieval
+        )
+
+        print(f"Retrieved {len(hourly_data)} hourly soil moisture readings")
+
+        # Show sample readings
+        if hourly_data:
+            # Hourly timestamps include hour:minute (e.g., 2024-12-01 00:00)
+            for reading in hourly_data[:5]:
+                print(f"  {reading.timestamp}: {reading.value}% moisture (element: {reading.element_code})")
+
+        # Demonstrate data density: hourly = 24 readings per day vs daily = 1 reading per day
+        num_days = (hourly_data[-1].timestamp.date() - hourly_data[0].timestamp.date()).days + 1
+        readings_per_day = len(hourly_data) / num_days if num_days > 0 else 0
+        print(f"Data spans {num_days} days with {readings_per_day:.1f} readings per day")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_data_retrieval())
+except RuntimeError:
+    asyncio.run(hourly_data_retrieval())
+```
+
+#### Hourly Data with Multiple Elements
+
+Retrieve multiple sensor readings (elements) at once with hourly granularity:
+
+```{python}
+#| eval: false
+async def hourly_multi_element_data():
+    """Retrieve multiple soil sensors at hourly granularity."""
+
+    async with AWDBClient() as client:
+        # Request multiple soil moisture sensors at different depths, plus soil temperature
+        # Each element code format: ElementCode:HeightDepth:Ordinal
+        #   SMS = Soil Moisture Sensor (%)
+        #   STO = Soil Temperature (deg F)
+        elements = "SMS:-20:1,SMS:-2:1,SMS:-40:1,STO:-2:1"
+
+        data = await client.get_station_data(
+            station_triplet='2237:CA:SCAN',
+            elements=elements,
+            start_date='2024-12-01',
+            end_date='2024-12-07',
+            duration='HOURLY'
+        )
+
+        print(f"Retrieved {len(data)} hourly readings from multiple elements")
+
+        # Group data by element code for analysis
+        by_element = {}
+        for reading in data:
+            element = reading.element_code or 'unknown'
+            if element not in by_element:
+                by_element[element] = []
+            by_element[element].append(reading)
+
+        # Show summary for each sensor
+        for element_code, readings in sorted(by_element.items()):
+            if readings:
+                first_value = readings[0].value
+                last_value = readings[-1].value
+                change = last_value - first_value if (first_value and last_value) else 0
+                print(f"\n{element_code}:")
+                print(f"  Readings: {len(readings)}")
+                print(f"  Change over period: {change:+.2f}")
+                print(f"  Sample: {readings[0].timestamp}: {readings[0].value}")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_multi_element_data())
+except RuntimeError:
+    asyncio.run(hourly_multi_element_data())
+```
+
+#### Comparing Hourly vs Daily Data
+
+Understand the differences between hourly and daily retrieval:
+
+```{python}
+#| eval: false
+async def hourly_vs_daily_comparison():
+    """Compare hourly and daily data retrieval patterns."""
+
+    async with AWDBClient() as client:
+        station_triplet = '2237:CA:SCAN'
+        elements = 'SMS:-2:1'  # Soil moisture at -2 inches
+        start_date = '2024-12-01'
+        end_date = '2024-12-05'
+
+        # Retrieve DAILY data
+        daily_data = await client.get_station_data(
+            station_triplet=station_triplet,
+            elements=elements,
+            start_date=start_date,
+            end_date=end_date,
+            duration='DAILY'  # Daily aggregation
+        )
+
+        # Retrieve HOURLY data for the same period
+        hourly_data = await client.get_station_data(
+            station_triplet=station_triplet,
+            elements=elements,
+            start_date=start_date,
+            end_date=end_date,
+            duration='HOURLY'  # Hourly granularity
+        )
+
+        print(f"Data for {station_triplet} ({start_date} to {end_date})")
+        print(f"DAILY readings:  {len(daily_data):>4} (1 value per day)")
+        print(f"HOURLY readings: {len(hourly_data):>4} (24 values per day)")
+        print(f"Data density: {len(hourly_data)/len(daily_data):.0f}x more data in hourly")
+
+        # Show timestamp format differences
+        if daily_data:
+            print(f"\nDaily timestamp format:  {daily_data[0].timestamp} (date only)")
+        if hourly_data:
+            print(f"Hourly timestamp format: {hourly_data[0].timestamp} (includes hour:minute)")
+
+        # Hourly data shows intra-day variability
+        if hourly_data:
+            hourly_by_date = {}
+            for reading in hourly_data:
+                date = reading.timestamp.date()
+                if date not in hourly_by_date:
+                    hourly_by_date[date] = []
+                hourly_by_date[date].append(reading.value)
+
+            print("\nIntra-day variability (min-max by date):")
+            for date in sorted(hourly_by_date.keys())[:3]:  # Show first 3 days
+                values = [v for v in hourly_by_date[date] if v is not None]
+                if values:
+                    min_val, max_val = min(values), max(values)
+                    print(f"  {date}: {min_val:.2f}% - {max_val:.2f}% (range: {max_val-min_val:.2f}%)")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_vs_daily_comparison())
+except RuntimeError:
+    asyncio.run(hourly_vs_daily_comparison())
+```
+
+#### Performance Considerations for Hourly Data
+
+When working with hourly data, keep these considerations in mind:
+
+- **Data Volume**: Hourly data is ~24x larger than daily data for the same period
+- **Request Size**: Use smaller date ranges (e.g., 1-2 months instead of a full year) to avoid timeouts
+- **API Chunking**: The client automatically chunks requests into manageable monthly periods when requesting hourly data
+- **Element Codes**: Multiple elements requested in a single query significantly increase data volume (17 sensors × 730 hours/month = ~12,400 readings per month per station)
+
+```{python}
+#| eval: false
+async def hourly_data_best_practices():
+    """Best practices for retrieving large hourly datasets."""
+
+    async with AWDBClient() as client:
+        # Example: Retrieving a full month of hourly data
+        # This will be chunked internally into manageable requests
+
+        large_dataset = await client.get_station_data(
+            station_triplet='2237:CA:SCAN',
+            elements='SMS:-20:1,SMS:-2:1,SMS:-40:1,STO:-20:1,STO:-2:1',  # 5 elements
+            start_date='2024-12-01',
+            end_date='2024-12-31',  # Full month
+            duration='HOURLY'
+        )
+
+        print(f"Retrieved {len(large_dataset)} hourly readings")
+        print(f"Approximate size: {len(large_dataset) * 0.5:.1f} KB")  # Rough estimate
+
+        # Organize by element for analysis
+        by_element = {}
+        for reading in large_dataset:
+            elem = reading.element_code or 'unknown'
+            if elem not in by_element:
+                by_element[elem] = []
+            by_element[elem].append(reading)
+
+        print(f"\nReadings per element:")
+        for elem in sorted(by_element.keys()):
+            print(f"  {elem}: {len(by_element[elem])} readings")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_data_best_practices())
+except RuntimeError:
+    asyncio.run(hourly_data_best_practices())
+```
+
 ### Weather and Snow Data
 
 ```{python}
@@ -498,7 +723,7 @@ async def forecast_data():
         forecasts = await client.get_forecasts(
             station_triplets=['*:CA:*'],  # All stations in CA
             element_codes=['RESC'],       # Reservoir storage
-            begin_publication_date='2024-01-01',
+            start_publication_date='2024-01-01',
             end_publication_date='2024-12-31'
         )
 
@@ -606,7 +831,7 @@ async def nearby_stations_with_metadata():
         max_distance_km=50,
         network_codes=['SCAN'],  # SCAN stations
         limit=5,
-        include_sensor_metadata=True  # NEW: Include sensor details
+        include_sensor_metadata=True  # Include sensor details
     )
 
     print(f"Found {len(nearby)} SCAN stations within 50km of Denver")
@@ -723,20 +948,20 @@ Use these property names with `get_monitoring_station_data()` and `find_stations
 
 #### Soil Properties
 - `soil_moisture` - Volumetric soil moisture (%)
-- `soil_temp` - Soil temperature (°F)
+- `soil_temp` - Soil temperature (deg F)
 - `soil_conductivity` - Soil electrical conductivity
 - `soil_salinity` - Soil salinity
 
 #### Atmospheric Properties
-- `air_temp` - Air temperature (°F)
-- `air_temp_avg` - Average air temperature (°F)
-- `air_temp_max` - Maximum air temperature (°F)
-- `air_temp_min` - Minimum air temperature (°F)
+- `air_temp` - Air temperature (deg F)
+- `air_temp_avg` - Average air temperature (deg F)
+- `air_temp_max` - Maximum air temperature (deg F)
+- `air_temp_min` - Minimum air temperature (deg F)
 - `relative_humidity` - Relative humidity (%)
 - `vapor_pressure_partial` - Partial vapor pressure
 - `wind_speed` - Wind speed (mph)
 - `wind_direction` - Wind direction (degrees)
-- `solar_radiation` - Solar radiation (W/m²)
+- `solar_radiation` - Solar radiation (W/m2)
 - `atmospheric_pressure` - Atmospheric pressure
 
 #### Hydrological Properties
@@ -747,7 +972,7 @@ Use these property names with `get_monitoring_station_data()` and `find_stations
 
 #### Station Health
 - `battery` - Battery voltage (volts)
-- `logger_temp` - Data logger temperature (°F)
+- `logger_temp` - Data logger temperature (deg F)
 
 ### Networks and Coverage
 
@@ -766,13 +991,13 @@ For advanced users, the underlying AWDB element codes:
 | Property | Element Code | Units | Notes |
 |----------|--------------|-------|-------|
 | soil_moisture | SMS | % volumetric | Requires depth specification |
-| soil_temp | STO | °F | Requires depth specification |
-| air_temp | TOBS/TAVG | °F | TOBS=instantaneous, TAVG=average |
+| soil_temp | STO | deg F | Requires depth specification |
+| air_temp | TOBS/TAVG | deg F | TOBS=instantaneous, TAVG=average |
 | precipitation | PREC | inches | Accumulation |
 | snow_water_equivalent | WTEQ | inches | SNOTEL network |
 | snow_depth | SNWD | inches | SNOTEL network |
 | wind_speed | WSPD | mph |  |
-| solar_radiation | SRAD | W/m² | SCAN network |
+| solar_radiation | SRAD | W/m2 | SCAN network |
 | battery | BATT | volts | Station health |
 
 ## Best Practices
@@ -814,13 +1039,13 @@ For advanced users, the underlying AWDB element codes:
 | Property Name | Element Code | Units | Best Networks |
 |---------------|--------------|-------|----------------|
 | soil_moisture | SMS | % volumetric | SCAN |
-| soil_temp | STO | °F | SCAN |
-| air_temp | TOBS/TAVG | °F | SCAN, SNOTEL, COOP |
+| soil_temp | STO | deg F | SCAN |
+| air_temp | TOBS/TAVG | deg F | SCAN, SNOTEL, COOP |
 | precipitation | PREC | inches | SCAN, SNOTEL, COOP |
 | snow_water_equivalent | WTEQ | inches | SNOTEL |
 | snow_depth | SNWD | inches | SNOTEL |
 | wind_speed | WSPD | mph | SCAN |
-| solar_radiation | SRAD | W/m² | SCAN |
+| solar_radiation | SRAD | W/m2 | SCAN |
 | battery_voltage | BATT | volts | SCAN, SNOTEL |
 
 ## Error Handling
