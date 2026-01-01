@@ -3,7 +3,7 @@ AWDB (Air and Water Database) client for soildb.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from math import atan2, cos, radians, sin, sqrt
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -12,6 +12,44 @@ import httpx
 from ..base_client import BaseDataAccessClient, ClientConfig
 from .exceptions import AWDBConnectionError, AWDBError, AWDBQueryError
 from .models import ForecastData, ReferenceData, StationInfo, TimeSeriesDataPoint
+
+
+def _apply_station_timezone(
+    timestamp: datetime, timezone_offset_hours: Optional[int]
+) -> datetime:
+    """
+    Apply station timezone offset to a naive datetime (typically from hourly AWDB data).
+
+    The AWDB API returns hourly data as naive local timestamps (no timezone info).
+    This function converts them to timezone-aware ISO 8601 format using the station's
+    timezone offset from the station metadata.
+
+    Args:
+        timestamp: Naive datetime from AWDB API (assumed to be in local station time)
+        timezone_offset_hours: Station timezone offset from UTC (e.g., -8 for PST, -5 for EST)
+
+    Returns:
+        Timezone-aware datetime in the station's local timezone (not UTC)
+
+    Examples:
+        >>> from datetime import datetime
+        >>> # Station in PST (-8 hours from UTC)
+        >>> local_time = datetime(2024, 12, 1, 12, 0)
+        >>> aware_time = _apply_station_timezone(local_time, -8)
+        >>> # Result: 2024-12-01 12:00:00-08:00 (PST)
+        >>> print(aware_time)
+        2024-12-01 12:00:00-08:00
+    """
+    if timezone_offset_hours is None:
+        # No timezone info available - return as naive datetime
+        return timestamp
+
+    # Create timezone object from offset
+    tz = timezone(timedelta(hours=timezone_offset_hours))
+
+    # Replace tzinfo to interpret the naive timestamp as local time
+    # This marks the time as already being in the station's timezone
+    return timestamp.replace(tzinfo=tz)
 
 
 class AWDBClient(BaseDataAccessClient):
@@ -395,6 +433,16 @@ class AWDBClient(BaseDataAccessClient):
             params["insertOrUpdateBeginDate"] = insert_or_update_begin_date
 
         try:
+            # Fetch station metadata to get timezone info (important for hourly data)
+            station_info = None
+            try:
+                stations = await self.get_stations(station_triplets=[station_triplet])
+                if stations:
+                    station_info = stations[0]
+            except Exception:
+                # If we can't get station info, we'll proceed without timezone data
+                pass
+
             data = await self._make_request("data", params)
 
             # Process the response data - handle nested structure properly
@@ -443,6 +491,14 @@ class AWDBClient(BaseDataAccessClient):
                                 timestamp = datetime.strptime(
                                     date_str, "%Y-%m-%d %H:%M"
                                 )
+                                # Apply station timezone for hourly data
+                                if (
+                                    station_info
+                                    and station_info.data_time_zone is not None
+                                ):
+                                    timestamp = _apply_station_timezone(
+                                        timestamp, station_info.data_time_zone
+                                    )
                             else:
                                 # Assume YYYY-MM-DD format (DAILY)
                                 timestamp = datetime.strptime(date_str, "%Y-%m-%d")
@@ -471,6 +527,9 @@ class AWDBClient(BaseDataAccessClient):
                                 month_part=value_item.get("monthPart"),
                                 year=value_item.get("year"),
                                 collection_date=value_item.get("collectionDate"),
+                                station_timezone_offset=station_info.data_time_zone
+                                if station_info
+                                else None,
                             )
                             processed_data.append(data_point)
 

@@ -2,7 +2,7 @@
 Tests for AWDB (SCAN/SNOTEL) module.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -345,6 +345,79 @@ class TestAWDBClient:
         assert data[0].element_code == "SMS:-2:1"
         assert data[1].timestamp == datetime(2024, 12, 1, 1, 0)
         assert data[2].timestamp == datetime(2024, 12, 1, 2, 0)
+
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_get_station_data_hourly_with_timezone(
+        self, mock_client_class, client
+    ):
+        """Test HOURLY data with station timezone applied (PST -8 hours)."""
+        # Station response with timezone info (dataTimeZone = -8 for PST)
+        station_response = [
+            {
+                "stationTriplet": "2237:CA:SCAN",
+                "name": "Alabama Hills",
+                "latitude": 36.5,
+                "longitude": -118.1,
+                "elevation": 3900,
+                "networkCode": "SCAN",
+                "state": "CA",
+                "county": "Inyo",
+                "dataTimeZone": -8,  # Pacific Standard Time
+            }
+        ]
+
+        # Hourly data response (timestamps are in local station time, not UTC)
+        data_response = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [
+                            {"date": "2024-12-01 00:00", "value": 5.5},
+                            {"date": "2024-12-01 01:00", "value": 5.6},
+                            {"date": "2024-12-01 08:00", "value": 6.2},
+                        ],
+                    }
+                ]
+            }
+        ]
+
+        mock_response_stations = Mock()
+        mock_response_stations.json.return_value = station_response
+        mock_response_stations.raise_for_status.return_value = None
+
+        mock_response_data = Mock()
+        mock_response_data.json.return_value = data_response
+        mock_response_data.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        # First call returns stations, second call returns data
+        mock_client.get.side_effect = [mock_response_stations, mock_response_data]
+        mock_client_class.return_value = mock_client
+
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-2:1", "2024-12-01", "2024-12-01", duration="HOURLY"
+        )
+
+        assert len(data) == 3
+        # Verify that timestamps now include timezone information (PST = UTC-8)
+        assert data[0].timestamp.tzinfo is not None
+        assert data[0].timestamp == datetime(
+            2024, 12, 1, 0, 0, tzinfo=timezone(-timedelta(hours=8))
+        )
+        assert data[0].station_timezone_offset == -8
+
+        # Verify the timezone offset is stored in the data point
+        for point in data:
+            assert point.station_timezone_offset == -8
+            assert point.timestamp.tzinfo is not None
 
     @patch("httpx.AsyncClient")
     @pytest.mark.asyncio

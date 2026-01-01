@@ -517,6 +517,7 @@ async def get_soil_moisture_data(
                             "orig_value": pt.orig_value,
                             "average": pt.average,
                             "median": pt.median,
+                            "station_timezone_offset_hours": pt.station_timezone_offset,
                         }
                         for pt in data_points
                     ],
@@ -688,6 +689,7 @@ async def get_monitoring_station_data(
                     "orig_value": point.orig_value,
                     "average": point.average,
                     "median": point.median,
+                    "station_timezone_offset_hours": point.station_timezone_offset,
                 }
                 for point in data_points
             ],
@@ -701,6 +703,7 @@ async def get_monitoring_station_data(
                 "element_string": element_string,
                 "ordinal": ordinal,
                 "n_data_points": len(data_points),
+                "station_timezone_offset_hours": nearest_station.data_time_zone,
                 "query_date": datetime.now().isoformat(),
                 "date_range": {"start": start_date, "end": end_date},
             },

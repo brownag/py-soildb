@@ -59,6 +59,11 @@ class TimeSeriesDataPoint:
     year: Optional[int] = None
     collection_date: Optional[str] = None
 
+    # Station timezone information (for hourly data)
+    station_timezone_offset: Optional[int] = (
+        None  # Hours offset from UTC (e.g., -8 for PST)
+    )
+
 
 @dataclass
 class StationTimeSeries:
