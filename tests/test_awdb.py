@@ -305,6 +305,138 @@ class TestAWDBClient:
         distance = client._haversine_distance(40.0, -110.0, 40.0, -110.0)
         assert distance == 0
 
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_get_station_data_hourly_format(self, mock_client_class, client):
+        """Test HOURLY timestamp parsing with space-separated format (YYYY-MM-DD HH:MM)."""
+        mock_response_data = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [
+                            {"date": "2024-12-01 00:00", "value": 5.5},
+                            {"date": "2024-12-01 01:00", "value": 5.6},
+                            {"date": "2024-12-01 02:00", "value": 5.7},
+                        ],
+                    }
+                ]
+            }
+        ]
+
+        mock_response = Mock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value = mock_client
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-2:1", "2024-12-01", "2024-12-01", duration="HOURLY"
+        )
+
+        assert len(data) == 3
+        assert data[0].timestamp == datetime(2024, 12, 1, 0, 0)
+        assert data[0].element_code == "SMS:-2:1"
+        assert data[1].timestamp == datetime(2024, 12, 1, 1, 0)
+        assert data[2].timestamp == datetime(2024, 12, 1, 2, 0)
+
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_get_station_data_multiple_elements(self, mock_client_class, client):
+        """Test that all elements in multi-element response are processed."""
+        mock_response_data = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -20,
+                            "ordinal": 1,
+                        },
+                        "values": [{"date": "2024-12-01", "value": 25.5}],
+                    },
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [{"date": "2024-12-01", "value": 35.0}],
+                    },
+                    {
+                        "stationElement": {
+                            "elementCode": "STO",
+                            "heightDepth": -20,
+                            "ordinal": 1,
+                        },
+                        "values": [{"date": "2024-12-01", "value": 15.2}],
+                    },
+                ]
+            }
+        ]
+
+        mock_response = Mock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value = mock_client
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-20:1,SMS:-2:1,STO:-20:1", "2024-12-01", "2024-12-01"
+        )
+
+        assert len(data) == 3
+        element_codes = {dp.element_code for dp in data}
+        assert "SMS:-20:1" in element_codes
+        assert "SMS:-2:1" in element_codes
+        assert "STO:-20:1" in element_codes
+
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_element_code_tracking(self, mock_client_class, client):
+        """Test that element codes are correctly tracked in TimeSeriesDataPoint."""
+        mock_response_data = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [
+                            {"date": "2024-12-01", "value": 5.5},
+                            {"date": "2024-12-02", "value": 5.6},
+                        ],
+                    }
+                ]
+            }
+        ]
+
+        mock_response = Mock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value = mock_client
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-2:1", "2024-12-01", "2024-12-02"
+        )
+
+        assert len(data) == 2
+        for dp in data:
+            assert dp.element_code == "SMS:-2:1"
+
 
 class TestConvenienceFunctions:
     """Test convenience functions."""
@@ -509,6 +641,7 @@ class TestConvenienceFunctions:
                 value=15.0 + i * 0.5,
                 flags=["QC:V"],
                 qc_flag="V",
+                element_code="SMS:-2:1",
             )
             for i in range(5)  # Small sample for testing
         ]
@@ -525,3 +658,7 @@ class TestConvenienceFunctions:
         # Test quality flag extraction
         quality_flags = [dp.qc_flag for dp in data_points if dp.qc_flag]
         assert len(quality_flags) > 0
+
+        # Test element code tracking
+        element_codes = {dp.element_code for dp in data_points if dp.element_code}
+        assert "SMS:-2:1" in element_codes
