@@ -516,9 +516,9 @@ class TestConvenienceFunctions:
 
     @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
-    async def test_get_nearby_stations(self, mock_client_class):
-        """Test get_nearby_stations convenience function."""
-        from soildb.awdb.convenience import get_nearby_stations
+    async def test_discover_stations_nearby(self, mock_client_class):
+        """Test discover_stations_nearby convenience function."""
+        from soildb.awdb.convenience import discover_stations_nearby
 
         # Mock client and response
         mock_client = AsyncMock()
@@ -536,7 +536,7 @@ class TestConvenienceFunctions:
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client_class.return_value.__aexit__.return_value = None
 
-        result = await get_nearby_stations(40.0, -110.0, max_distance_km=50)
+        result = await discover_stations_nearby(40.0, -110.0, max_distance_km=50)
 
         assert len(result) == 1
         assert result[0]["station_triplet"] == "1234:UT:SNTL"
@@ -545,9 +545,9 @@ class TestConvenienceFunctions:
 
     @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
-    async def test_get_monitoring_station_data(self, mock_client_class):
-        """Test get_monitoring_station_data convenience function."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+    async def test_get_property_data_near(self, mock_client_class):
+        """Test get_property_data_near convenience function."""
+        from soildb.awdb.convenience import get_property_data_near
 
         # Mock client and response
         mock_client = AsyncMock()
@@ -576,7 +576,7 @@ class TestConvenienceFunctions:
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client_class.return_value.__aexit__.return_value = None
 
-        result = await get_monitoring_station_data(
+        result = await get_property_data_near(
             latitude=40.0,
             longitude=-110.0,
             property_name="soil_moisture",
@@ -595,11 +595,11 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_invalid_property_name(self):
         """Test error handling for invalid property names."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.convenience import get_property_data_near
         from soildb.awdb.exceptions import AWDBError
 
         with pytest.raises(AWDBError, match="Unsupported property"):
-            await get_monitoring_station_data(
+            await get_property_data_near(
                 latitude=40.0,
                 longitude=-110.0,
                 property_name="invalid_property",
@@ -610,11 +610,11 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_invalid_date_format(self):
         """Test error handling for invalid date formats."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.convenience import get_property_data_near
         from soildb.awdb.exceptions import AWDBError
 
         with pytest.raises(AWDBError, match="Invalid date format"):
-            await get_monitoring_station_data(
+            await get_property_data_near(
                 latitude=40.0,
                 longitude=-110.0,
                 property_name="soil_moisture",
@@ -624,14 +624,12 @@ class TestConvenienceFunctions:
             )
 
     @pytest.mark.asyncio
-    async def test_list_available_variables(self):
-        """Test list_available_variables function."""
-        from soildb.awdb.convenience import list_available_variables
+    async def test_station_available_properties(self):
+        """Test station_available_properties function."""
+        from soildb.awdb.convenience import station_available_properties
 
         # Mock the underlying API call to avoid real network requests
-        with patch(
-            "soildb.awdb.convenience.get_station_sensor_metadata"
-        ) as mock_metadata:
+        with patch("soildb.awdb.convenience.station_sensors") as mock_metadata:
             mock_metadata.return_value = {
                 "sensors": {
                     "soil_moisture": [{"code": "SMS", "depth": "-20"}],
@@ -644,7 +642,7 @@ class TestConvenienceFunctions:
             ) as mock_unit:
                 mock_unit.return_value = "pct"
 
-                variables = await list_available_variables("301:CA:SNTL")
+                variables = await station_available_properties("301:CA:SNTL")
 
                 # Verify the function returned the expected structure
                 assert len(variables) == 2
@@ -687,12 +685,12 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_convenience_function_property_validation(self):
         """Test that convenience functions validate properties correctly."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.convenience import get_property_data_near
         from soildb.awdb.exceptions import AWDBError
 
         # Test invalid property
         with pytest.raises(AWDBError, match="Unsupported property"):
-            await get_monitoring_station_data(
+            await get_property_data_near(
                 latitude=40.0,
                 longitude=-120.0,
                 property_name="invalid_property",

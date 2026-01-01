@@ -14,26 +14,6 @@ awdb.convenience.get_monitoring_station_data(
 )
 ```
 
+[DEPRECATED] Use get_property_data_near() instead.
+
 Get time-series data for a property from nearby stations.
-
-For properties that support height/depth specification (soil_moisture, soil_temp, air_temp, etc.),
-height_depth_inches can be specified:
-- Negative values for depth below surface (soil properties)
-- Positive values for height above surface (atmospheric properties)
-
-When auto_select_sensor=True (default), the function automatically queries station metadata
-to find the best available sensor configuration for the requested property.
-
-Args:
-    latitude: Target latitude
-    longitude: Target longitude
-    property_name: Property name ('soil_moisture', 'air_temp', 'precipitation', etc.)
-    start_date: Start date in YYYY-MM-DD format
-    end_date: End date in YYYY-MM-DD format
-    max_distance_km: Maximum distance to search for stations
-    height_depth_inches: Height/depth in inches (optional for height-capable properties)
-    network_codes: Network codes to include
-    auto_select_sensor: Automatically select best sensor using station metadata (recommended)
-
-Returns:
-    Dictionary with time series data and metadata

@@ -63,8 +63,8 @@ Functions for accessing NRCS monitoring data.
 | | |
 | --- | --- |
 | [awdb.client.AWDBClient](awdb.client.AWDBClient.qmd#soildb.awdb.client.AWDBClient) | Async client for accessing data via the NRCS AWDB REST API. |
-| [awdb.convenience.get_monitoring_station_data](awdb.convenience.get_monitoring_station_data.qmd#soildb.awdb.convenience.get_monitoring_station_data) | Get time-series data for a property from nearby stations. |
-| [awdb.convenience.find_stations_by_criteria](awdb.convenience.find_stations_by_criteria.qmd#soildb.awdb.convenience.find_stations_by_criteria) | Find stations using advanced filtering criteria with wildcard support. |
+| [awdb.convenience.get_monitoring_station_data](awdb.convenience.get_monitoring_station_data.qmd#soildb.awdb.convenience.get_monitoring_station_data) | [DEPRECATED] Use get_property_data_near() instead. |
+| [awdb.convenience.find_stations_by_criteria](awdb.convenience.find_stations_by_criteria.qmd#soildb.awdb.convenience.find_stations_by_criteria) | [DEPRECATED] Use discover_stations() instead. |
 
 ## Metadata
 

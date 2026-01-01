@@ -37,7 +37,7 @@ The most common workflow is finding stations that measure specific environmental
 
 ```{python}
 #| eval: true
-from soildb.awdb.convenience import get_monitoring_station_data, find_stations_by_criteria
+from soildb.awdb.convenience import get_property_data_near, discover_stations
 
 async def find_property_data():
     """Find and retrieve data for specific properties."""
@@ -47,7 +47,7 @@ async def find_property_data():
     start_date = '2024-01-01'
     end_date = '2024-01-03'
 
-    result = await get_monitoring_station_data(
+    result = await get_property_data_near(
         latitude=target_lat,
         longitude=target_lon,
         property_name=property_name,
@@ -124,7 +124,7 @@ The most effective way to find data for specific properties is to search for sta
 
 ```{python}
 #| eval: true
-from soildb.awdb.convenience import find_stations_by_criteria
+from soildb.awdb.convenience import discover_stations
 
 async def property_based_search():
     """Find stations that measure specific environmental properties."""
@@ -132,7 +132,7 @@ async def property_based_search():
     # Example 1: Find stations with comprehensive soil monitoring
     print("Finding stations with soil moisture and temperature sensors...")
 
-    soil_stations = await find_stations_by_criteria(
+    soil_stations = await discover_stations(
         elements=['SMS:*', 'STO:*'],  # Soil moisture AND temperature sensors
         network_codes=['SCAN'],       # Focus on SCAN network
         state_codes=['CA'],           # California only
@@ -156,7 +156,7 @@ async def property_based_search():
     # Example 2: Find stations with snow measurements in mountainous areas
     print("\n\nFinding SNOTEL stations with snow data...")
 
-    snow_stations = await find_stations_by_criteria(
+    snow_stations = await discover_stations(
         network_codes=['SNTL'],
         state_codes=['CO', 'WY'],
         elements=['WTEQ:*', 'SNWD:*'],
@@ -187,23 +187,23 @@ For more complex queries, AWDB supports powerful server-side filtering:
 ```{python}
 #| eval: true
 async def advanced_filtering():
-    snotel_stations = await find_stations_by_criteria(
+    snotel_stations = await discover_stations(
         station_triplets=['*:OR:SNTL']
     )
     print(f"Found {len(snotel_stations)} SNOTEL stations in OR")
 
-    soil_stations = await find_stations_by_criteria(
+    soil_stations = await discover_stations(
         elements=['SMS:*'],
         state_codes=['CA']
     )
     print(f"Found {len(soil_stations)} stations with soil moisture sensors in CA")
 
-    lake_stations = await find_stations_by_criteria(
+    lake_stations = await discover_stations(
         station_names=['*Lake*']
     )
     print(f"Found {len(lake_stations)} stations with lake in name")
 
-    scan_mountain_stations = await find_stations_by_criteria(
+    scan_mountain_stations = await discover_stations(
         network_codes=['SCAN'],
         state_codes=['CO', 'WY']
     )
@@ -266,14 +266,14 @@ The recommended approach for getting data for specific environmental properties:
 
 ```{python}
 #| eval: true
-from soildb.awdb.convenience import get_monitoring_station_data
+from soildb.awdb.convenience import get_property_data_near
 
 async def property_data_retrieval():
     """Get data for specific environmental properties with automatic sensor selection."""
 
     # Example 1: Soil moisture (automatically selects best available sensor)
     print("Getting soil moisture data...")
-    soil_result = await get_monitoring_station_data(
+    soil_result = await get_property_data_near(
         latitude=39.7392,   # Denver, CO
         longitude=-104.9903,
         property_name='soil_moisture',
@@ -289,7 +289,7 @@ async def property_data_retrieval():
 
     # Example 2: Air temperature
     print("\nGetting air temperature data...")
-    temp_result = await get_monitoring_station_data(
+    temp_result = await get_property_data_near(
         latitude=39.7392,
         longitude=-104.9903,
         property_name='air_temp',
@@ -304,7 +304,7 @@ async def property_data_retrieval():
 
     # Example 3: Snow water equivalent (SWE)
     print("\nGetting snow water equivalent data...")
-    snow_result = await get_monitoring_station_data(
+    snow_result = await get_property_data_near(
         latitude=39.7392,
         longitude=-104.9903,
         property_name='snow_water_equivalent',
@@ -335,7 +335,7 @@ For advanced users who want specific sensor control:
 #| eval: true
 async def manual_sensor_control():
     # Specify exact sensor depth for soil moisture
-    result = await get_monitoring_station_data(
+    result = await get_property_data_near(
         latitude=39.7392,
         longitude=-104.9903,
         property_name='soil_moisture',
@@ -366,10 +366,10 @@ Retrieve soil moisture data at multiple depths from a specific station. Depths a
 
 ```{python}
 #| eval: true
-from soildb.awdb.convenience import get_soil_moisture_data
+from soildb.awdb.convenience import get_soil_moisture_by_depth
 
 async def multi_depth_soil():
-    soil_data = await get_soil_moisture_data(
+    soil_data = await get_soil_moisture_by_depth(
         station_triplet='2237:CA:SCAN',
         depths_inches=[-2, -4, -8],
         start_date='2024-01-01',
@@ -758,12 +758,12 @@ All convenience functions that return time series data automatically include tim
 
 ```{python}
 #| eval: true
-from soildb.awdb.convenience import get_monitoring_station_data
+from soildb.awdb.convenience import get_property_data_near
 
 async def timezone_aware_convenience_example():
     """Demonstrate timezone-aware timestamps in convenience functions."""
     
-    result = await get_monitoring_station_data(
+    result = await get_property_data_near(
         latitude=36.54,
         longitude=-118.10,
         property_name='soil_moisture',
@@ -789,11 +789,11 @@ This is particularly useful when analyzing hourly data from multiple stations ac
 
 ```{python}
 #| eval: true
-from soildb.awdb.convenience import get_nearby_stations
+from soildb.awdb.convenience import discover_stations_nearby
 
 async def nearby_stations_with_metadata():
     # Find stations near a point with sensor information
-    nearby = await get_nearby_stations(
+    nearby = await discover_stations_nearby(
         latitude=39.7392,   # Denver, CO
         longitude=-104.9903,
         max_distance_km=50,
@@ -864,11 +864,11 @@ except RuntimeError:
 
 ### Primary Workflow Functions
 
-#### `get_monitoring_station_data()` - **RECOMMENDED STARTING POINT**
-Get data for specific environmental properties with automatic sensor selection.
+#### `get_property_data_near()` - **RECOMMENDED STARTING POINT**
+Get data for specific environmental properties with automatic sensor selection near a location.
 
 ```python
-result = await get_monitoring_station_data(
+result = await get_property_data_near(
     latitude=39.7392,           # Target location
     longitude=-104.9903,
     property_name='soil_moisture',  # Use semantic names like 'air_temp', 'precipitation'
@@ -878,11 +878,11 @@ result = await get_monitoring_station_data(
 )
 ```
 
-#### `find_stations_by_criteria()` - **FIND STATIONS WITH SPECIFIC PROPERTIES**
-Advanced station discovery with sensor metadata.
+#### `discover_stations()` - **FIND STATIONS WITH SPECIFIC PROPERTIES**
+Advanced station discovery with sensor metadata and flexible filtering.
 
 ```python
-stations = await find_stations_by_criteria(
+stations = await discover_stations(
     network_codes=['SCAN'],     # Networks to search
     state_codes=['CO'],         # Geographic filters
     elements=['SMS:*'],         # Properties to find (with wildcards)
@@ -901,16 +901,28 @@ stations = await find_stations_by_criteria(
 
 ### Additional Convenience Functions
 
-- `get_nearby_stations()` - Find nearby stations with optional sensor metadata
-- `get_soil_moisture_data()` - Multi-depth soil moisture data
-- `list_available_variables()` - Get comprehensive sensor inventory for a station
-- `get_station_sensor_metadata()` - Detailed sensor metadata for stations
+- `discover_stations_nearby()` - Find nearby stations with optional sensor metadata
+- `get_soil_moisture_by_depth()` - Multi-depth soil moisture data
+- `station_available_properties()` - Get comprehensive property/variable inventory for a station
+- `station_sensors()` - Detailed sensor metadata for stations organized by property
+- `station_sensor_depths()` - Get available depths/heights for a property at a station
+
+### Deprecated Names (Still Supported)
+
+The following names are deprecated but still work. Use the new names listed above:
+- `get_monitoring_station_data()` → `get_property_data_near()`
+- `find_stations_by_criteria()` → `discover_stations()`
+- `get_nearby_stations()` → `discover_stations_nearby()`
+- `get_soil_moisture_data()` → `get_soil_moisture_by_depth()`
+- `list_available_variables()` → `station_available_properties()`
+- `get_station_sensor_metadata()` → `station_sensors()`
+- `get_station_sensor_heights()` → `station_sensor_depths()`
 
 ## Property Reference
 
 ### Available Properties (Semantic Names)
 
-Use these property names with `get_monitoring_station_data()` and `find_stations_by_criteria()`:
+Use these property names with `get_property_data_near()` and `discover_stations()`:
 
 #### Soil Properties
 - `soil_moisture` - Volumetric soil moisture (%)
@@ -970,11 +982,11 @@ For advanced users, the underlying AWDB element codes:
 
 ### Recommended Workflow for Finding Property Data
 
-1. **Start with Property-Based Search**: Use `find_stations_by_criteria()` with `elements=['SMS:*']` to find stations that actually measure your property of interest
+1. **Start with Property-Based Search**: Use `discover_stations()` with `elements=['SMS:*']` to find stations that actually measure your property of interest
 
 2. **Include Sensor Metadata**: Always use `include_sensor_metadata=True` to understand what sensors are available at each station
 
-3. **Use Automatic Sensor Selection**: For most use cases, let `get_monitoring_station_data()` automatically select the best available sensor with `auto_select_sensor=True`
+3. **Use Automatic Sensor Selection**: For most use cases, let `get_property_data_near()` automatically select the best available sensor with `auto_select_sensor=True`
 
 4. **Check Data Availability**: Before requesting large datasets, verify data exists for your date range
 
