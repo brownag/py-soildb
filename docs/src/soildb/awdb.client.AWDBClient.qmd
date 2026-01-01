@@ -117,7 +117,7 @@ Raises:
 awdb.client.AWDBClient.get_forecasts(
     station_triplets,
     element_codes=None,
-    begin_publication_date=None,
+    start_publication_date=None,
     end_publication_date=None,
     exceedence_probabilities=None,
     forecast_periods=None,
@@ -129,7 +129,7 @@ Get forecast data for one or more stations.
 Args:
     station_triplets: List of station triplets (e.g., ['302:OR:SNTL'])
     element_codes: List of element codes (e.g., ['RESC', 'SRVO'])
-    begin_publication_date: Start date for publication period (YYYY-MM-DD)
+    start_publication_date: Start date for publication period (YYYY-MM-DD)
     end_publication_date: End date for publication period (YYYY-MM-DD)
     exceedence_probabilities: List of exceedence probabilities (e.g., [10, 30, 50])
     forecast_periods: List of forecast periods (e.g., ['03-01', '07-31'])

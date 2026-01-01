@@ -40,74 +40,31 @@ The most common workflow is finding stations that measure specific environmental
 from soildb.awdb.convenience import get_monitoring_station_data, find_stations_by_criteria
 
 async def find_property_data():
-    """Find and retrieve data for specific properties in an area of interest."""
+    """Find and retrieve data for specific properties."""
 
-    # Example: Find soil moisture data near Denver, CO
     target_lat, target_lon = 39.7392, -104.9903
     property_name = 'soil_moisture'
     start_date = '2024-01-01'
     end_date = '2024-01-03'
 
-    print(f"Searching for {property_name} data near ({target_lat}, {target_lon})")
+    result = await get_monitoring_station_data(
+        latitude=target_lat,
+        longitude=target_lon,
+        property_name=property_name,
+        start_date=start_date,
+        end_date=end_date,
+        auto_select_sensor=True
+    )
 
-    # Method 1: Automatic sensor selection (recommended for beginners)
-    print("\n1. Using automatic sensor selection...")
-    try:
-        result = await get_monitoring_station_data(
-            latitude=target_lat,
-            longitude=target_lon,
-            property_name=property_name,
-            start_date=start_date,
-            end_date=end_date,
-            auto_select_sensor=True  # Automatically finds best available sensor
-        )
+    print(f"Found data at: {result['site_name']}")
+    print(f"Distance: {result['metadata']['distance_km']:.1f} km")
+    print(f"Sensor: {result['metadata']['element_string']}")
+    print(f"Data points: {len(result['data_points'])}")
+    print(f"Unit: {result.get('unit', 'N/A')}")
 
-        print("Success!")
-        print(f"   Station: {result['site_name']} ({result['site_id']})")
-        print(f"   Distance: {result['metadata']['distance_km']:.1f} km")
-        print(f"   Sensor: {result['metadata']['element_string']}")
-        print(f"   Data points: {len(result['data_points'])}")
-        print(f"   Unit: {result.get('unit', 'N/A')}")
-
-        if result['data_points']:
-            sample = result['data_points'][0]
-            print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}")
-
-    except Exception as e:
-        print(f"Automatic selection failed: {e}")
-
-    # Method 2: Advanced station discovery with sensor metadata
-    print("\n2. Advanced station discovery with sensor inventory...")
-
-    try:
-        # Find all stations in the area with the desired property
-        stations = await find_stations_by_criteria(
-            network_codes=['SCAN', 'SNTL'],  # Check multiple networks
-            state_codes=['CO'],  # Focus on Colorado
-            elements=['SMS*'],   # Soil moisture sensors (with wildcards)
-            active_only=True,
-            include_sensor_metadata=True,  # Get detailed sensor info
-            limit=10
-        )
-
-        print(f"Found {len(stations)} stations with soil moisture sensors in Colorado")
-
-        # Show sensor inventory for each station
-        for station in stations[:3]:  # Show first 3
-            print(f"\n{station['name']} ({station['station_triplet']})")
-            print(f"   Distance: {station.get('distance_km', 'N/A')} km")
-
-            # Show soil moisture sensors available
-            if 'sensor_metadata' in station and 'soil_moisture' in station['sensor_metadata']:
-                sensors = station['sensor_metadata']['soil_moisture']
-                print(f"   Soil moisture sensors: {len(sensors)}")
-                for sensor in sensors:
-                    depth = sensor.get('height_depth_inches', 0)
-                    ordinal = sensor.get('ordinal', 1)
-                    print(f"     - Depth: {depth}\", Sensor: {ordinal}")
-
-    except Exception as e:
-        print(f"Station discovery failed: {e}")
+    if result['data_points']:
+        sample = result['data_points'][0]
+        print(f"Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}")
 
 # Run async code
 try:
@@ -200,9 +157,9 @@ async def property_based_search():
     print("\n\nFinding SNOTEL stations with snow data...")
 
     snow_stations = await find_stations_by_criteria(
-        network_codes=['SNTL'],       # SNOTEL network
-        state_codes=['CO', 'WY'],     # Mountain states
-        elements=['WTEQ', 'SNWD'],    # Snow water equivalent and depth
+        network_codes=['SNTL'],
+        state_codes=['CO', 'WY'],
+        elements=['WTEQ:*', 'SNWD:*'],
         active_only=True,
         limit=5
     )
@@ -210,7 +167,7 @@ async def property_based_search():
     print(f"Found {len(snow_stations)} SNOTEL stations with snow measurements")
 
     for station in snow_stations:
-        elevation = getattr(station, 'elevation', 'N/A')
+        elevation = station.get('elevation', 'N/A')
         print(f"   {station['name']}: {elevation} ft elevation")
 
 # Run async code
@@ -230,30 +187,27 @@ For more complex queries, AWDB supports powerful server-side filtering:
 ```{python}
 #| eval: true
 async def advanced_filtering():
-    # Find all SNOTEL stations in Oregon
     snotel_stations = await find_stations_by_criteria(
         station_triplets=['*:OR:SNTL']
     )
     print(f"Found {len(snotel_stations)} SNOTEL stations in OR")
 
-    # Find stations with soil moisture sensors in California
     soil_stations = await find_stations_by_criteria(
-        elements=['SMS:*'],  # Any soil moisture sensor
+        elements=['SMS:*'],
         state_codes=['CA']
     )
     print(f"Found {len(soil_stations)} stations with soil moisture sensors in CA")
 
-    # Find stations in specific watersheds (HUC codes)
-    watershed_stations = await find_stations_by_criteria(
-        hucs=['170601*']  # Columbia River basin
-    )
-    print(f"Found {len(watershed_stations)} stations in Columbia River basin")
-
-    # Find stations by name patterns
     lake_stations = await find_stations_by_criteria(
-        station_names=['*Lake*', '*Reservoir*']
+        station_names=['*Lake*']
     )
-    print(f"Found {len(lake_stations)} stations with lake/reservoir in name")
+    print(f"Found {len(lake_stations)} stations with lake in name")
+
+    scan_mountain_stations = await find_stations_by_criteria(
+        network_codes=['SCAN'],
+        state_codes=['CO', 'WY']
+    )
+    print(f"Found {len(scan_mountain_stations)} SCAN stations in CO/WY")
 
 # Run async code
 try:
@@ -408,7 +362,7 @@ except RuntimeError:
 
 ### Soil Data at Multiple Depths
 
-Retrieve soil moisture data at multiple depths near a location. Depths are specified in inches below the surface (negative values, e.g., -2, -20, -40).
+Retrieve soil moisture data at multiple depths from a specific station. Depths are specified in inches below the surface (negative values).
 
 ```{python}
 #| eval: true
@@ -416,18 +370,18 @@ from soildb.awdb.convenience import get_soil_moisture_data
 
 async def multi_depth_soil():
     soil_data = await get_soil_moisture_data(
-        latitude=37.5,
-        longitude=-119.5,
+        station_triplet='2237:CA:SCAN',
+        depths_inches=[-2, -4, -8],
         start_date='2024-01-01',
-        end_date='2024-01-03',
-        depths=[-2, -4, -8, -20, -40]
+        end_date='2024-01-03'
     )
 
-    for depth, readings in soil_data.items():
+    for depth, depth_data in soil_data['depths'].items():
+        readings = depth_data['data_points']
         print(f"Depth {depth}\": {len(readings)} readings")
         if readings:
             reading = readings[0]
-            print(f"  Sample: {reading.timestamp.date()} - {reading.value}% moisture")
+            print(f"  Sample: {reading['timestamp'][:10]} - {reading['value']}%")
 
 # Run async code
 try:
