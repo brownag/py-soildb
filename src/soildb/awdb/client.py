@@ -559,7 +559,7 @@ class AWDBClient(BaseDataAccessClient):
         self,
         station_triplets: List[str],
         element_codes: Optional[List[str]] = None,
-        begin_publication_date: Optional[str] = None,
+        start_publication_date: Optional[str] = None,
         end_publication_date: Optional[str] = None,
         exceedence_probabilities: Optional[List[int]] = None,
         forecast_periods: Optional[List[str]] = None,
@@ -570,7 +570,7 @@ class AWDBClient(BaseDataAccessClient):
         Args:
             station_triplets: List of station triplets (e.g., ['302:OR:SNTL'])
             element_codes: List of element codes (e.g., ['RESC', 'SRVO'])
-            begin_publication_date: Start date for publication period (YYYY-MM-DD)
+            start_publication_date: Start date for publication period (YYYY-MM-DD)
             end_publication_date: End date for publication period (YYYY-MM-DD)
             exceedence_probabilities: List of exceedence probabilities (e.g., [10, 30, 50])
             forecast_periods: List of forecast periods (e.g., ['03-01', '07-31'])
@@ -584,8 +584,8 @@ class AWDBClient(BaseDataAccessClient):
 
         if element_codes:
             params["elementCodes"] = ",".join(element_codes)
-        if begin_publication_date:
-            params["beginPublicationDate"] = begin_publication_date
+        if start_publication_date:
+            params["beginPublicationDate"] = start_publication_date
         if end_publication_date:
             params["endPublicationDate"] = end_publication_date
         if exceedence_probabilities:
