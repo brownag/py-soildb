@@ -2,7 +2,7 @@
 Tests for AWDB (SCAN/SNOTEL) module.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -305,15 +305,220 @@ class TestAWDBClient:
         distance = client._haversine_distance(40.0, -110.0, 40.0, -110.0)
         assert distance == 0
 
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_get_station_data_hourly_format(self, mock_client_class, client):
+        """Test HOURLY timestamp parsing with space-separated format (YYYY-MM-DD HH:MM)."""
+        mock_response_data = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [
+                            {"date": "2024-12-01 00:00", "value": 5.5},
+                            {"date": "2024-12-01 01:00", "value": 5.6},
+                            {"date": "2024-12-01 02:00", "value": 5.7},
+                        ],
+                    }
+                ]
+            }
+        ]
+
+        mock_response = Mock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value = mock_client
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-2:1", "2024-12-01", "2024-12-01", duration="HOURLY"
+        )
+
+        assert len(data) == 3
+        assert data[0].timestamp == datetime(2024, 12, 1, 0, 0)
+        assert data[0].element_code == "SMS:-2:1"
+        assert data[1].timestamp == datetime(2024, 12, 1, 1, 0)
+        assert data[2].timestamp == datetime(2024, 12, 1, 2, 0)
+
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_get_station_data_hourly_with_timezone(
+        self, mock_client_class, client
+    ):
+        """Test HOURLY data with station timezone applied (PST -8 hours)."""
+        # Station response with timezone info (dataTimeZone = -8 for PST)
+        station_response = [
+            {
+                "stationTriplet": "2237:CA:SCAN",
+                "name": "Alabama Hills",
+                "latitude": 36.5,
+                "longitude": -118.1,
+                "elevation": 3900,
+                "networkCode": "SCAN",
+                "state": "CA",
+                "county": "Inyo",
+                "dataTimeZone": -8,  # Pacific Standard Time
+            }
+        ]
+
+        # Hourly data response (timestamps are in local station time, not UTC)
+        data_response = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [
+                            {"date": "2024-12-01 00:00", "value": 5.5},
+                            {"date": "2024-12-01 01:00", "value": 5.6},
+                            {"date": "2024-12-01 08:00", "value": 6.2},
+                        ],
+                    }
+                ]
+            }
+        ]
+
+        mock_response_stations = Mock()
+        mock_response_stations.json.return_value = station_response
+        mock_response_stations.raise_for_status.return_value = None
+
+        mock_response_data = Mock()
+        mock_response_data.json.return_value = data_response
+        mock_response_data.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        # First call returns stations, second call returns data
+        mock_client.get.side_effect = [mock_response_stations, mock_response_data]
+        mock_client_class.return_value = mock_client
+
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-2:1", "2024-12-01", "2024-12-01", duration="HOURLY"
+        )
+
+        assert len(data) == 3
+        # Verify that timestamps now include timezone information (PST = UTC-8)
+        assert data[0].timestamp.tzinfo is not None
+        assert data[0].timestamp == datetime(
+            2024, 12, 1, 0, 0, tzinfo=timezone(-timedelta(hours=8))
+        )
+        assert data[0].station_timezone_offset == -8
+
+        # Verify the timezone offset is stored in the data point
+        for point in data:
+            assert point.station_timezone_offset == -8
+            assert point.timestamp.tzinfo is not None
+
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_get_station_data_multiple_elements(self, mock_client_class, client):
+        """Test that all elements in multi-element response are processed."""
+        mock_response_data = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -20,
+                            "ordinal": 1,
+                        },
+                        "values": [{"date": "2024-12-01", "value": 25.5}],
+                    },
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [{"date": "2024-12-01", "value": 35.0}],
+                    },
+                    {
+                        "stationElement": {
+                            "elementCode": "STO",
+                            "heightDepth": -20,
+                            "ordinal": 1,
+                        },
+                        "values": [{"date": "2024-12-01", "value": 15.2}],
+                    },
+                ]
+            }
+        ]
+
+        mock_response = Mock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value = mock_client
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-20:1,SMS:-2:1,STO:-20:1", "2024-12-01", "2024-12-01"
+        )
+
+        assert len(data) == 3
+        element_codes = {dp.element_code for dp in data}
+        assert "SMS:-20:1" in element_codes
+        assert "SMS:-2:1" in element_codes
+        assert "STO:-20:1" in element_codes
+
+    @patch("httpx.AsyncClient")
+    @pytest.mark.asyncio
+    async def test_element_code_tracking(self, mock_client_class, client):
+        """Test that element codes are correctly tracked in TimeSeriesDataPoint."""
+        mock_response_data = [
+            {
+                "data": [
+                    {
+                        "stationElement": {
+                            "elementCode": "SMS",
+                            "heightDepth": -2,
+                            "ordinal": 1,
+                        },
+                        "values": [
+                            {"date": "2024-12-01", "value": 5.5},
+                            {"date": "2024-12-02", "value": 5.6},
+                        ],
+                    }
+                ]
+            }
+        ]
+
+        mock_response = Mock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client_class.return_value = mock_client
+        client._client = mock_client
+
+        data = await client.get_station_data(
+            "2237:CA:SCAN", "SMS:-2:1", "2024-12-01", "2024-12-02"
+        )
+
+        assert len(data) == 2
+        for dp in data:
+            assert dp.element_code == "SMS:-2:1"
+
 
 class TestConvenienceFunctions:
     """Test convenience functions."""
 
     @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
-    async def test_get_nearby_stations(self, mock_client_class):
-        """Test get_nearby_stations convenience function."""
-        from soildb.awdb.convenience import get_nearby_stations
+    async def test_discover_stations_nearby(self, mock_client_class):
+        """Test discover_stations_nearby convenience function."""
+        from soildb.awdb.convenience import discover_stations_nearby
 
         # Mock client and response
         mock_client = AsyncMock()
@@ -331,7 +536,7 @@ class TestConvenienceFunctions:
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client_class.return_value.__aexit__.return_value = None
 
-        result = await get_nearby_stations(40.0, -110.0, max_distance_km=50)
+        result = await discover_stations_nearby(40.0, -110.0, max_distance_km=50)
 
         assert len(result) == 1
         assert result[0]["station_triplet"] == "1234:UT:SNTL"
@@ -340,9 +545,9 @@ class TestConvenienceFunctions:
 
     @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
-    async def test_get_monitoring_station_data(self, mock_client_class):
-        """Test get_monitoring_station_data convenience function."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+    async def test_get_property_data_near(self, mock_client_class):
+        """Test get_property_data_near convenience function."""
+        from soildb.awdb.convenience import get_property_data_near
 
         # Mock client and response
         mock_client = AsyncMock()
@@ -371,7 +576,7 @@ class TestConvenienceFunctions:
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client_class.return_value.__aexit__.return_value = None
 
-        result = await get_monitoring_station_data(
+        result = await get_property_data_near(
             latitude=40.0,
             longitude=-110.0,
             property_name="soil_moisture",
@@ -390,11 +595,11 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_invalid_property_name(self):
         """Test error handling for invalid property names."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.convenience import get_property_data_near
         from soildb.awdb.exceptions import AWDBError
 
         with pytest.raises(AWDBError, match="Unsupported property"):
-            await get_monitoring_station_data(
+            await get_property_data_near(
                 latitude=40.0,
                 longitude=-110.0,
                 property_name="invalid_property",
@@ -405,11 +610,11 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_invalid_date_format(self):
         """Test error handling for invalid date formats."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.convenience import get_property_data_near
         from soildb.awdb.exceptions import AWDBError
 
         with pytest.raises(AWDBError, match="Invalid date format"):
-            await get_monitoring_station_data(
+            await get_property_data_near(
                 latitude=40.0,
                 longitude=-110.0,
                 property_name="soil_moisture",
@@ -419,14 +624,12 @@ class TestConvenienceFunctions:
             )
 
     @pytest.mark.asyncio
-    async def test_list_available_variables(self):
-        """Test list_available_variables function."""
-        from soildb.awdb.convenience import list_available_variables
+    async def test_station_available_properties(self):
+        """Test station_available_properties function."""
+        from soildb.awdb.convenience import station_available_properties
 
         # Mock the underlying API call to avoid real network requests
-        with patch(
-            "soildb.awdb.convenience.get_station_sensor_metadata"
-        ) as mock_metadata:
+        with patch("soildb.awdb.convenience.station_sensors") as mock_metadata:
             mock_metadata.return_value = {
                 "sensors": {
                     "soil_moisture": [{"code": "SMS", "depth": "-20"}],
@@ -439,7 +642,7 @@ class TestConvenienceFunctions:
             ) as mock_unit:
                 mock_unit.return_value = "pct"
 
-                variables = await list_available_variables("301:CA:SNTL")
+                variables = await station_available_properties("301:CA:SNTL")
 
                 # Verify the function returned the expected structure
                 assert len(variables) == 2
@@ -482,12 +685,12 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_convenience_function_property_validation(self):
         """Test that convenience functions validate properties correctly."""
-        from soildb.awdb.convenience import get_monitoring_station_data
+        from soildb.awdb.convenience import get_property_data_near
         from soildb.awdb.exceptions import AWDBError
 
         # Test invalid property
         with pytest.raises(AWDBError, match="Unsupported property"):
-            await get_monitoring_station_data(
+            await get_property_data_near(
                 latitude=40.0,
                 longitude=-120.0,
                 property_name="invalid_property",
@@ -509,6 +712,7 @@ class TestConvenienceFunctions:
                 value=15.0 + i * 0.5,
                 flags=["QC:V"],
                 qc_flag="V",
+                element_code="SMS:-2:1",
             )
             for i in range(5)  # Small sample for testing
         ]
@@ -525,3 +729,7 @@ class TestConvenienceFunctions:
         # Test quality flag extraction
         quality_flags = [dp.qc_flag for dp in data_points if dp.qc_flag]
         assert len(quality_flags) > 0
+
+        # Test element code tracking
+        element_codes = {dp.element_code for dp in data_points if dp.element_code}
+        assert "SMS:-2:1" in element_codes

@@ -36,78 +36,35 @@ AWDB contains data from thousands of automated monitoring stations across the Un
 The most common workflow is finding stations that measure specific environmental properties within a geographic area. Here's the recommended approach:
 
 ```{python}
-#| eval: false
-from soildb.awdb.convenience import get_monitoring_station_data, find_stations_by_criteria
+#| eval: true
+from soildb.awdb.convenience import get_property_data_near, discover_stations
 
 async def find_property_data():
-    """Find and retrieve data for specific properties in an area of interest."""
+    """Find and retrieve data for specific properties."""
 
-    # Example: Find soil moisture data near Denver, CO
     target_lat, target_lon = 39.7392, -104.9903
     property_name = 'soil_moisture'
     start_date = '2024-01-01'
-    end_date = '2024-01-10'
+    end_date = '2024-01-03'
 
-    print(f"Searching for {property_name} data near ({target_lat}, {target_lon})")
+    result = await get_property_data_near(
+        latitude=target_lat,
+        longitude=target_lon,
+        property_name=property_name,
+        start_date=start_date,
+        end_date=end_date,
+        auto_select_sensor=True
+    )
 
-    # Method 1: Automatic sensor selection (recommended for beginners)
-    print("\n1. Using automatic sensor selection...")
-    try:
-        result = await get_monitoring_station_data(
-            latitude=target_lat,
-            longitude=target_lon,
-            property_name=property_name,
-            start_date=start_date,
-            end_date=end_date,
-            auto_select_sensor=True  # Automatically finds best available sensor
-        )
+    print(f"Found data at: {result['site_name']}")
+    print(f"Distance: {result['metadata']['distance_km']:.1f} km")
+    print(f"Sensor: {result['metadata']['element_string']}")
+    print(f"Data points: {len(result['data_points'])}")
+    print(f"Unit: {result.get('unit', 'N/A')}")
 
-        print("Success!")
-        print(f"   Station: {result['site_name']} ({result['site_id']})")
-        print(f"   Distance: {result['metadata']['distance_km']:.1f} km")
-        print(f"   Sensor: {result['metadata']['element_string']}")
-        print(f"   Data points: {len(result['data_points'])}")
-        print(f"   Unit: {result.get('unit', 'N/A')}")
-
-        if result['data_points']:
-            sample = result['data_points'][0]
-            print(f"   Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}")
-
-    except Exception as e:
-        print(f"Automatic selection failed: {e}")
-
-    # Method 2: Advanced station discovery with sensor metadata
-    print("\n2. Advanced station discovery with sensor inventory...")
-
-    try:
-        # Find all stations in the area with the desired property
-        stations = await find_stations_by_criteria(
-            network_codes=['SCAN', 'SNTL'],  # Check multiple networks
-            state_codes=['CO'],  # Focus on Colorado
-            elements=['SMS*'],   # Soil moisture sensors (with wildcards)
-            active_only=True,
-            include_sensor_metadata=True,  # Get detailed sensor info
-            limit=10
-        )
-
-        print(f"Found {len(stations)} stations with soil moisture sensors in Colorado")
-
-        # Show sensor inventory for each station
-        for station in stations[:3]:  # Show first 3
-            print(f"\n{station['name']} ({station['station_triplet']})")
-            print(f"   Distance: {station.get('distance_km', 'N/A')} km")
-
-            # Show soil moisture sensors available
-            if 'sensor_metadata' in station and 'soil_moisture' in station['sensor_metadata']:
-                sensors = station['sensor_metadata']['soil_moisture']
-                print(f"   Soil moisture sensors: {len(sensors)}")
-                for sensor in sensors:
-                    depth = sensor.get('height_depth_inches', 0)
-                    ordinal = sensor.get('ordinal', 1)
-                    print(f"     - Depth: {depth}\", Sensor: {ordinal}")
-
-    except Exception as e:
-        print(f"Station discovery failed: {e}")
+    if result['data_points']:
+        sample = result['data_points'][0]
+        print(f"Sample: {sample['timestamp'][:10]} = {sample['value']} {result.get('unit', '')}")
 
 # Run async code
 try:
@@ -124,7 +81,7 @@ except RuntimeError:
 For more control, you can use the lower-level AWDBClient directly:
 
 ```{python}
-#| eval: false
+#| eval: true
 from soildb.awdb import AWDBClient
 
 async def basic_awdb():
@@ -132,7 +89,8 @@ async def basic_awdb():
         # Get all SCAN stations in California
         stations = await client.get_stations(
             network_codes=['SCAN'],
-            state_codes=['CA']
+            state_codes=['CA'],
+            limit=3  # Limit for demo
         )
 
         print(f"Found {len(stations)} SCAN stations in California")
@@ -165,8 +123,8 @@ except RuntimeError:
 The most effective way to find data for specific properties is to search for stations that actually measure those properties:
 
 ```{python}
-#| eval: false
-from soildb.awdb.convenience import find_stations_by_criteria
+#| eval: true
+from soildb.awdb.convenience import discover_stations
 
 async def property_based_search():
     """Find stations that measure specific environmental properties."""
@@ -174,13 +132,13 @@ async def property_based_search():
     # Example 1: Find stations with comprehensive soil monitoring
     print("Finding stations with soil moisture and temperature sensors...")
 
-    soil_stations = await find_stations_by_criteria(
+    soil_stations = await discover_stations(
         elements=['SMS:*', 'STO:*'],  # Soil moisture AND temperature sensors
         network_codes=['SCAN'],       # Focus on SCAN network
-        state_codes=['CA', 'CO'],     # California and Colorado
+        state_codes=['CA'],           # California only
         active_only=True,
         include_sensor_metadata=True, # Get detailed sensor info
-        limit=10
+        limit=3  # Limit for demo
     )
 
     print(f"Found {len(soil_stations)} SCAN stations with soil sensors")
@@ -198,10 +156,10 @@ async def property_based_search():
     # Example 2: Find stations with snow measurements in mountainous areas
     print("\n\nFinding SNOTEL stations with snow data...")
 
-    snow_stations = await find_stations_by_criteria(
-        network_codes=['SNTL'],       # SNOTEL network
-        state_codes=['CO', 'WY'],     # Mountain states
-        elements=['WTEQ', 'SNWD'],    # Snow water equivalent and depth
+    snow_stations = await discover_stations(
+        network_codes=['SNTL'],
+        state_codes=['CO', 'WY'],
+        elements=['WTEQ:*', 'SNWD:*'],
         active_only=True,
         limit=5
     )
@@ -209,7 +167,7 @@ async def property_based_search():
     print(f"Found {len(snow_stations)} SNOTEL stations with snow measurements")
 
     for station in snow_stations:
-        elevation = getattr(station, 'elevation', 'N/A')
+        elevation = station.get('elevation', 'N/A')
         print(f"   {station['name']}: {elevation} ft elevation")
 
 # Run async code
@@ -227,32 +185,29 @@ except RuntimeError:
 For more complex queries, AWDB supports powerful server-side filtering:
 
 ```{python}
-#| eval: false
+#| eval: true
 async def advanced_filtering():
-    # Find all SNOTEL stations in Oregon or Washington
-    snotel_stations = await find_stations_by_criteria(
-        station_triplets=['*:OR:SNTL', '*:WA:SNTL']
+    snotel_stations = await discover_stations(
+        station_triplets=['*:OR:SNTL']
     )
-    print(f"Found {len(snotel_stations)} SNOTEL stations in OR/WA")
+    print(f"Found {len(snotel_stations)} SNOTEL stations in OR")
 
-    # Find stations with soil moisture sensors in California
-    soil_stations = await find_stations_by_criteria(
-        elements=['SMS:*'],  # Any soil moisture sensor
+    soil_stations = await discover_stations(
+        elements=['SMS:*'],
         state_codes=['CA']
     )
     print(f"Found {len(soil_stations)} stations with soil moisture sensors in CA")
 
-    # Find stations in specific watersheds (HUC codes)
-    watershed_stations = await find_stations_by_criteria(
-        hucs=['170601*']  # Columbia River basin
+    lake_stations = await discover_stations(
+        station_names=['*Lake*']
     )
-    print(f"Found {len(watershed_stations)} stations in Columbia River basin")
+    print(f"Found {len(lake_stations)} stations with lake in name")
 
-    # Find stations by name patterns
-    lake_stations = await find_stations_by_criteria(
-        station_names=['*Lake*', '*Reservoir*']
+    scan_mountain_stations = await discover_stations(
+        network_codes=['SCAN'],
+        state_codes=['CO', 'WY']
     )
-    print(f"Found {len(lake_stations)} stations with lake/reservoir in name")
+    print(f"Found {len(scan_mountain_stations)} SCAN stations in CO/WY")
 
 # Run async code
 try:
@@ -269,14 +224,14 @@ except RuntimeError:
 Stations include rich metadata:
 
 ```{python}
-#| eval: false
+#| eval: true
 async def station_metadata():
     async with AWDBClient() as client:
         # Get detailed station information
         stations = await client.get_stations(
             station_triplets=['2057:AL:SCAN'],
             return_station_elements=True,  # Include sensor details
-            return_forecast_point_metadata=True  # Include forecast info
+            limit=1
         )
 
         if stations:
@@ -310,20 +265,20 @@ except RuntimeError:
 The recommended approach for getting data for specific environmental properties:
 
 ```{python}
-#| eval: false
-from soildb.awdb.convenience import get_monitoring_station_data
+#| eval: true
+from soildb.awdb.convenience import get_property_data_near
 
 async def property_data_retrieval():
     """Get data for specific environmental properties with automatic sensor selection."""
 
     # Example 1: Soil moisture (automatically selects best available sensor)
     print("Getting soil moisture data...")
-    soil_result = await get_monitoring_station_data(
+    soil_result = await get_property_data_near(
         latitude=39.7392,   # Denver, CO
         longitude=-104.9903,
         property_name='soil_moisture',
         start_date='2024-01-01',
-        end_date='2024-01-05',
+        end_date='2024-01-03',  # Shorter date range
         auto_select_sensor=True  # Automatically find best available sensor
     )
 
@@ -334,12 +289,12 @@ async def property_data_retrieval():
 
     # Example 2: Air temperature
     print("\nGetting air temperature data...")
-    temp_result = await get_monitoring_station_data(
+    temp_result = await get_property_data_near(
         latitude=39.7392,
         longitude=-104.9903,
         property_name='air_temp',
         start_date='2024-01-01',
-        end_date='2024-01-05',
+        end_date='2024-01-03',  # Shorter date range
         auto_select_sensor=True
     )
 
@@ -349,12 +304,12 @@ async def property_data_retrieval():
 
     # Example 3: Snow water equivalent (SWE)
     print("\nGetting snow water equivalent data...")
-    snow_result = await get_monitoring_station_data(
+    snow_result = await get_property_data_near(
         latitude=39.7392,
         longitude=-104.9903,
         property_name='snow_water_equivalent',
         start_date='2024-01-01',
-        end_date='2024-01-05',
+        end_date='2024-01-03',  # Shorter date range
         auto_select_sensor=True
     )
 
@@ -377,15 +332,15 @@ except RuntimeError:
 For advanced users who want specific sensor control:
 
 ```{python}
-#| eval: false
+#| eval: true
 async def manual_sensor_control():
     # Specify exact sensor depth for soil moisture
-    result = await get_monitoring_station_data(
+    result = await get_property_data_near(
         latitude=39.7392,
         longitude=-104.9903,
         property_name='soil_moisture',
         start_date='2024-01-01',
-        end_date='2024-01-05',
+        end_date='2024-01-03',  # Shorter date range
         height_depth_inches=-20,  # 20 inches below surface
         auto_select_sensor=False  # Use manual specification
     )
@@ -407,27 +362,26 @@ except RuntimeError:
 
 ### Soil Data at Multiple Depths
 
+Retrieve soil moisture data at multiple depths from a specific station. Depths are specified in inches below the surface (negative values).
+
 ```{python}
-#| eval: false
-from soildb.awdb.convenience import get_soil_moisture_data
+#| eval: true
+from soildb.awdb.convenience import get_soil_moisture_by_depth
 
 async def multi_depth_soil():
-    # Get soil moisture at multiple depths near a location
-    soil_data = await get_soil_moisture_data(
-        latitude=37.5,    # Near Yosemite, CA
-        longitude=-119.5,
+    soil_data = await get_soil_moisture_by_depth(
+        station_triplet='2237:CA:SCAN',
+        depths_inches=[-2, -4, -8],
         start_date='2024-01-01',
-        end_date='2024-01-10',
-        depths=[-2, -4, -8, -20, -40]  # Depths in inches (negative = below surface)
+        end_date='2024-01-03'
     )
 
-    # Each depth contains time series data
-    for depth, readings in soil_data.items():
+    for depth, depth_data in soil_data['depths'].items():
+        readings = depth_data['data_points']
         print(f"Depth {depth}\": {len(readings)} readings")
         if readings:
-            # Show first reading
             reading = readings[0]
-            print(f"  Sample: {reading.timestamp.date()} - {reading.value}% moisture")
+            print(f"  Sample: {reading['timestamp'][:10]} - {reading['value']}%")
 
 # Run async code
 try:
@@ -439,36 +393,246 @@ except RuntimeError:
     asyncio.run(multi_depth_soil())
 ```
 
-**Note:** `get_soil_moisture_data()` is a high-level convenience function that automatically finds nearby stations with soil moisture sensors and retrieves data at the specified depths. For more control, use the lower-level `AWDBClient` methods.
+### Hourly Data Retrieval
+
+AWDB supports sub-daily data retrieval with hourly granularity for supported monitoring networks (SCAN and SNOTEL). Hourly data provides much higher temporal resolution than daily data and is useful for studying rapid changes in soil moisture, temperature, and weather conditions.
+
+#### Basic Hourly Data Retrieval
+
+Retrieve hourly data from the Alabama Hills SCAN station (`2237:CA:SCAN`) using `duration='HOURLY'`. The element code `SMS:-2:1` is the soil moisture sensor at 2 inches depth. Timestamps are timezone-aware (e.g., `2024-12-01T00:00:00-08:00`).
+
+```{python}
+#| eval: true
+from soildb.awdb import AWDBClient
+
+async def hourly_data_retrieval():
+    """Retrieve hourly soil moisture data."""
+
+    async with AWDBClient() as client:
+        hourly_data = await client.get_station_data(
+            station_triplet='2237:CA:SCAN',
+            elements='SMS:-2:1',
+            start_date='2024-12-01',
+            end_date='2024-12-02',
+            duration='HOURLY'
+        )
+
+        print(f"Retrieved {len(hourly_data)} hourly soil moisture readings")
+
+        if hourly_data:
+            for reading in hourly_data[:3]:
+                print(f"  {reading.timestamp.isoformat()}: {reading.value}% (offset: {reading.station_timezone_offset}h)")
+
+        if len(hourly_data) > 1:
+            num_days = (hourly_data[-1].timestamp.date() - hourly_data[0].timestamp.date()).days + 1
+            readings_per_day = len(hourly_data) / num_days if num_days > 0 else 0
+            print(f"\nData spans {num_days} days with {readings_per_day:.1f} readings per day")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_data_retrieval())
+except RuntimeError:
+    asyncio.run(hourly_data_retrieval())
+```
+
+#### About Timezone Information
+
+**Important:** All hourly data from AWDB includes station timezone information. The library automatically applies the station's timezone offset to hourly timestamps, ensuring that timestamps represent local station time rather than UTC.
+
+- Timestamps are localized to the station's timezone using the `dataTimeZone` field from station metadata
+- Each data point includes `station_timezone_offset` showing the UTC offset in hours (e.g., -8 for PST, -5 for EST)
+- Timezone-aware timestamps are in ISO 8601 format (e.g., `2024-12-01T08:00:00-08:00`)
+- This applies to all hourly examples and convenience functions in this section
+
+#### Hourly Data with Multiple Elements
+
+Retrieve multiple sensor readings with hourly granularity. Element codes follow the format `ElementCode:HeightDepth:Ordinal`. For example: `SMS:-2:1` (soil moisture %), `STO:-2:1` (soil temperature °F). The request below retrieves both sensors at 2 inches depth.
+
+```{python}
+#| eval: true
+async def hourly_multi_element_data():
+    """Retrieve multiple soil sensors at hourly granularity."""
+
+    async with AWDBClient() as client:
+        elements = "SMS:-2:1,STO:-2:1"
+
+        data = await client.get_station_data(
+            station_triplet='2237:CA:SCAN',
+            elements=elements,
+            start_date='2024-12-01',
+            end_date='2024-12-02',
+            duration='HOURLY'
+        )
+
+        print(f"Retrieved {len(data)} hourly readings from multiple elements")
+
+        by_element = {}
+        for reading in data:
+            element = reading.element_code or 'unknown'
+            if element not in by_element:
+                by_element[element] = []
+            by_element[element].append(reading)
+
+        for element_code, readings in sorted(by_element.items()):
+            if readings:
+                first_value = readings[0].value
+                last_value = readings[-1].value
+                change = last_value - first_value if (first_value and last_value) else 0
+                print(f"\n{element_code}:")
+                print(f"  Readings: {len(readings)}")
+                print(f"  Change over period: {change:+.2f}")
+                print(f"  Sample: {readings[0].timestamp.isoformat()}: {readings[0].value}")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_multi_element_data())
+except RuntimeError:
+    asyncio.run(hourly_multi_element_data())
+```
+
+#### Comparing Hourly vs Daily Data
+
+Compare data density and temporal resolution. Hourly data provides ~24x more readings than daily aggregation for the same period.
+
+```{python}
+#| eval: true
+async def hourly_vs_daily_comparison():
+    """Compare hourly and daily data retrieval patterns."""
+
+    async with AWDBClient() as client:
+        station_triplet = '2237:CA:SCAN'
+        elements = 'SMS:-2:1'
+        start_date = '2024-12-01'
+        end_date = '2024-12-03'
+
+        daily_data = await client.get_station_data(
+            station_triplet=station_triplet,
+            elements=elements,
+            start_date=start_date,
+            end_date=end_date,
+            duration='DAILY'
+        )
+
+        hourly_data = await client.get_station_data(
+            station_triplet=station_triplet,
+            elements=elements,
+            start_date=start_date,
+            end_date=end_date,
+            duration='HOURLY'
+        )
+
+        print(f"Data for {station_triplet} ({start_date} to {end_date})")
+        print(f"DAILY readings:  {len(daily_data):>4} (1 value per day)")
+        print(f"HOURLY readings: {len(hourly_data):>4} (24 values per day)")
+        print(f"Data density: {len(hourly_data)/len(daily_data):.0f}x more data in hourly")
+
+        # Show timestamp format differences
+        if daily_data:
+            print(f"\nDaily timestamp format:  {daily_data[0].timestamp}")
+        if hourly_data:
+            print(f"Hourly timestamp format: {hourly_data[0].timestamp}")
+
+        if hourly_data:
+            hourly_by_date = {}
+            for reading in hourly_data:
+                date = reading.timestamp.date()
+                if date not in hourly_by_date:
+                    hourly_by_date[date] = []
+                hourly_by_date[date].append(reading.value)
+
+            print("\nIntra-day variability (min-max by date):")
+            for date in sorted(hourly_by_date.keys())[:3]:
+                values = [v for v in hourly_by_date[date] if v is not None]
+                if values:
+                    min_val, max_val = min(values), max(values)
+                    print(f"  {date}: {min_val:.2f}% - {max_val:.2f}% (range: {max_val-min_val:.2f}%)")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_vs_daily_comparison())
+except RuntimeError:
+    asyncio.run(hourly_vs_daily_comparison())
+```
+
+#### Performance Considerations for Hourly Data
+
+When working with hourly data, keep these considerations in mind:
+
+- **Data Volume**: Hourly data is ~24x larger than daily data for the same period
+- **Request Size**: Use smaller date ranges (1-2 weeks) to avoid timeouts
+- **API Chunking**: The client automatically chunks requests into manageable monthly periods
+
+```{python}
+#| eval: true
+async def hourly_data_best_practices():
+    """Best practices for retrieving hourly datasets."""
+
+    async with AWDBClient() as client:
+        hourly_data = await client.get_station_data(
+            station_triplet='2237:CA:SCAN',
+            elements='SMS:-2:1,STO:-2:1',
+            start_date='2024-12-01',
+            end_date='2024-12-08',
+            duration='HOURLY'
+        )
+
+        print(f"Retrieved {len(hourly_data)} hourly readings")
+
+        by_element = {}
+        for reading in hourly_data:
+            elem = reading.element_code or 'unknown'
+            if elem not in by_element:
+                by_element[elem] = []
+            by_element[elem].append(reading)
+
+        print(f"\nReadings per element:")
+        for elem in sorted(by_element.keys()):
+            print(f"  {elem}: {len(by_element[elem])} readings")
+
+# Run async code
+try:
+    loop = asyncio.get_running_loop()
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop.run_until_complete(hourly_data_best_practices())
+except RuntimeError:
+    asyncio.run(hourly_data_best_practices())
+```
 
 ### Weather and Snow Data
 
 ```{python}
-#| eval: false
+#| eval: true
 async def weather_snow_data():
     async with AWDBClient() as client:
-        # Find SNOTEL stations in Colorado
         stations = await client.get_stations(
             network_codes=['SNTL'],
             state_codes=['CO'],
-            limit=5
+            limit=2
         )
 
         for station in stations:
             print(f"\nStation: {station.name} ({station.station_triplet})")
 
-            # Get snow water equivalent
             snow_data = await client.get_station_data(
                 station.station_triplet,
-                'WTEQ',  # Snow water equivalent
+                'WTEQ',
                 '2024-01-01',
                 '2024-01-10'
             )
 
-            # Get precipitation
             precip_data = await client.get_station_data(
                 station.station_triplet,
-                'PREC',  # Precipitation accumulation
+                'PREC',
                 '2024-01-01',
                 '2024-01-10'
             )
@@ -491,25 +655,23 @@ except RuntimeError:
 ### Water Supply Forecasts
 
 ```{python}
-#| eval: false
+#| eval: true
 async def forecast_data():
     async with AWDBClient() as client:
-        # Get forecast data for stations in California
         forecasts = await client.get_forecasts(
-            station_triplets=['*:CA:*'],  # All stations in CA
-            element_codes=['RESC'],       # Reservoir storage
-            begin_publication_date='2024-01-01',
-            end_publication_date='2024-12-31'
+            station_triplets=['*:CA:*'],
+            element_codes=['RESC'],
+            start_publication_date='2024-01-01',
+            end_publication_date='2024-01-31'
         )
 
         print(f"Retrieved forecasts for {len(forecasts)} stations")
 
-        for forecast in forecasts[:3]:  # Show first 3
+        for forecast in forecasts[:3]:
             print(f"\nStation: {forecast.station_triplet}")
             print(f"Forecast point: {forecast.forecast_point_name}")
 
-            # Show forecast data
-            for data_point in forecast.data[:2]:  # Show first 2 periods
+            for data_point in forecast.data[:2]:
                 print(f"  Period: {data_point.get('forecastPeriod')}")
                 print(f"  Values: {data_point.get('forecastValues', {})}")
 
@@ -528,19 +690,18 @@ except RuntimeError:
 ### Available Elements and Networks
 
 ```{python}
-#| eval: false
+#| eval: true
 async def reference_data():
     async with AWDBClient() as client:
-        # Get all reference data
         ref_data = await client.get_reference_data()
 
         print(f"Available networks: {len(ref_data.networks)}")
-        for network in ref_data.networks[:5]:  # Show first 5
+        for network in ref_data.networks[:5]:
             print(f"  {network['code']}: {network['name']}")
 
         print(f"\nAvailable elements: {len(ref_data.elements)}")
         soil_elements = [e for e in ref_data.elements if 'soil' in e.get('name', '').lower()]
-        for element in soil_elements[:5]:  # Show first 5 soil elements
+        for element in soil_elements[:5]:
             print(f"  {element['code']}: {element['name']}")
 
 # Run async code
@@ -558,22 +719,21 @@ except RuntimeError:
 ### Quality Control and Flags
 
 ```{python}
-#| eval: false
+#| eval: true
 async def quality_control():
     async with AWDBClient() as client:
-        # Get data with quality flags
         data = await client.get_station_data(
             '2057:AL:SCAN',
-            'SMS',  # Soil moisture
-            '2024-01-01',
-            '2024-01-05',
-            return_flags=True,           # Include quality flags
-            return_original_values=True  # Include original values
+            'SMS:-2:1',
+            '2024-12-01',
+            '2024-12-03',
+            return_flags=True,
+            return_original_values=True
         )
 
         print(f"Retrieved {len(data)} readings with quality information")
 
-        for reading in data[:3]:  # Show first 3
+        for reading in data[:3]:
             print(f"\nTimestamp: {reading.timestamp}")
             print(f"Value: {reading.value}")
             print(f"QC Flag: {reading.qc_flag}")
@@ -592,21 +752,54 @@ except RuntimeError:
     asyncio.run(quality_control())
 ```
 
+### Timezone-Aware Timestamps in Convenience Functions
+
+All convenience functions that return time series data automatically include timezone information when available. Results include `station_timezone_offset_hours` in metadata (UTC offset, e.g., -8 for PST), and timestamps are ISO 8601 formatted with timezone (e.g., `2024-12-01T00:00:00-08:00`).
+
+```{python}
+#| eval: true
+from soildb.awdb.convenience import get_property_data_near
+
+async def timezone_aware_convenience_example():
+    """Demonstrate timezone-aware timestamps in convenience functions."""
+    
+    result = await get_property_data_near(
+        latitude=36.54,
+        longitude=-118.10,
+        property_name='soil_moisture',
+        start_date='2024-12-01',
+        end_date='2024-12-02',
+        height_depth_inches=-2
+    )
+
+    print(f"Station: {result['site_name']}")
+    print(f"Timezone offset: UTC{result['metadata']['station_timezone_offset_hours']:+d}")
+    print(f"\nFirst 3 readings (all in local station time):")
+    
+    for point in result['data_points'][:3]:
+        ts = point['timestamp']
+        print(f"  {ts}: {point['value']}%")
+
+    print(f"\nTotal: {result['metadata']['n_data_points']} readings")
+```
+
+This is particularly useful when analyzing hourly data from multiple stations across different timezones—timestamps are automatically adjusted to each station's local time.
+
 ### Nearby Stations with Sensor Metadata
 
 ```{python}
-#| eval: false
-from soildb.awdb.convenience import get_nearby_stations
+#| eval: true
+from soildb.awdb.convenience import discover_stations_nearby
 
 async def nearby_stations_with_metadata():
     # Find stations near a point with sensor information
-    nearby = await get_nearby_stations(
+    nearby = await discover_stations_nearby(
         latitude=39.7392,   # Denver, CO
         longitude=-104.9903,
         max_distance_km=50,
-        network_codes=['SCAN'],  # SCAN stations
-        limit=5,
-        include_sensor_metadata=True  # NEW: Include sensor details
+        network_codes=['SCAN'],
+        limit=3,
+        include_sensor_metadata=True
     )
 
     print(f"Found {len(nearby)} SCAN stations within 50km of Denver")
@@ -614,12 +807,11 @@ async def nearby_stations_with_metadata():
     for station in nearby:
         print(f"\n{station['name']} ({station['station_triplet']}): {station['distance_km']:.1f} km")
 
-        # Show available sensors
         if 'sensor_metadata' in station:
             sensors = station['sensor_metadata']
             for prop_name, sensor_list in sensors.items():
                 print(f"  {prop_name}: {len(sensor_list)} sensors")
-                for sensor in sensor_list[:2]:  # Show first 2 sensors
+                for sensor in sensor_list[:2]:
                     depth = sensor.get('height_depth_inches', 'N/A')
                     print(f"    Depth: {depth}\", Ordinal: {sensor.get('ordinal', 'N/A')}")
 
@@ -638,16 +830,15 @@ except RuntimeError:
 ### Check Station Data Availability
 
 ```{python}
-#| eval: false
+#| eval: true
 async def check_availability():
     async with AWDBClient() as client:
-        # Check if a station has data for a specific element
         availability = await client.check_station_data_availability(
             station_triplet='2057:AL:SCAN',
             elements='SMS',
             start_date='2024-01-01',
-            end_date='2024-12-31',
-            duration='MONTHLY'  # Use monthly for availability check
+            end_date='2024-03-31',
+            duration='MONTHLY'
         )
 
         print(f"Station has data: {availability['has_data']}")
@@ -673,11 +864,11 @@ except RuntimeError:
 
 ### Primary Workflow Functions
 
-#### `get_monitoring_station_data()` - **RECOMMENDED STARTING POINT**
-Get data for specific environmental properties with automatic sensor selection.
+#### `get_property_data_near()` - **RECOMMENDED STARTING POINT**
+Get data for specific environmental properties with automatic sensor selection near a location.
 
 ```python
-result = await get_monitoring_station_data(
+result = await get_property_data_near(
     latitude=39.7392,           # Target location
     longitude=-104.9903,
     property_name='soil_moisture',  # Use semantic names like 'air_temp', 'precipitation'
@@ -687,11 +878,11 @@ result = await get_monitoring_station_data(
 )
 ```
 
-#### `find_stations_by_criteria()` - **FIND STATIONS WITH SPECIFIC PROPERTIES**
-Advanced station discovery with sensor metadata.
+#### `discover_stations()` - **FIND STATIONS WITH SPECIFIC PROPERTIES**
+Advanced station discovery with sensor metadata and flexible filtering.
 
 ```python
-stations = await find_stations_by_criteria(
+stations = await discover_stations(
     network_codes=['SCAN'],     # Networks to search
     state_codes=['CO'],         # Geographic filters
     elements=['SMS:*'],         # Properties to find (with wildcards)
@@ -710,33 +901,45 @@ stations = await find_stations_by_criteria(
 
 ### Additional Convenience Functions
 
-- `get_nearby_stations()` - Find nearby stations with optional sensor metadata
-- `get_soil_moisture_data()` - Multi-depth soil moisture data
-- `list_available_variables()` - Get comprehensive sensor inventory for a station
-- `get_station_sensor_metadata()` - Detailed sensor metadata for stations
+- `discover_stations_nearby()` - Find nearby stations with optional sensor metadata
+- `get_soil_moisture_by_depth()` - Multi-depth soil moisture data
+- `station_available_properties()` - Get comprehensive property/variable inventory for a station
+- `station_sensors()` - Detailed sensor metadata for stations organized by property
+- `station_sensor_depths()` - Get available depths/heights for a property at a station
+
+### Deprecated Names (Still Supported)
+
+The following names are deprecated but still work. Use the new names listed above:
+- `get_monitoring_station_data()` → `get_property_data_near()`
+- `find_stations_by_criteria()` → `discover_stations()`
+- `get_nearby_stations()` → `discover_stations_nearby()`
+- `get_soil_moisture_data()` → `get_soil_moisture_by_depth()`
+- `list_available_variables()` → `station_available_properties()`
+- `get_station_sensor_metadata()` → `station_sensors()`
+- `get_station_sensor_heights()` → `station_sensor_depths()`
 
 ## Property Reference
 
 ### Available Properties (Semantic Names)
 
-Use these property names with `get_monitoring_station_data()` and `find_stations_by_criteria()`:
+Use these property names with `get_property_data_near()` and `discover_stations()`:
 
 #### Soil Properties
 - `soil_moisture` - Volumetric soil moisture (%)
-- `soil_temp` - Soil temperature (°F)
+- `soil_temp` - Soil temperature (deg F)
 - `soil_conductivity` - Soil electrical conductivity
 - `soil_salinity` - Soil salinity
 
 #### Atmospheric Properties
-- `air_temp` - Air temperature (°F)
-- `air_temp_avg` - Average air temperature (°F)
-- `air_temp_max` - Maximum air temperature (°F)
-- `air_temp_min` - Minimum air temperature (°F)
+- `air_temp` - Air temperature (deg F)
+- `air_temp_avg` - Average air temperature (deg F)
+- `air_temp_max` - Maximum air temperature (deg F)
+- `air_temp_min` - Minimum air temperature (deg F)
 - `relative_humidity` - Relative humidity (%)
 - `vapor_pressure_partial` - Partial vapor pressure
 - `wind_speed` - Wind speed (mph)
 - `wind_direction` - Wind direction (degrees)
-- `solar_radiation` - Solar radiation (W/m²)
+- `solar_radiation` - Solar radiation (W/m2)
 - `atmospheric_pressure` - Atmospheric pressure
 
 #### Hydrological Properties
@@ -747,7 +950,7 @@ Use these property names with `get_monitoring_station_data()` and `find_stations
 
 #### Station Health
 - `battery` - Battery voltage (volts)
-- `logger_temp` - Data logger temperature (°F)
+- `logger_temp` - Data logger temperature (deg F)
 
 ### Networks and Coverage
 
@@ -766,24 +969,24 @@ For advanced users, the underlying AWDB element codes:
 | Property | Element Code | Units | Notes |
 |----------|--------------|-------|-------|
 | soil_moisture | SMS | % volumetric | Requires depth specification |
-| soil_temp | STO | °F | Requires depth specification |
-| air_temp | TOBS/TAVG | °F | TOBS=instantaneous, TAVG=average |
+| soil_temp | STO | deg F | Requires depth specification |
+| air_temp | TOBS/TAVG | deg F | TOBS=instantaneous, TAVG=average |
 | precipitation | PREC | inches | Accumulation |
 | snow_water_equivalent | WTEQ | inches | SNOTEL network |
 | snow_depth | SNWD | inches | SNOTEL network |
 | wind_speed | WSPD | mph |  |
-| solar_radiation | SRAD | W/m² | SCAN network |
+| solar_radiation | SRAD | W/m2 | SCAN network |
 | battery | BATT | volts | Station health |
 
 ## Best Practices
 
 ### Recommended Workflow for Finding Property Data
 
-1. **Start with Property-Based Search**: Use `find_stations_by_criteria()` with `elements=['SMS:*']` to find stations that actually measure your property of interest
+1. **Start with Property-Based Search**: Use `discover_stations()` with `elements=['SMS:*']` to find stations that actually measure your property of interest
 
 2. **Include Sensor Metadata**: Always use `include_sensor_metadata=True` to understand what sensors are available at each station
 
-3. **Use Automatic Sensor Selection**: For most use cases, let `get_monitoring_station_data()` automatically select the best available sensor with `auto_select_sensor=True`
+3. **Use Automatic Sensor Selection**: For most use cases, let `get_property_data_near()` automatically select the best available sensor with `auto_select_sensor=True`
 
 4. **Check Data Availability**: Before requesting large datasets, verify data exists for your date range
 
@@ -814,13 +1017,13 @@ For advanced users, the underlying AWDB element codes:
 | Property Name | Element Code | Units | Best Networks |
 |---------------|--------------|-------|----------------|
 | soil_moisture | SMS | % volumetric | SCAN |
-| soil_temp | STO | °F | SCAN |
-| air_temp | TOBS/TAVG | °F | SCAN, SNOTEL, COOP |
+| soil_temp | STO | deg F | SCAN |
+| air_temp | TOBS/TAVG | deg F | SCAN, SNOTEL, COOP |
 | precipitation | PREC | inches | SCAN, SNOTEL, COOP |
 | snow_water_equivalent | WTEQ | inches | SNOTEL |
 | snow_depth | SNWD | inches | SNOTEL |
 | wind_speed | WSPD | mph | SCAN |
-| solar_radiation | SRAD | W/m² | SCAN |
+| solar_radiation | SRAD | W/m2 | SCAN |
 | battery_voltage | BATT | volts | SCAN, SNOTEL |
 
 ## Error Handling

@@ -43,6 +43,10 @@ class TimeSeriesDataPoint:
     value: Optional[float]
     flags: List[str] = field(default_factory=list)
 
+    # Element/variable identification
+    element_code: Optional[str] = None  # e.g., 'SMS:-20:1', 'TOBS:0:1'
+    variable_name: Optional[str] = None  # e.g., 'soil_moisture', 'air_temp'
+
     # Additional fields from API
     qc_flag: Optional[str] = None
     qa_flag: Optional[str] = None
@@ -54,6 +58,11 @@ class TimeSeriesDataPoint:
     month_part: Optional[str] = None
     year: Optional[int] = None
     collection_date: Optional[str] = None
+
+    # Station timezone information (for hourly data)
+    station_timezone_offset: Optional[int] = (
+        None  # Hours offset from UTC (e.g., -8 for PST)
+    )
 
 
 @dataclass

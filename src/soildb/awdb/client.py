@@ -3,7 +3,7 @@ AWDB (Air and Water Database) client for soildb.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from math import atan2, cos, radians, sin, sqrt
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -12,6 +12,44 @@ import httpx
 from ..base_client import BaseDataAccessClient, ClientConfig
 from .exceptions import AWDBConnectionError, AWDBError, AWDBQueryError
 from .models import ForecastData, ReferenceData, StationInfo, TimeSeriesDataPoint
+
+
+def _apply_station_timezone(
+    timestamp: datetime, timezone_offset_hours: Optional[int]
+) -> datetime:
+    """
+    Apply station timezone offset to a naive datetime (typically from hourly AWDB data).
+
+    The AWDB API returns hourly data as naive local timestamps (no timezone info).
+    This function converts them to timezone-aware ISO 8601 format using the station's
+    timezone offset from the station metadata.
+
+    Args:
+        timestamp: Naive datetime from AWDB API (assumed to be in local station time)
+        timezone_offset_hours: Station timezone offset from UTC (e.g., -8 for PST, -5 for EST)
+
+    Returns:
+        Timezone-aware datetime in the station's local timezone (not UTC)
+
+    Examples:
+        >>> from datetime import datetime
+        >>> # Station in PST (-8 hours from UTC)
+        >>> local_time = datetime(2024, 12, 1, 12, 0)
+        >>> aware_time = _apply_station_timezone(local_time, -8)
+        >>> # Result: 2024-12-01 12:00:00-08:00 (PST)
+        >>> print(aware_time)
+        2024-12-01 12:00:00-08:00
+    """
+    if timezone_offset_hours is None:
+        # No timezone info available - return as naive datetime
+        return timestamp
+
+    # Create timezone object from offset
+    tz = timezone(timedelta(hours=timezone_offset_hours))
+
+    # Replace tzinfo to interpret the naive timestamp as local time
+    # This marks the time as already being in the station's timezone
+    return timestamp.replace(tzinfo=tz)
 
 
 class AWDBClient(BaseDataAccessClient):
@@ -395,6 +433,16 @@ class AWDBClient(BaseDataAccessClient):
             params["insertOrUpdateBeginDate"] = insert_or_update_begin_date
 
         try:
+            # Fetch station metadata to get timezone info (important for hourly data)
+            station_info = None
+            try:
+                stations = await self.get_stations(station_triplets=[station_triplet])
+                if stations:
+                    station_info = stations[0]
+            except Exception:
+                # If we can't get station info, we'll proceed without timezone data
+                pass
+
             data = await self._make_request("data", params)
 
             # Process the response data - handle nested structure properly
@@ -410,56 +458,84 @@ class AWDBClient(BaseDataAccessClient):
                 if "error" in station_data:
                     raise AWDBQueryError(f"API error: {station_data['error']}")
 
-                # Get the first element's data (should be the one we requested)
-                element_data = station_data["data"][0]
-                if "values" not in element_data:
-                    continue
-
-                for value_item in element_data["values"]:
-                    try:
-                        # Parse timestamp - handle different formats
-                        date_str = value_item.get("date", "")
-                        if not date_str:
-                            continue
-
-                        # Handle ISO format with timezone
-                        if "T" in date_str:
-                            # Remove Z suffix if present and add UTC
-                            date_str = date_str.replace("Z", "+00:00")
-                            timestamp = datetime.fromisoformat(date_str)
-                        else:
-                            # Assume YYYY-MM-DD format
-                            timestamp = datetime.strptime(date_str, "%Y-%m-%d")
-
-                        # Build flags list from available flag fields
-                        flags = []
-                        if value_item.get("qcFlag"):
-                            flags.append(f"QC:{value_item['qcFlag']}")
-                        if value_item.get("qaFlag"):
-                            flags.append(f"QA:{value_item['qaFlag']}")
-                        if value_item.get("origQcFlag"):
-                            flags.append(f"ORIG_QC:{value_item['origQcFlag']}")
-
-                        data_point = TimeSeriesDataPoint(
-                            timestamp=timestamp,
-                            value=value_item.get("value"),
-                            flags=flags,
-                            qc_flag=value_item.get("qcFlag"),
-                            qa_flag=value_item.get("qaFlag"),
-                            orig_value=value_item.get("origValue"),
-                            orig_qc_flag=value_item.get("origQcFlag"),
-                            average=value_item.get("average"),
-                            median=value_item.get("median"),
-                            month=value_item.get("month"),
-                            month_part=value_item.get("monthPart"),
-                            year=value_item.get("year"),
-                            collection_date=value_item.get("collectionDate"),
-                        )
-                        processed_data.append(data_point)
-
-                    except (ValueError, TypeError):
-                        # Skip invalid data points
+                # Process ALL elements in the response (not just the first one)
+                for element_data in station_data["data"]:
+                    if "values" not in element_data or not element_data["values"]:
                         continue
+
+                    # Extract element code from station element metadata
+                    element_code = None
+                    if "stationElement" in element_data:
+                        station_elem = element_data["stationElement"]
+                        # Reconstruct element code: elementCode:heightDepth:ordinal
+                        elem_code = station_elem.get("elementCode", "")
+                        height_depth = station_elem.get("heightDepth", 0)
+                        ordinal = station_elem.get("ordinal", 1)
+                        if elem_code:
+                            element_code = f"{elem_code}:{height_depth}:{ordinal}"
+
+                    for value_item in element_data["values"]:
+                        try:
+                            # Parse timestamp - handle different formats
+                            date_str = value_item.get("date", "")
+                            if not date_str:
+                                continue
+
+                            # Handle ISO format with timezone
+                            if "T" in date_str:
+                                # Remove Z suffix if present and add UTC
+                                date_str = date_str.replace("Z", "+00:00")
+                                timestamp = datetime.fromisoformat(date_str)
+                            elif " " in date_str:
+                                # Handle space-separated datetime format (e.g., "2024-12-01 00:00" for HOURLY)
+                                timestamp = datetime.strptime(
+                                    date_str, "%Y-%m-%d %H:%M"
+                                )
+                                # Apply station timezone for hourly data
+                                if (
+                                    station_info
+                                    and station_info.data_time_zone is not None
+                                ):
+                                    timestamp = _apply_station_timezone(
+                                        timestamp, station_info.data_time_zone
+                                    )
+                            else:
+                                # Assume YYYY-MM-DD format (DAILY)
+                                timestamp = datetime.strptime(date_str, "%Y-%m-%d")
+
+                            # Build flags list from available flag fields
+                            flags = []
+                            if value_item.get("qcFlag"):
+                                flags.append(f"QC:{value_item['qcFlag']}")
+                            if value_item.get("qaFlag"):
+                                flags.append(f"QA:{value_item['qaFlag']}")
+                            if value_item.get("origQcFlag"):
+                                flags.append(f"ORIG_QC:{value_item['origQcFlag']}")
+
+                            data_point = TimeSeriesDataPoint(
+                                timestamp=timestamp,
+                                value=value_item.get("value"),
+                                flags=flags,
+                                element_code=element_code,  # Track which element this data came from
+                                qc_flag=value_item.get("qcFlag"),
+                                qa_flag=value_item.get("qaFlag"),
+                                orig_value=value_item.get("origValue"),
+                                orig_qc_flag=value_item.get("origQcFlag"),
+                                average=value_item.get("average"),
+                                median=value_item.get("median"),
+                                month=value_item.get("month"),
+                                month_part=value_item.get("monthPart"),
+                                year=value_item.get("year"),
+                                collection_date=value_item.get("collectionDate"),
+                                station_timezone_offset=station_info.data_time_zone
+                                if station_info
+                                else None,
+                            )
+                            processed_data.append(data_point)
+
+                        except (ValueError, TypeError):
+                            # Skip invalid data points
+                            continue
 
             return processed_data
 
@@ -542,7 +618,7 @@ class AWDBClient(BaseDataAccessClient):
         self,
         station_triplets: List[str],
         element_codes: Optional[List[str]] = None,
-        begin_publication_date: Optional[str] = None,
+        start_publication_date: Optional[str] = None,
         end_publication_date: Optional[str] = None,
         exceedence_probabilities: Optional[List[int]] = None,
         forecast_periods: Optional[List[str]] = None,
@@ -553,7 +629,7 @@ class AWDBClient(BaseDataAccessClient):
         Args:
             station_triplets: List of station triplets (e.g., ['302:OR:SNTL'])
             element_codes: List of element codes (e.g., ['RESC', 'SRVO'])
-            begin_publication_date: Start date for publication period (YYYY-MM-DD)
+            start_publication_date: Start date for publication period (YYYY-MM-DD)
             end_publication_date: End date for publication period (YYYY-MM-DD)
             exceedence_probabilities: List of exceedence probabilities (e.g., [10, 30, 50])
             forecast_periods: List of forecast periods (e.g., ['03-01', '07-31'])
@@ -567,8 +643,8 @@ class AWDBClient(BaseDataAccessClient):
 
         if element_codes:
             params["elementCodes"] = ",".join(element_codes)
-        if begin_publication_date:
-            params["beginPublicationDate"] = begin_publication_date
+        if start_publication_date:
+            params["beginPublicationDate"] = start_publication_date
         if end_publication_date:
             params["endPublicationDate"] = end_publication_date
         if exceedence_probabilities:

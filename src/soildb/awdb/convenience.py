@@ -1,8 +1,27 @@
 """
 High-level convenience functions for AWDB data access.
+
+This module provides a clean, intuitive API organized by function family:
+
+1. **Discovery Functions** (finding stations)
+   - discover_stations_nearby(lat, lon, ...) - geographic discovery
+   - discover_stations(network_codes, state_codes, ...) - attribute-based discovery
+
+2. **Data Retrieval** (getting measurements)
+   - get_property_data_near(lat, lon, property, ...) - time series near location
+   - get_soil_moisture_by_depth(station_triplet, depths, ...) - multi-depth soil data
+
+3. **Metadata Functions** (sensor inventory)
+   - station_sensors(station_triplet) - comprehensive sensor info
+   - station_available_properties(station_triplet) - available variables
+   - station_sensor_depths(station_triplet, property) - available depths/heights
+
+Legacy function names are supported for backward compatibility but are deprecated.
+See convenience_api_migration() for usage examples and migration guide.
 """
 # mypy: disable-error-code="attr-defined"
 
+import warnings
 from typing import Any, Dict, List, Optional
 
 from ..utils import add_sync_version
@@ -165,7 +184,7 @@ PROPERTY_UNITS = {
 
 
 @add_sync_version
-async def get_nearby_stations(
+async def discover_stations_nearby(
     latitude: float,
     longitude: float,
     max_distance_km: float = 50.0,
@@ -174,18 +193,24 @@ async def get_nearby_stations(
     include_sensor_metadata: bool = False,
 ) -> List[Dict]:
     """
-    Find AWDB stations near a location.
+    Discover AWDB stations near a geographic location.
 
     Args:
-        latitude: Target latitude
-        longitude: Target longitude
-        max_distance_km: Maximum search distance
-        network_codes: Network codes to include e.g. ('SCAN', 'SNTL')
+        latitude: Target latitude (WGS84)
+        longitude: Target longitude (WGS84)
+        max_distance_km: Maximum search distance in kilometers
+        network_codes: Network codes to include (e.g., 'SCAN', 'SNTL')
         limit: Maximum number of stations to return
         include_sensor_metadata: Include detailed sensor information for each station
 
     Returns:
         List of station dictionaries with distance information and optional sensor metadata
+
+    Examples:
+        >>> stations = await discover_stations_nearby(42.0, -93.6, max_distance_km=25)
+        >>> nearby_snotel = await discover_stations_nearby(
+        ...     42.0, -93.6, network_codes=['SNTL'], limit=5, include_sensor_metadata=True
+        ... )
     """
     async with AWDBClient() as client:
         stations_with_distance = await client.find_nearby_stations(
@@ -209,9 +234,7 @@ async def get_nearby_stations(
             # Add sensor metadata if requested
             if include_sensor_metadata:
                 try:
-                    sensor_metadata = await get_station_sensor_metadata(
-                        station.station_triplet
-                    )
+                    sensor_metadata = await station_sensors(station.station_triplet)
                     station_dict["sensor_metadata"] = sensor_metadata["sensors"]
                 except Exception as e:
                     station_dict["sensor_metadata"] = {"error": str(e)}
@@ -222,7 +245,7 @@ async def get_nearby_stations(
 
 
 @add_sync_version
-async def find_stations_by_criteria(
+async def discover_stations(
     network_codes: Optional[List[str]] = None,
     state_codes: Optional[List[str]] = None,
     station_triplets: Optional[List[str]] = None,
@@ -233,7 +256,7 @@ async def find_stations_by_criteria(
     include_sensor_metadata: bool = False,
 ) -> List[Dict]:
     """
-    Find stations using advanced filtering criteria with wildcard support.
+    Discover stations using advanced filtering criteria with wildcard support.
 
     This function leverages the full AWDB API filtering capabilities for efficient
     server-side filtering using wildcards. When include_sensor_metadata=True, it
@@ -244,7 +267,7 @@ async def find_stations_by_criteria(
         state_codes: State codes (e.g., ['OR', 'WA'])
         station_triplets: Station triplets with wildcards (e.g., ['*:OR:SNTL'])
         station_names: Station names with wildcards (e.g., ['*Lake*'])
-        elements: Elements with wildcards (e.g., ['SMS:*', 'STO:-20:*'])
+        elements: Element codes with wildcards (e.g., ['SMS:*', 'STO:-20:*'])
         active_only: Return only active stations
         limit: Maximum number of stations to return
         include_sensor_metadata: Include detailed sensor information for each station
@@ -253,20 +276,20 @@ async def find_stations_by_criteria(
         List of station dictionaries with optional sensor metadata
 
     Examples:
-        # Find all SNOTEL stations in Oregon
-        stations = await find_stations_by_criteria(station_triplets=['*:OR:SNTL'])
-
-        # Find stations with soil moisture sensors in California
-        stations = await find_stations_by_criteria(elements=['SMS:*'], state_codes=['CA'])
-
-        # Find stations by name pattern
-        stations = await find_stations_by_criteria(station_names=['*River*'])
-
-        # Get sensor metadata for found stations
-        stations = await find_stations_by_criteria(
-            station_triplets=['*:OR:SNTL'],
-            include_sensor_metadata=True
-        )
+        >>> # Find all SNOTEL stations in Oregon
+        >>> stations = await discover_stations(station_triplets=['*:OR:SNTL'])
+        >>>
+        >>> # Find stations with soil moisture sensors in California
+        >>> stations = await discover_stations(elements=['SMS:*'], state_codes=['CA'])
+        >>>
+        >>> # Find stations by name pattern
+        >>> stations = await discover_stations(station_names=['*River*'])
+        >>>
+        >>> # Get sensor metadata for found stations
+        >>> stations = await discover_stations(
+        ...     station_triplets=['*:OR:SNTL'],
+        ...     include_sensor_metadata=True
+        ... )
     """
     async with AWDBClient() as client:
         stations = await client.get_stations(
@@ -361,18 +384,31 @@ def build_soil_element_string(
 
 
 @add_sync_version
-async def get_station_sensor_heights(
-    station_triplet: str, property_name: str
-) -> List[Dict]:
+async def station_sensor_depths(station_triplet: str, property_name: str) -> List[Dict]:
     """
-    Get available sensor heights/depths for a specific station and property.
+    Get available sensor depths/heights for a specific station and property.
+
+    Use this to discover what depths (for soil properties) or heights (for atmospheric
+    properties) are available at a given station before querying data.
 
     Args:
-        station_triplet: Station identifier
-        property_name: Property name (any property that supports height/depth)
+        station_triplet: Station identifier (network:state:code format)
+        property_name: Property name (e.g., 'soil_moisture', 'air_temp')
+                      See PROPERTY_ELEMENT_MAP keys for complete list
 
     Returns:
-        List of sensor configurations with metadata
+        List of sensor configurations with metadata (height/depth, ordinal, dates, precision)
+
+    Raises:
+        AWDBError: If property doesn't support height/depth specification
+
+    Examples:
+        >>> # Get available depths for soil moisture at a station
+        >>> depths = await station_sensor_depths('SCAN:IA:2080', 'soil_moisture')
+        >>> print(depths)  # [{'height_depth_inches': -20, 'ordinal': 1, ...}, ...]
+        >>>
+        >>> # Get available heights for temperature sensors
+        >>> heights = await station_sensor_depths('SNTL:OR:1017', 'air_temp')
     """
     if property_name not in HEIGHT_DEPTH_PROPERTIES:
         raise AWDBError(
@@ -421,8 +457,9 @@ async def get_station_soil_depths(
     station_triplet: str, property_name: str = "soil_moisture"
 ) -> List[Dict]:
     """
+    [DEPRECATED] Use station_sensor_depths() instead.
+
     Get available soil depths for a specific station and property.
-    (Alias for get_station_sensor_heights for backward compatibility)
 
     Args:
         station_triplet: Station identifier
@@ -431,11 +468,16 @@ async def get_station_soil_depths(
     Returns:
         List of depth configurations with metadata
     """
-    return await get_station_sensor_heights(station_triplet, property_name)
+    warnings.warn(
+        "get_station_soil_depths() is deprecated, use station_sensor_depths() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await station_sensor_depths(station_triplet, property_name)
 
 
 @add_sync_version
-async def get_soil_moisture_data(
+async def get_soil_moisture_by_depth(
     station_triplet: str,
     depths_inches: Optional[List[int]] = None,
     start_date: Optional[str] = None,
@@ -444,14 +486,31 @@ async def get_soil_moisture_data(
     """
     Get soil moisture data for multiple depths at a station.
 
+    This function automatically queries station metadata to find available soil moisture
+    sensors at the requested depths, then retrieves time-series data for each.
+
     Args:
-        station_triplet: Station identifier
-        depths_inches: List of depths to query (negative values). If None, gets all available depths.
-        start_date: Start date (YYYY-MM-DD)
-        end_date: End date (YYYY-MM-DD)
+        station_triplet: Station identifier (network:state:code format)
+        depths_inches: List of depths to query in inches (negative values for below surface).
+                      If None, queries all available depths at the station.
+        start_date: Start date in YYYY-MM-DD format. Defaults to 30 days before today.
+        end_date: End date in YYYY-MM-DD format. Defaults to today.
 
     Returns:
-        Dictionary with data for each depth
+        Dictionary with soil moisture data for each depth, including timestamps with
+        timezone-aware information
+
+    Examples:
+        >>> # Get all available depths
+        >>> result = await get_soil_moisture_by_depth('SCAN:IA:2080')
+        >>>
+        >>> # Get specific depths
+        >>> result = await get_soil_moisture_by_depth(
+        ...     'SCAN:IA:2080',
+        ...     depths_inches=[-4, -8, -20],
+        ...     start_date='2024-01-01',
+        ...     end_date='2024-12-31'
+        ... )
     """
     if not start_date or not end_date:
         # Default to recent data
@@ -461,7 +520,7 @@ async def get_soil_moisture_data(
         start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     # Get available depths
-    available_depths = await get_station_soil_depths(station_triplet, "soil_moisture")
+    available_depths = await station_sensor_depths(station_triplet, "soil_moisture")
 
     if not available_depths:
         raise AWDBError(f"No soil moisture sensors found for station {station_triplet}")
@@ -517,6 +576,7 @@ async def get_soil_moisture_data(
                             "orig_value": pt.orig_value,
                             "average": pt.average,
                             "median": pt.median,
+                            "station_timezone_offset_hours": pt.station_timezone_offset,
                         }
                         for pt in data_points
                     ],
@@ -535,7 +595,7 @@ async def get_soil_moisture_data(
 
 
 @add_sync_version
-async def get_monitoring_station_data(
+async def get_property_data_near(
     latitude: float,
     longitude: float,
     property_name: str,
@@ -547,29 +607,56 @@ async def get_monitoring_station_data(
     auto_select_sensor: bool = True,
 ) -> Dict:
     """
-    Get time-series data for a property from nearby stations.
+    Get time-series data for a property from the nearest monitoring station.
 
-    For properties that support height/depth specification (soil_moisture, soil_temp, air_temp, etc.),
-    height_depth_inches can be specified:
+    This is the primary function for retrieving measurement data near a geographic location.
+    It discovers nearby stations and automatically selects an appropriate sensor for the
+    requested property.
+
+    For properties that support height/depth specification (e.g., soil_moisture, soil_temp,
+    air_temp), you can optionally specify the exact depth/height:
     - Negative values for depth below surface (soil properties)
     - Positive values for height above surface (atmospheric properties)
 
-    When auto_select_sensor=True (default), the function automatically queries station metadata
-    to find the best available sensor configuration for the requested property.
-
     Args:
-        latitude: Target latitude
-        longitude: Target longitude
-        property_name: Property name ('soil_moisture', 'air_temp', 'precipitation', etc.)
+        latitude: Target latitude (WGS84)
+        longitude: Target longitude (WGS84)
+        property_name: Property/variable name (e.g., 'soil_moisture', 'air_temp', 'precipitation')
+                      See PROPERTY_ELEMENT_MAP keys for complete list
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
-        max_distance_km: Maximum distance to search for stations
-        height_depth_inches: Height/depth in inches (optional for height-capable properties)
-        network_codes: Network codes to include
-        auto_select_sensor: Automatically select best sensor using station metadata (recommended)
+        max_distance_km: Maximum distance to search for stations (default: 50 km)
+        height_depth_inches: Optional height/depth specification for compatible properties.
+                            Leave None to auto-select the primary sensor.
+        network_codes: Network codes to filter by (e.g., ['SCAN', 'SNTL'])
+        auto_select_sensor: Automatically select best available sensor (recommended: True)
 
     Returns:
-        Dictionary with time series data and metadata
+        Dictionary with time-series data, including:
+        - data_points: List of measurements with timestamps (timezone-aware)
+        - metadata: Station info, distance, element string, etc.
+        - unit: Measurement unit for the property
+
+    Raises:
+        AWDBError: If property is invalid, no stations found, or data unavailable
+
+    Examples:
+        >>> # Get hourly air temperature from nearest station
+        >>> data = await get_property_data_near(
+        ...     42.0, -93.6, 'air_temp', '2024-01-01', '2024-12-31'
+        ... )
+        >>>
+        >>> # Get soil moisture at specific depth
+        >>> data = await get_property_data_near(
+        ...     42.0, -93.6, 'soil_moisture', '2024-01-01', '2024-12-31',
+        ...     height_depth_inches=-20
+        ... )
+        >>>
+        >>> # Find data from SNOTEL stations only
+        >>> data = await get_property_data_near(
+        ...     42.0, -93.6, 'snow_water_equivalent', '2024-10-01', '2024-12-31',
+        ...     network_codes=['SNTL']
+        ... )
     """
     # Validate inputs
     if property_name not in PROPERTY_ELEMENT_MAP:
@@ -623,7 +710,7 @@ async def get_monitoring_station_data(
             else:
                 # Auto-select: query station metadata to find available sensors
                 try:
-                    available_sensors = await get_station_sensor_heights(
+                    available_sensors = await station_sensor_depths(
                         nearest_station.station_triplet, property_name
                     )
                     if available_sensors:
@@ -688,6 +775,7 @@ async def get_monitoring_station_data(
                     "orig_value": point.orig_value,
                     "average": point.average,
                     "median": point.median,
+                    "station_timezone_offset_hours": point.station_timezone_offset,
                 }
                 for point in data_points
             ],
@@ -701,6 +789,7 @@ async def get_monitoring_station_data(
                 "element_string": element_string,
                 "ordinal": ordinal,
                 "n_data_points": len(data_points),
+                "station_timezone_offset_hours": nearest_station.data_time_zone,
                 "query_date": datetime.now().isoformat(),
                 "date_range": {"start": start_date, "end": end_date},
             },
@@ -735,15 +824,46 @@ async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> s
 
 
 @add_sync_version
-async def get_station_sensor_metadata(station_triplet: str) -> Dict[str, Any]:
+async def station_sensors(station_triplet: str) -> Dict[str, Any]:
     """
     Get comprehensive sensor metadata for a station.
 
+    Returns complete information about all sensors at a station, including element codes,
+    available depths/heights, date ranges, precision, and units.
+
     Args:
-        station_triplet: Station identifier
+        station_triplet: Station identifier (network:state:code format)
 
     Returns:
-        Dictionary with sensor metadata organized by property
+        Dictionary with sensor metadata organized by property name:
+        {
+            'station_triplet': '...',
+            'station_name': '...',
+            'network': '...',
+            'sensors': {
+                'soil_moisture': [
+                    {
+                        'element_code': 'SMS',
+                        'ordinal': 1,
+                        'height_depth_inches': -20,
+                        'begin_date': '...',
+                        'end_date': '...',
+                        ...
+                    }
+                ],
+                ...
+            }
+        }
+
+    Examples:
+        >>> metadata = await station_sensors('SCAN:IA:2080')
+        >>> # List available properties
+        >>> for prop in metadata['sensors'].keys():
+        ...     print(prop)
+        >>>
+        >>> # Check soil moisture depths
+        >>> for sensor in metadata['sensors'].get('soil_moisture', []):
+        ...     print(f"Depth: {sensor['height_depth_inches']} inches")
     """
     async with AWDBClient() as client:
         # Get station with element details
@@ -796,17 +916,45 @@ async def get_station_sensor_metadata(station_triplet: str) -> Dict[str, Any]:
 
 
 @add_sync_version
-async def list_available_variables(station_triplet: str) -> List[Dict]:
+async def station_available_properties(station_triplet: str) -> List[Dict]:
     """
-    List available variables/measured elements for a specific station.
+    List available measured properties/variables for a specific station.
+
+    Use this to discover what measurements are available before querying data.
+    Returns both human-readable property names and underlying AWDB element codes.
 
     Args:
-        station_triplet: Station identifier
+        station_triplet: Station identifier (network:state:code format)
 
     Returns:
-        List of available variables with metadata
+        List of available properties with metadata:
+        [
+            {
+                'property_name': 'soil_moisture',
+                'element_code': 'SMS',
+                'unit': 'pct',
+                'description': 'Soil Moisture',
+                'sensors': [
+                    {
+                        'element_code': 'SMS',
+                        'ordinal': 1,
+                        'height_depth_inches': -20,
+                        ...
+                    }
+                ]
+            },
+            ...
+        ]
+
+    Examples:
+        >>> props = await station_available_properties('SCAN:IA:2080')
+        >>> for prop in props:
+        ...     print(f"{prop['property_name']}: {prop['element_code']}")
+        >>>
+        >>> # Filter to only soil properties
+        >>> soil_props = [p for p in props if 'soil' in p['property_name']]
     """
-    metadata = await get_station_sensor_metadata(station_triplet)
+    metadata = await station_sensors(station_triplet)
 
     variables = []
     sensors_dict = metadata.get("sensors", {})
@@ -849,3 +997,179 @@ async def list_available_variables(station_triplet: str) -> List[Dict]:
                     )
 
     return variables
+
+
+# ============================================================================
+# DEPRECATED ALIASES (for backward compatibility)
+# ============================================================================
+# These functions are deprecated and will be removed in a future version.
+# Use the new names instead. See migration guide in module docstring.
+
+
+@add_sync_version
+async def get_nearby_stations(
+    latitude: float,
+    longitude: float,
+    max_distance_km: float = 50.0,
+    network_codes: Optional[List[str]] = None,
+    limit: int = 10,
+    include_sensor_metadata: bool = False,
+) -> List[Dict]:
+    """
+    [DEPRECATED] Use discover_stations_nearby() instead.
+
+    Find AWDB stations near a location.
+    """
+    warnings.warn(
+        "get_nearby_stations() is deprecated, use discover_stations_nearby() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await discover_stations_nearby(
+        latitude=latitude,
+        longitude=longitude,
+        max_distance_km=max_distance_km,
+        network_codes=network_codes,
+        limit=limit,
+        include_sensor_metadata=include_sensor_metadata,
+    )
+
+
+@add_sync_version
+async def find_stations_by_criteria(
+    network_codes: Optional[List[str]] = None,
+    state_codes: Optional[List[str]] = None,
+    station_triplets: Optional[List[str]] = None,
+    station_names: Optional[List[str]] = None,
+    elements: Optional[List[str]] = None,
+    active_only: bool = True,
+    limit: Optional[int] = None,
+    include_sensor_metadata: bool = False,
+) -> List[Dict]:
+    """
+    [DEPRECATED] Use discover_stations() instead.
+
+    Find stations using advanced filtering criteria with wildcard support.
+    """
+    warnings.warn(
+        "find_stations_by_criteria() is deprecated, use discover_stations() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await discover_stations(
+        network_codes=network_codes,
+        state_codes=state_codes,
+        station_triplets=station_triplets,
+        station_names=station_names,
+        elements=elements,
+        active_only=active_only,
+        limit=limit,
+        include_sensor_metadata=include_sensor_metadata,
+    )
+
+
+@add_sync_version
+async def get_station_sensor_heights(
+    station_triplet: str, property_name: str
+) -> List[Dict]:
+    """
+    [DEPRECATED] Use station_sensor_depths() instead.
+
+    Get available sensor heights/depths for a specific station and property.
+    """
+    warnings.warn(
+        "get_station_sensor_heights() is deprecated, use station_sensor_depths() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await station_sensor_depths(station_triplet, property_name)
+
+
+@add_sync_version
+async def get_soil_moisture_data(
+    station_triplet: str,
+    depths_inches: Optional[List[int]] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> Dict:
+    """
+    [DEPRECATED] Use get_soil_moisture_by_depth() instead.
+
+    Get soil moisture data for multiple depths at a station.
+    """
+    warnings.warn(
+        "get_soil_moisture_data() is deprecated, use get_soil_moisture_by_depth() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await get_soil_moisture_by_depth(
+        station_triplet=station_triplet,
+        depths_inches=depths_inches,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+@add_sync_version
+async def get_monitoring_station_data(
+    latitude: float,
+    longitude: float,
+    property_name: str,
+    start_date: str,
+    end_date: str,
+    max_distance_km: float = 50.0,
+    height_depth_inches: Optional[int] = None,
+    network_codes: Optional[List[str]] = None,
+    auto_select_sensor: bool = True,
+) -> Dict:
+    """
+    [DEPRECATED] Use get_property_data_near() instead.
+
+    Get time-series data for a property from nearby stations.
+    """
+    warnings.warn(
+        "get_monitoring_station_data() is deprecated, use get_property_data_near() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await get_property_data_near(
+        latitude=latitude,
+        longitude=longitude,
+        property_name=property_name,
+        start_date=start_date,
+        end_date=end_date,
+        max_distance_km=max_distance_km,
+        height_depth_inches=height_depth_inches,
+        network_codes=network_codes,
+        auto_select_sensor=auto_select_sensor,
+    )
+
+
+@add_sync_version
+async def get_station_sensor_metadata(station_triplet: str) -> Dict[str, Any]:
+    """
+    [DEPRECATED] Use station_sensors() instead.
+
+    Get comprehensive sensor metadata for a station.
+    """
+    warnings.warn(
+        "get_station_sensor_metadata() is deprecated, use station_sensors() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await station_sensors(station_triplet)
+
+
+@add_sync_version
+async def list_available_variables(station_triplet: str) -> List[Dict]:
+    """
+    [DEPRECATED] Use station_available_properties() instead.
+
+    List available variables/measured elements for a specific station.
+    """
+    warnings.warn(
+        "list_available_variables() is deprecated, use station_available_properties() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await station_available_properties(station_triplet)
