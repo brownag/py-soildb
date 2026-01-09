@@ -224,3 +224,44 @@ client.close()
 ### Important Limitation
 
 The `.sync` methods are intended for use in synchronous code only. They will raise a `RuntimeError` if called from within an existing asyncio event loop. In such cases, use the async version instead.
+
+## Web Soil Survey Downloads
+
+```{python}
+#| eval: false
+# Download specific survey areas (synchronous)
+paths = soildb.download_wss.sync(
+    areasymbols=["IA109", "IA113"],
+    dest_dir="./ssurgo_data",
+    extract=True
+)
+print(f"Downloaded {len(paths)} survey areas")
+
+# Download all survey areas for a state (synchronous)
+paths = soildb.download_wss.sync(
+    where_clause="areasymbol LIKE 'IA%'",
+    dest_dir="./iowa_ssurgo",
+    extract=True,
+    remove_zip=True  # Clean up ZIP files after extraction
+)
+
+# Download STATSGO data (synchronous)
+paths = soildb.download_wss.sync(
+    areasymbols=["IA"],
+    db="STATSGO",
+    dest_dir="./iowa_statsgo",
+    extract=True
+)
+
+# Or async for concurrent downloads
+async def download_bulk():
+    paths = await soildb.download_wss(
+        where_clause="areasymbol LIKE 'IA%'",
+        dest_dir="./iowa_data",
+        extract=True,
+        max_concurrent=4  # Download 4 files at once
+    )
+    return paths
+
+paths = asyncio.run(download_bulk())
+```
