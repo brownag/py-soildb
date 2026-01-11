@@ -127,6 +127,11 @@ from .type_conversion import (
     convert_value,
     get_default_type_map,
 )
+from .wss import (
+    WSSClient,
+    WSSDownloadError,
+    download_wss,
+)
 
 # Sync wrappers use @add_sync_version decorator (see utils.py)
 # Access via function_name.sync() instead of function_name_sync()
@@ -205,6 +210,7 @@ __all__ = [
     "SDAQueryError",
     "SDAResponseError",
     "MetadataParseError",
+    "WSSDownloadError",
     # Metadata parsing
     "SurveyMetadata",
     "parse_survey_metadata",
@@ -219,6 +225,9 @@ __all__ = [
     "get_lab_pedons_by_bbox",
     "get_lab_pedon_by_id",
     "get_sacatalog",
+    # Web Soil Survey download functions
+    "WSSClient",
+    "download_wss",
     # Sync versions available via .sync() decorator on all async functions
     # Example: get_mapunit_by_areasymbol.sync("IA109")
     # High-level functions

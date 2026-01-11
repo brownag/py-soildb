@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.6.0] - 2026-01-09
+
+Release adding Web Soil Survey download capabilities for bulk SSURGO and STATSGO data acquisition.
+
+### Added
+
+- **Web Soil Survey Downloads**: Complete bulk download functionality for soil survey datasets
+  - `download_wss()` function for downloading SSURGO and STATSGO data as ZIP files
+  - Support for concurrent downloads with configurable concurrency limits
+  - Automatic ZIP extraction and file organization into tabular/spatial directories
+  - WSSClient class for low-level download operations
+  - WSSDownloadError exception for download-specific error handling
+
+## [0.5.0] - 2026-01-02
+
+Release focusing on AWDB API improvements, HENRY database integration, and function renaming for semantic clarity.
+
+### Breaking Changes
+
+- **AWDB API Function Renaming**: Introduced semantically clearer function names
+  - `find_stations_by_criteria` → `discover_stations`
+  - `get_monitoring_station_data` → `get_property_data_near`
+  - Deprecated older function names (backward compatibility maintained)
+- **AWDB Parameter Renaming**: `begin_publication_date` → `start_publication_date` in AWDB client
+
+### Added
+
+- **HENRY Database Integration**: New functions for working with Henry Mount Soil Temperature and Water Database
+- **Timezone Handling**: `_apply_station_timezone` helper function for correct timezone interpretation
+  - Applies station metadata timezone offsets to naive datetime values
+  - Aligns with ISO 8601 timestamp standards
+- **Enhanced TimeSeriesDataPoint Model**: Added metadata fields
+  - `element_code`: Element identifier
+  - `variable_name`: Variable name
+  - `station_timezone_offset`: Timezone offset information
+
+### Changed
+
+- **AWDB Client Enhancements**: `get_station_data` method now automatically fetches station metadata for timezone offset application
+- **Hourly Data Support**: Improved handling of hourly data with proper timezone assignment
+
 ## [0.4.0] - 2025-12-10
 
 Major release with API consolidation, improved developer experience, and production readiness.

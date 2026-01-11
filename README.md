@@ -15,6 +15,7 @@ Survey data sources.
 `soildb` provides Python access to:
 - **Soil Data**: USDA Soil Data Access (SDA) web service for soil survey data
 - **Weather Data**: NRCS Air and Water Database (AWDB) for soil and weather monitoring
+- **Bulk Downloads**: Complete SSURGO/STATSGO datasets from Web Soil Survey
 - **Integration**: Tools for combining soil and weather data for comprehensive analysis
 
 Query soil survey data, environmental monitoring data, export to pandas/polars
@@ -51,6 +52,13 @@ pip install soildb[all]
 - Spatial queries with points, bounding boxes, and polygons
 - Bulk data fetching with automatic pagination
 - Full pedon laboratory characterization data
+
+**Web Soil Survey Downloads**
+- Download complete SSURGO datasets as ZIP files
+- Download STATSGO (general soil map) data
+- Concurrent downloads with progress tracking
+- Automatic file extraction and organization
+- State-wide and custom area selections
 
 **Environmental Data (AWDB)**
 - Access soil moisture and temperature monitoring from SCAN stations
@@ -299,6 +307,46 @@ get all components for specific map units.
 Use the `fetch_by_keys()` function with the `"mukey"` as the
 `key_column` to achieve this with automatic pagination over chunks with
 `100` rows each (or specify your own `chunk_size`).
+
+### Web Soil Survey Downloads
+
+Download complete SSURGO and STATSGO datasets as ZIP files from the USDA Web Soil Survey portal:
+
+``` python
+from soildb import download_wss
+
+# Download specific survey areas
+paths = download_wss.sync(
+    areasymbols=["IA109", "IA113"],
+    dest_dir="./ssurgo_data",
+    extract=True
+)
+print(f"Downloaded {len(paths)} survey areas")
+
+# Download all survey areas for a state
+paths = download_wss.sync(
+    where_clause="areasymbol LIKE 'IA%'",
+    dest_dir="./iowa_ssurgo",
+    extract=True,
+    remove_zip=True  # Clean up ZIP files after extraction
+)
+
+# Download STATSGO (general soil map) data
+paths = download_wss.sync(
+    areasymbols=["IA"],
+    db="STATSGO",
+    dest_dir="./iowa_statsgo",
+    extract=True
+)
+```
+
+Each extracted survey area directory contains:
+- `tabular/` - Pipe-delimited TXT files with soil data tables
+- `spatial/` - ESRI shapefiles with map unit polygons and boundaries
+
+**Use Cases:**
+- **SDA**: Live queries, filtered data, programmatic access to current data
+- **WSS Downloads**: Complete offline datasets, bulk data for analysis, static snapshots updated annually
 
 ## Async Usage
 
