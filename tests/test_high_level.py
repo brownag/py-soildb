@@ -8,8 +8,8 @@ import pytest
 import soildb
 from soildb.high_level import (
     fetch_mapunit_struct_by_point,
-    fetch_pedon_struct_by_bbox,
-    fetch_pedon_struct_by_id,
+    fetch_labpedon_by_bbox,
+    fetch_labpedon_by_id,
 )
 from soildb.schema_system import SoilMapUnit
 
@@ -51,9 +51,9 @@ async def test_fetch_mapunit_struct_by_point(sda_client):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_fetch_pedon_struct_by_bbox(sda_client):
-    """Test fetching structured pedon data by bounding box."""
-    print("Testing fetch_pedon_struct_by_bbox...")
+async def test_fetch_labpedon_by_bbox(sda_client):
+    """Test fetching structured lab pedon data by bounding box."""
+    print("Testing fetch_labpedon_by_bbox...")
     min_x, min_y, max_x, max_y = (
         TEST_LON - 0.1,
         TEST_LAT - 0.1,
@@ -61,7 +61,7 @@ async def test_fetch_pedon_struct_by_bbox(sda_client):
         TEST_LAT + 0.1,
     )
     try:
-        pedons = await fetch_pedon_struct_by_bbox(
+        pedons = await fetch_labpedon_by_bbox(
             min_x, min_y, max_x, max_y, client=sda_client
         )
         assert isinstance(pedons, list)
@@ -72,9 +72,9 @@ async def test_fetch_pedon_struct_by_bbox(sda_client):
             assert hasattr(pedons[0], "pedon_key")
             assert hasattr(pedons[0], "horizons")
             assert len(pedons[0].horizons) > 0
-            print(f"SUCCESS: fetch_pedon_struct_by_bbox returned {len(pedons)} pedons.")
+            print(f"SUCCESS: fetch_labpedon_by_bbox returned {len(pedons)} lab pedons.")
         else:
-            print("No pedons found in the given bbox, which is a valid result.")
+            print("No lab pedons found in the given bbox, which is a valid result.")
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")
     except soildb.SDAMaintenanceError:
@@ -85,11 +85,11 @@ async def test_fetch_pedon_struct_by_bbox(sda_client):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_fetch_pedon_struct_by_id(sda_client):
-    """Test fetching structured pedon data by ID."""
-    print("Testing fetch_pedon_struct_by_id...")
+async def test_fetch_labpedon_by_id(sda_client):
+    """Test fetching structured lab pedon data by ID."""
+    print("Testing fetch_labpedon_by_id...")
     try:
-        pedon = await fetch_pedon_struct_by_id(TEST_PEDON_ID, client=sda_client)
+        pedon = await fetch_labpedon_by_id(TEST_PEDON_ID, client=sda_client)
         from soildb.schema_system import PedonData
 
         assert isinstance(pedon, PedonData)
@@ -104,7 +104,7 @@ async def test_fetch_pedon_struct_by_id(sda_client):
             or horizon.water_content_third_bar is not None
         )
         print(
-            f"SUCCESS: fetch_pedon_struct_by_id returned a valid PedonData object for ID {TEST_PEDON_ID}."
+            f"SUCCESS: fetch_labpedon_by_id returned a valid PedonData object for ID {TEST_PEDON_ID}."
         )
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")
@@ -179,12 +179,12 @@ async def test_fetch_mapunit_struct_by_point_with_custom_columns(sda_client):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_fetch_pedon_struct_by_id_with_custom_columns(sda_client):
-    """Test fetching structured pedon data by ID with custom horizon columns."""
-    print("Testing fetch_pedon_struct_by_id with custom columns...")
+async def test_fetch_labpedon_by_id_with_custom_columns(sda_client):
+    """Test fetching structured lab pedon data by ID with custom horizon columns."""
+    print("Testing fetch_labpedon_by_id with custom columns...")
     try:
         # Test with custom horizon columns
-        pedon = await fetch_pedon_struct_by_id(
+        pedon = await fetch_labpedon_by_id(
             TEST_PEDON_ID,
             horizon_columns=[
                 "layer_key",

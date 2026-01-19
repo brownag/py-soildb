@@ -77,6 +77,9 @@ from .fetch import (
 from .ldm import LDMClient
 from .high_level import (
     fetch_mapunit_struct_by_point,
+    fetch_labpedon_by_bbox,
+    fetch_labpedon_by_id,
+    # Deprecated names (for backward compatibility)
     fetch_pedon_struct_by_bbox,
     fetch_pedon_struct_by_id,
 )
@@ -241,8 +244,11 @@ __all__ = [
     "download_wss",
     # Sync versions available via .sync() decorator on all async functions
     # Example: get_mapunit_by_areasymbol.sync("IA109")
-    # High-level functions
+    # High-level functions (lab pedon data from SDA)
     "fetch_mapunit_struct_by_point",
+    "fetch_labpedon_by_bbox",
+    "fetch_labpedon_by_id",
+    # Deprecated names (for backward compatibility)
     "fetch_pedon_struct_by_bbox",
     "fetch_pedon_struct_by_id",
     # Spatial query functions
