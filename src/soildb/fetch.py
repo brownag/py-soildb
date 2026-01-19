@@ -948,11 +948,12 @@ def _format_key_for_sql(key: Union[str, int]) -> str:
 # Deprecated: Use get_geometry_column_for_table from utils instead
 def _get_geometry_column_for_table(table: str) -> Optional[str]:
     """Get the geometry column name for a spatial table.
-    
+
     Deprecated: Use get_geometry_column_for_table from utils instead.
     Kept for backward compatibility.
     """
     from .utils import get_geometry_column_for_table
+
     return get_geometry_column_for_table(table)
 
 
@@ -1281,7 +1282,6 @@ async def fetch_ldm(
         - R fetchLDM docs: https://ncss-tech.github.io/soilDB/reference/fetchLDM.html
         - Lab Data Mart: https://ncsslabdatamart.sc.egov.usda.gov
     """
-    from pathlib import Path
 
     from .ldm import LDMClient
 
@@ -1514,7 +1514,9 @@ async def fetch_mapunit_polygon(
         DeprecationWarning,
         stacklevel=2,
     )
-    return await fetch_by_keys(mukeys, "mupolygon", include_geometry=True, client=client)
+    return await fetch_by_keys(
+        mukeys, "mupolygon", include_geometry=True, client=client
+    )
 
 
 @add_sync_version

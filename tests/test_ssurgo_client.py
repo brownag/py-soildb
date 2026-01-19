@@ -5,8 +5,9 @@ Tests verify that SSURGOClient can construct proper SQL queries
 for SSURGO tables and execute them via any backend.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from soildb.backends.ssurgo_client import SSURGOClient
 from soildb.response import SDAResponse
@@ -124,9 +125,7 @@ class TestSSURGOClientQueryBuilding:
 
     def test_build_in_condition_string(self):
         """_build_in_condition should handle string values."""
-        condition = SSURGOClient._build_in_condition(
-            "musym", ["IA001A", "IA001B"]
-        )
+        condition = SSURGOClient._build_in_condition("musym", ["IA001A", "IA001B"])
 
         assert "musym IN" in condition
         assert "'IA001A'" in condition
@@ -275,9 +274,9 @@ class TestSSURGOClientIntegration:
         client = SSURGOClient(mock_backend)
 
         # Execute multiple queries
-        response1 = await client.fetch_mapunit(mukey=101)
-        response2 = await client.fetch_component(mukey=101)
-        response3 = await client.fetch_chorizon(cokey=101)
+        await client.fetch_mapunit(mukey=101)
+        await client.fetch_component(mukey=101)
+        await client.fetch_chorizon(cokey=101)
 
         # Verify all were executed
         assert mock_backend.execute.call_count == 3

@@ -1,7 +1,5 @@
 """Test LDM module imports and basic structure."""
 
-import pytest
-
 
 class TestLDMImports:
     """Test that LDM module can be imported and has expected structure."""
@@ -9,28 +7,32 @@ class TestLDMImports:
     def test_ldm_module_importable(self):
         """Test that ldm module can be imported."""
         from soildb import ldm
+
         assert ldm is not None
 
     def test_ldm_client_importable(self):
         """Test that LDMClient can be imported."""
         from soildb import LDMClient
+
         assert LDMClient is not None
 
     def test_fetch_ldm_importable(self):
         """Test that fetch_ldm can be imported."""
         from soildb import fetch_ldm
+
         assert fetch_ldm is not None
 
     def test_ldm_exceptions_importable(self):
         """Test that LDM exceptions can be imported."""
         from soildb import (
-            LDMError,
             LDMBackendError,
-            LDMSQLiteError,
-            LDMSDAError,
+            LDMError,
             LDMParameterError,
             LDMQueryError,
+            LDMSDAError,
+            LDMSQLiteError,
         )
+
         assert LDMError is not None
         assert LDMBackendError is not None
         assert LDMSQLiteError is not None
@@ -86,7 +88,7 @@ class TestLDMImports:
 
     def test_ldm_backends_importable(self):
         """Test that backends can be imported."""
-        from soildb.ldm.backends import SDABackend, SQLiteBackend, LDMBackend
+        from soildb.ldm.backends import LDMBackend, SDABackend, SQLiteBackend
 
         assert SDABackend is not None
         assert SQLiteBackend is not None

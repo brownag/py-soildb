@@ -15,14 +15,18 @@ def test_ssurgo_tier2_deprecated_functions_exported():
     """Tier 2 (deprecated wrapper) functions should be exported."""
     import soildb
 
-    assert hasattr(soildb, "fetch_mapunit_polygon"), \
+    assert hasattr(soildb, "fetch_mapunit_polygon"), (
         "fetch_mapunit_polygon not exported"
-    assert hasattr(soildb, "fetch_component_by_mukey"), \
+    )
+    assert hasattr(soildb, "fetch_component_by_mukey"), (
         "fetch_component_by_mukey not exported"
-    assert hasattr(soildb, "fetch_chorizon_by_cokey"), \
+    )
+    assert hasattr(soildb, "fetch_chorizon_by_cokey"), (
         "fetch_chorizon_by_cokey not exported"
-    assert hasattr(soildb, "fetch_survey_area_polygon"), \
+    )
+    assert hasattr(soildb, "fetch_survey_area_polygon"), (
         "fetch_survey_area_polygon not exported"
+    )
 
 
 def test_ssurgo_tier3_functions_exported():
@@ -38,7 +42,9 @@ def test_ssurgo_tier4_functions_exported():
     """Tier 4 (helper) functions should be exported."""
     import soildb
 
-    assert hasattr(soildb, "get_mukey_by_areasymbol"), "get_mukey_by_areasymbol not exported"
+    assert hasattr(soildb, "get_mukey_by_areasymbol"), (
+        "get_mukey_by_areasymbol not exported"
+    )
     assert hasattr(soildb, "get_cokey_by_mukey"), "get_cokey_by_mukey not exported"
 
 
@@ -83,13 +89,14 @@ def test_all_list_matches_exports():
 
 def test_deprecated_functions_have_correct_signatures():
     """Deprecated functions should have compatible signatures."""
+    import inspect
+
     from soildb.fetch import (
-        fetch_mapunit_polygon,
-        fetch_component_by_mukey,
         fetch_chorizon_by_cokey,
+        fetch_component_by_mukey,
+        fetch_mapunit_polygon,
         fetch_survey_area_polygon,
     )
-    import inspect
 
     # Check fetch_mapunit_polygon
     sig = inspect.signature(fetch_mapunit_polygon)
@@ -129,7 +136,7 @@ def test_response_class_exported():
     assert hasattr(soildb, "SDAResponse")
 
     # Test that it's actually callable
-    response_class = getattr(soildb, "SDAResponse")
+    response_class = soildb.SDAResponse
     assert callable(response_class)
 
 

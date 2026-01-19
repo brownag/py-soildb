@@ -5,12 +5,15 @@ Tests verify that the refactored backends work correctly and provide
 the same interface as the base infrastructure.
 """
 
-import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from soildb.backends import SDABackend, SQLiteBackend
-from soildb.backends.exceptions import BackendConnectionError, BackendQueryError, BackendSchemaError
+from soildb.backends.exceptions import (
+    BackendConnectionError,
+    BackendQueryError,
+)
 
 
 class TestSDABackend:
@@ -37,7 +40,7 @@ class TestSDABackend:
         backend = SDABackend()
 
         # Mock the _get_client method to fail
-        with patch.object(backend, '_get_client') as mock_get:
+        with patch.object(backend, "_get_client") as mock_get:
             mock_get.side_effect = Exception("Network error")
 
             with pytest.raises(BackendConnectionError):
@@ -225,13 +228,13 @@ class TestBackendIntegrationWithNewImplementations:
         sqlite_backend = SQLiteBackend(db_file)
 
         # Both should implement the BaseBackend interface
-        assert hasattr(sda_backend, 'execute')
-        assert hasattr(sda_backend, 'get_tables')
-        assert hasattr(sda_backend, 'get_columns')
+        assert hasattr(sda_backend, "execute")
+        assert hasattr(sda_backend, "get_tables")
+        assert hasattr(sda_backend, "get_columns")
 
-        assert hasattr(sqlite_backend, 'execute')
-        assert hasattr(sqlite_backend, 'get_tables')
-        assert hasattr(sqlite_backend, 'get_columns')
+        assert hasattr(sqlite_backend, "execute")
+        assert hasattr(sqlite_backend, "get_tables")
+        assert hasattr(sqlite_backend, "get_columns")
 
 
 if __name__ == "__main__":

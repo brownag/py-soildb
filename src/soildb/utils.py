@@ -176,13 +176,13 @@ GEOMETRY_COLUMN_MAPPING = {
 
 def get_geometry_column_for_table(table: str) -> Optional[str]:
     """Get the geometry column name for a spatial table.
-    
+
     This is the single source of truth for geometry column mappings,
     shared between fetch.py and spatial.py modules.
-    
+
     Args:
         table: Table name (e.g., 'mupolygon', 'sapolygon')
-        
+
     Returns:
         Geometry column name if table is spatial, None otherwise
     """

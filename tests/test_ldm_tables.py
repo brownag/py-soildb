@@ -1,7 +1,5 @@
 """Unit tests for LDM table metadata and constants."""
 
-import pytest
-
 from soildb.ldm import tables
 
 

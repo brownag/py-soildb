@@ -1269,9 +1269,7 @@ class SDAResponse:
         """Get the validation result for this response."""
         if self._validation_result is None:
             self.validate("general")
-        assert (
-            self._validation_result is not None
-        )  # validate() should have set this
+        assert self._validation_result is not None  # validate() should have set this
         return self._validation_result
 
     @property

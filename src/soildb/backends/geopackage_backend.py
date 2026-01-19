@@ -9,7 +9,7 @@ is widely supported by GIS tools (QGIS, ArcGIS, Grass, etc.).
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import aiosqlite
 
@@ -35,7 +35,7 @@ class GeoPackageBackend(SQLiteBackend):
     - Optional spatial query support (not required, uses SQL WHERE)
     """
 
-    def __init__(self, db_path: Union[str, Path], config=None):
+    def __init__(self, db_path: Union[str, Path], config: Optional[Any] = None):
         """Initialize GeoPackage backend.
 
         Args:

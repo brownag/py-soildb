@@ -9,17 +9,16 @@ Tests cover:
 - BackendError exception hierarchy
 """
 
-import json
+from typing import Dict, List
+
 import pytest
-from typing import Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from soildb.backends import (
-    BaseBackend,
     BackendConnectionError,
     BackendError,
     BackendQueryError,
     BackendSchemaError,
+    BaseBackend,
     ColumnInfo,
     DatabaseTypeMapper,
     ResponseAdapter,
@@ -53,7 +52,9 @@ class MockBackend(BaseBackend):
 
     async def connect(self) -> bool:
         if self.should_fail and "connect" in self.fail_on:
-            raise BackendConnectionError("Mock connection failed", details="test failure")
+            raise BackendConnectionError(
+                "Mock connection failed", details="test failure"
+            )
         self.connected = True
         return True
 
@@ -80,7 +81,9 @@ class MockBackend(BaseBackend):
 
     async def get_columns(self, table_name: str) -> Dict[str, str]:
         if self.should_fail and "get_columns" in self.fail_on:
-            raise BackendSchemaError(f"Mock get_columns failed for {table_name}", details="test failure")
+            raise BackendSchemaError(
+                f"Mock get_columns failed for {table_name}", details="test failure"
+            )
         return {"id": "int", "name": "varchar", "created_at": "datetime"}
 
     async def close(self) -> None:
@@ -161,7 +164,11 @@ class TestBaseBackend:
         backend = MockBackend()
         await backend.connect()
 
-        queries = ["SELECT * FROM table1", "SELECT * FROM table2", "SELECT * FROM table3"]
+        queries = [
+            "SELECT * FROM table1",
+            "SELECT * FROM table2",
+            "SELECT * FROM table3",
+        ]
         responses = await backend.execute_many(queries)
 
         assert len(responses) == 3
@@ -261,10 +268,10 @@ class TestResponseAdapter:
         assert len(df) == 2
         # Nulls may be converted to empty strings or NaN
         score_val = df.iloc[0]["score"]
-        assert score_val in (None, "", float('nan')) or score_val != score_val
+        assert score_val in (None, "", float("nan")) or score_val != score_val
 
         id_val = df.iloc[1]["id"]
-        assert id_val in (None, "", float('nan')) or id_val != id_val
+        assert id_val in (None, "", float("nan")) or id_val != id_val
 
     @pytest.mark.asyncio
     async def test_from_rows_type_inference(self):
@@ -607,8 +614,12 @@ class TestTypeMapperFactory:
         geopackage_mapper = TypeMapperFactory.for_geopackage()
 
         # Should have same mappings
-        assert sqlite_mapper.map_to_sda("INTEGER") == geopackage_mapper.map_to_sda("INTEGER")
-        assert sqlite_mapper.map_to_sda("GEOMETRY") == geopackage_mapper.map_to_sda("GEOMETRY")
+        assert sqlite_mapper.map_to_sda("INTEGER") == geopackage_mapper.map_to_sda(
+            "INTEGER"
+        )
+        assert sqlite_mapper.map_to_sda("GEOMETRY") == geopackage_mapper.map_to_sda(
+            "GEOMETRY"
+        )
 
     def test_type_mapper_get_python_type(self):
         """Type mapper should get Python type for database type."""
@@ -761,7 +772,7 @@ class TestBackendIntegration:
             assert len(schemas) > 0
 
             # Verify structure
-            for table_name, schema in schemas.items():
+            for _table_name, schema in schemas.items():
                 assert schema.name in tables
                 assert len(schema.columns) > 0
 

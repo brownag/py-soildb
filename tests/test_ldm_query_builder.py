@@ -69,7 +69,9 @@ class TestLDMQueryBuilder:
     def test_build_query_string_escaping(self):
         """Test that string keys are properly escaped."""
         builder = LDMQueryBuilder()
-        query = builder.build_query(keys=["85P0234", "40A3306"], key_column="pedlabsampnum")
+        query = builder.build_query(
+            keys=["85P0234", "40A3306"], key_column="pedlabsampnum"
+        )
 
         # Should contain both pedon IDs
         assert "85P0234" in query
@@ -105,7 +107,7 @@ class TestLDMQueryBuilder:
             layer_type="horizon",
             area_type="state",
             prep_code="S",
-            analyzed_size_frac="<2 mm"
+            analyzed_size_frac="<2 mm",
         )
         query = builder.build_query(keys=["85P0234"], key_column="pedlabsampnum")
 
@@ -115,11 +117,7 @@ class TestLDMQueryBuilder:
 
     def test_build_ldm_query_convenience(self):
         """Test convenience function for building queries."""
-        query = build_ldm_query(
-            x=["85P0234"],
-            what="pedlabsampnum",
-            prep_code="S"
-        )
+        query = build_ldm_query(x=["85P0234"], what="pedlabsampnum", prep_code="S")
 
         assert "SELECT" in query
         assert "85P0234" in query
@@ -139,7 +137,7 @@ class TestLDMQueryBuilder:
         tables = [
             "lab_physical_properties",
             "lab_chemical_properties",
-            "lab_calculations_including_estimates_and_default_values"
+            "lab_calculations_including_estimates_and_default_values",
         ]
         builder = LDMQueryBuilder(tables=tables)
         query = builder.build_query(keys=["85P0234"], key_column="pedlabsampnum")

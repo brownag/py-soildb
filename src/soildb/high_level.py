@@ -655,6 +655,8 @@ async def fetch_labpedon_by_id(
         pedon.horizons = horizons
 
     return pedon
+
+
 @add_sync_version
 async def fetch_mapunit_struct_by_point(
     latitude: float,
@@ -686,7 +688,6 @@ async def fetch_mapunit_struct_by_point(
         horizon_columns=horizon_columns,
         client=client,
     )
-
 
 
 # These functions are deprecated and will be removed in a future version.

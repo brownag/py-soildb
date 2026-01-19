@@ -31,7 +31,7 @@ async def main():
                 areasymbols=["IA109", "IA113"],
                 dest_dir=temp_path / "ssurgo_specific",
                 extract=True,
-                remove_zip=False  # Keep ZIP files for inspection
+                remove_zip=False,  # Keep ZIP files for inspection
             )
 
             print(f"Downloaded {len(paths)} survey areas:")
@@ -60,7 +60,7 @@ async def main():
                 where_clause="areasymbol LIKE 'HI%'",
                 dest_dir=temp_path / "ssurgo_hawaii",
                 extract=True,
-                remove_zip=True  # Remove ZIP files after extraction
+                remove_zip=True,  # Remove ZIP files after extraction
             )
 
             print(f"Downloaded {len(paths)} Hawaii survey areas")
@@ -77,7 +77,7 @@ async def main():
                 areasymbols=["IA"],
                 db="STATSGO",
                 dest_dir=temp_path / "statsgo_iowa",
-                extract=True
+                extract=True,
             )
 
             print(f"Downloaded {len(paths)} STATSGO areas:")
@@ -93,15 +93,14 @@ async def main():
             # Demonstrate synchronous usage
             print("Downloading using sync API...")
             paths = download_wss.sync(
-                areasymbols=["IA109"],
-                dest_dir=temp_path / "sync_example",
-                extract=True
+                areasymbols=["IA109"], dest_dir=temp_path / "sync_example", extract=True
             )
 
             print(f"Sync download completed: {len(paths)} areas")
 
         except Exception as e:
             print(f"Error with sync download: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

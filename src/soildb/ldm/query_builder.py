@@ -18,7 +18,6 @@ from .tables import (
     LAB_LAYER_TABLE,
     PEDON_TABLE,
     SITE_TABLE,
-    TABLE_KEY_COLUMNS,
     all_valid_area_types,
     all_valid_layer_types,
     is_valid_prep_code,
@@ -189,10 +188,14 @@ class LDMQueryBuilder:
         from_parts = [f"FROM {LAB_LAYER_TABLE}"]
 
         # Join to pedon table
-        from_parts.append(f"INNER JOIN {PEDON_TABLE} ON {LAB_LAYER_TABLE}.pedon_key = {PEDON_TABLE}.pedon_key")
+        from_parts.append(
+            f"INNER JOIN {PEDON_TABLE} ON {LAB_LAYER_TABLE}.pedon_key = {PEDON_TABLE}.pedon_key"
+        )
 
         # Join to site table
-        from_parts.append(f"INNER JOIN {SITE_TABLE} ON {PEDON_TABLE}.site_key = {SITE_TABLE}.site_key")
+        from_parts.append(
+            f"INNER JOIN {SITE_TABLE} ON {PEDON_TABLE}.site_key = {SITE_TABLE}.site_key"
+        )
 
         # Join data tables
         for table in self.tables:
@@ -246,9 +249,7 @@ class LDMQueryBuilder:
 
         # Add analyzed_size_frac filter
         if self.analyzed_size_frac:
-            conditions.append(
-                f"analyzed_size_frac = '{self.analyzed_size_frac}'"
-            )
+            conditions.append(f"analyzed_size_frac = '{self.analyzed_size_frac}'")
 
         # Add layer_type filter
         if self.layer_type:

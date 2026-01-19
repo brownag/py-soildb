@@ -7,12 +7,10 @@ Tests verify GeoPackage-specific functionality:
 - Filtering of system tables
 """
 
-import pytest
 import aiosqlite
-from pathlib import Path
+import pytest
 
 from soildb.backends import GeoPackageBackend
-from soildb.backends.exceptions import BackendSchemaError
 
 
 class TestGeoPackageBackend:

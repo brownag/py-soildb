@@ -129,9 +129,7 @@ async def main():
 
         # MODERN: Using fetch_by_keys()
         print("MODERN: fetch_by_keys(cokeys, 'chorizon', 'cokey')")
-        hz_response_modern = await fetch_by_keys(
-            cokeys, "chorizon", key_column="cokey"
-        )
+        await fetch_by_keys(cokeys, "chorizon", key_column="cokey")
 
         hz_df = hz_response.to_pandas()
         print(f"Found {len(hz_df)} horizons")

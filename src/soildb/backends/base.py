@@ -5,7 +5,7 @@ must implement. Handles connection lifecycle, query execution, and schema intros
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from soildb.base_client import ClientConfig
 from soildb.response import SDAResponse
@@ -107,7 +107,7 @@ class BaseBackend(ABC):
         tasks = [self.execute(sql) for sql in queries]
         return await asyncio.gather(*tasks)
 
-    async def close(self) -> None:
+    async def close(self) -> None:  # noqa: B027
         """Close backend resources.
 
         Override in subclasses that maintain persistent connections
@@ -117,12 +117,17 @@ class BaseBackend(ABC):
         """
         pass
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "BaseBackend":
         """Support async context manager protocol."""
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> bool:
         """Support async context manager protocol."""
         await self.close()
         return False

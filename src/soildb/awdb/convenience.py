@@ -21,7 +21,6 @@ See convenience_api_migration() for usage examples and migration guide.
 """
 # mypy: disable-error-code="attr-defined"
 
-import warnings
 from typing import Any, Dict, List, Optional
 
 from ..utils import add_sync_version

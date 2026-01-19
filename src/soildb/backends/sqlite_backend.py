@@ -7,7 +7,7 @@ soil database exports that are distributed as SQLite files.
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import aiosqlite
 
@@ -30,7 +30,7 @@ class SQLiteBackend(BaseBackend):
     - GeoPackage files (via GeoPackageBackend subclass)
     """
 
-    def __init__(self, db_path: Union[str, Path], config=None):
+    def __init__(self, db_path: Union[str, Path], config: Optional[Any] = None):
         """Initialize SQLite backend.
 
         Args:
@@ -45,7 +45,7 @@ class SQLiteBackend(BaseBackend):
 
         if not self.db_path.exists():
             raise BackendConnectionError(
-                f"SQLite database not found",
+                "SQLite database not found",
                 details=f"Expected file: {self.db_path.resolve()}",
             )
 
@@ -93,19 +93,20 @@ class SQLiteBackend(BaseBackend):
                     # Get column names and data
                     if not cursor.description:
                         columns = []
-                        rows = []
+                        rows: List[Any] = []
                     else:
                         columns = [desc[0] for desc in cursor.description]
-                        rows = await cursor.fetchall()
+                        rows = list(await cursor.fetchall())
 
                     # Convert aiosqlite.Row objects to tuples
                     tuple_rows = [tuple(row) for row in rows]
 
                     # Use ResponseAdapter for consistent conversion
+                    # Note: TypeMapperFactory returns DatabaseTypeMapper which is compatible with TypeMap
                     response = await ResponseAdapter.from_rows(
                         tuple_rows,
                         columns,
-                        self._type_mapper,
+                        self._type_mapper,  # type: ignore[arg-type]
                     )
 
                     return response

@@ -8,7 +8,6 @@ Provides pluggable backends for accessing LDM data via different sources:
 Both backends return SDAResponse objects for consistency.
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Union
@@ -239,10 +238,10 @@ class SQLiteBackend:
                     # Get column names from cursor description
                     if not cursor.description:
                         columns = []
-                        rows = []
+                        rows: List[Any] = []
                     else:
                         columns = [desc[0] for desc in cursor.description]
-                        rows = await cursor.fetchall()
+                        rows = list(await cursor.fetchall())
 
                     # Convert aiosqlite.Row objects to lists
                     data = [list(row) for row in rows]
@@ -333,7 +332,7 @@ class SQLiteBackend:
             # Build metadata row (SQLite doesn't have rich type info)
             # Use Python type names as approximation
             metadata = []
-            for value in (data[0] if data else [None] * len(columns)):
+            for value in data[0] if data else [None] * len(columns):
                 if value is None:
                     type_name = "object"
                 elif isinstance(value, bool):
@@ -355,7 +354,7 @@ class SQLiteBackend:
             }
 
             # Create SDAResponse
-            response = SDAResponse(json.dumps(raw_data))
+            response = SDAResponse(raw_data)
             return response
 
         except Exception as e:

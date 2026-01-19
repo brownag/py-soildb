@@ -298,7 +298,7 @@ def all_valid_size_fractions() -> Set[str]:
     return set(ANALYZED_SIZE_FRACTIONS.keys())
 
 
-def all_valid_layer_types() -> Set[str]:
+def all_valid_layer_types() -> Set[Optional[str]]:
     """Get all valid layer types.
 
     Returns:
@@ -307,7 +307,7 @@ def all_valid_layer_types() -> Set[str]:
     return set(LAYER_TYPES.keys()) | {None}
 
 
-def all_valid_area_types() -> Set[str]:
+def all_valid_area_types() -> Set[Optional[str]]:
     """Get all valid area types.
 
     Returns:

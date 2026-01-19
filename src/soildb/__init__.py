@@ -50,17 +50,6 @@ from .exceptions import (
     SDATimeoutError,
     SoilDBError,
 )
-from .ldm import (
-    LDMBackendError,
-    LDMBackendSelectionError,
-    LDMError,
-    LDMParameterError,
-    LDMQueryError,
-    LDMResponseError,
-    LDMSDAError,
-    LDMSQLiteError,
-    LDMTableError,
-)
 from .fetch import (
     QueryPresets,
     fetch_by_keys,
@@ -74,15 +63,26 @@ from .fetch import (
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
-from .ldm import LDMClient
 from .high_level import (
-    fetch_ssurgo_mapunit_by_point,
     fetch_labpedon_by_bbox,
     fetch_labpedon_by_id,
     # Deprecated names (for backward compatibility)
     fetch_mapunit_struct_by_point,
     fetch_pedon_struct_by_bbox,
     fetch_pedon_struct_by_id,
+    fetch_ssurgo_mapunit_by_point,
+)
+from .ldm import (
+    LDMBackendError,
+    LDMBackendSelectionError,
+    LDMClient,
+    LDMError,
+    LDMParameterError,
+    LDMQueryError,
+    LDMResponseError,
+    LDMSDAError,
+    LDMSQLiteError,
+    LDMTableError,
 )
 from .metadata import (
     MetadataParseError,
@@ -270,12 +270,12 @@ __all__ = [
     "QueryPresets",  # Preset configurations for common queries
     "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
     "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
-    "fetch_mapunit_polygon",     # DEPRECATED - use fetch_by_keys()
-    "fetch_survey_area_polygon", # DEPRECATED - use fetch_by_keys()
+    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
+    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
     "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
     "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
-    "fetch_mapunit_polygon",     # DEPRECATED - use fetch_by_keys()
-    "fetch_survey_area_polygon", # DEPRECATED - use fetch_by_keys()
+    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
+    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
     # Lab Data Mart (LDM) client
     "LDMClient",
     # Modules

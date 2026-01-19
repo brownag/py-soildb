@@ -8,7 +8,7 @@ or local SQLite snapshots with automatic chunking and retry logic.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, cast
 
 from soildb.base_client import BaseDataAccessClient, ClientConfig
 from soildb.client import SDAClient
@@ -156,9 +156,7 @@ class LDMClient(BaseDataAccessClient):
         """
         # Validate parameters
         if x is not None and WHERE is not None:
-            raise LDMParameterError(
-                "Cannot specify both 'x' and 'WHERE' parameters"
-            )
+            raise LDMParameterError("Cannot specify both 'x' and 'WHERE' parameters")
 
         # Convert single values to lists
         if x is not None and not isinstance(x, (list, tuple)):
@@ -167,7 +165,7 @@ class LDMClient(BaseDataAccessClient):
         # If no keys and no WHERE clause, return empty result
         if x is None and WHERE is None:
             logger.warning("No query criteria provided (no x or WHERE)")
-            return SDAResponse('{"Table": [[], []]}')
+            return SDAResponse({"Table": [[], []]})
 
         # Build query using query builder
         try:
@@ -339,19 +337,18 @@ class LDMClient(BaseDataAccessClient):
 
                 # Execute queries concurrently
                 backend = await self._get_backend()
-                tasks = [
-                    backend.execute_query(query)
-                    for query in queries
-                ]
+                tasks = [backend.execute_query(query) for query in queries]
                 responses = await asyncio.gather(*tasks, return_exceptions=True)
 
                 # Check for errors
-                errors = [r for r in responses if isinstance(r, Exception)]
-                if errors:
-                    raise errors[0]
+                valid_responses: List[SDAResponse] = []
+                for r in responses:
+                    if isinstance(r, BaseException):
+                        raise r
+                    valid_responses.append(cast(SDAResponse, r))
 
                 # Combine responses
-                combined = self._combine_responses(responses)
+                combined = self._combine_responses(valid_responses)
                 logger.info(f"Successfully retrieved {len(combined.to_dict())} rows")
                 return combined
 
@@ -386,7 +383,7 @@ class LDMClient(BaseDataAccessClient):
             LDMQueryError: If responses cannot be combined
         """
         if not responses:
-            return SDAResponse('{"Table": [[], []]}')
+            return SDAResponse({"Table": [[], []]})
 
         if len(responses) == 1:
             return responses[0]
@@ -412,19 +409,15 @@ class LDMClient(BaseDataAccessClient):
             # Create new response with combined data
             if columns is None:
                 # All responses were empty
-                return SDAResponse('{"Table": [[], []]}')
+                return SDAResponse({"Table": [[], []]})
 
             # Reconstruct as SDAResponse
-            import json
-
             raw_data = {
-                "Table": [columns, metadata] + [
-                    [row.get(col) for col in columns]
-                    for row in combined_data
-                ]
+                "Table": [columns, metadata]
+                + [[row.get(col) for col in columns] for row in combined_data]
             }
 
-            return SDAResponse(json.dumps(raw_data))
+            return SDAResponse(raw_data)
 
         except Exception as e:
             raise LDMQueryError(

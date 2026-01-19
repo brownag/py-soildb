@@ -57,9 +57,9 @@ sda_type = sqlite_mapper.map_to_sda("custom_type")  # Returns "varchar"
 - All types from standard SQL Server type system
 """
 
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type
 
-from soildb.type_conversion import TypeMap, TypeProcessor
+from soildb.type_conversion import TypeMap
 
 
 class DatabaseTypeMapper:

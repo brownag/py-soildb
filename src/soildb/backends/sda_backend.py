@@ -6,7 +6,7 @@ error handling, and retry behavior.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from soildb.client import SDAClient
 from soildb.response import SDAResponse
@@ -24,7 +24,9 @@ class SDABackend(BaseBackend):
     It provides a unified interface matching BaseBackend.
     """
 
-    def __init__(self, client: Optional[SDAClient] = None, config=None):
+    def __init__(
+        self, client: Optional[SDAClient] = None, config: Optional[Any] = None
+    ):
         """Initialize SDA backend.
 
         Args:
@@ -47,7 +49,7 @@ class SDABackend(BaseBackend):
             BackendConnectionError: If connection fails
         """
         try:
-            client = await self._get_client()
+            await self._get_client()
             self._connected = True
             return True
         except BackendConnectionError:
@@ -74,9 +76,6 @@ class SDABackend(BaseBackend):
             client = await self._get_client()
             response = await client.execute_sql(sql)
             return response
-        except SDAResponse as e:
-            # SDAClient may return response with error
-            return e
         except BackendQueryError:
             raise
         except Exception as e:

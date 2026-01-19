@@ -5,7 +5,6 @@ The adapter converts results from any database (SQLite, PostgreSQL, etc.)
 into SDAResponse format, which all backends then return uniformly.
 """
 
-import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -143,13 +142,12 @@ class ResponseAdapter:
             return SDAResponse({"Table": [[], []]})
 
         # Reconstruct response with combined data
-        table_data = [combined_columns, combined_metadata]
+        # combined_columns and combined_metadata are verified not None above
+        table_data: List[Any] = [combined_columns, combined_metadata]
 
         # Convert dict rows back to column-ordered tuples
         for row in combined_data:
-            table_data.append(
-                [row.get(col) for col in combined_columns]
-            )
+            table_data.append([row.get(col) for col in combined_columns])  # type: ignore
 
         response_dict = {"Table": table_data}
         return SDAResponse(response_dict)
@@ -182,7 +180,15 @@ class ResponseAdapter:
         elif isinstance(value, str):
             # Detect WKT geometry (common in GeoPackage, PostGIS)
             if value and value.startswith(
-                ("POINT", "POLYGON", "MULTIPOLYGON", "LINESTRING", "GEOMETRYCOLLECTION", "MULTIPOINT", "MULTILINESTRING")
+                (
+                    "POINT",
+                    "POLYGON",
+                    "MULTIPOLYGON",
+                    "LINESTRING",
+                    "GEOMETRYCOLLECTION",
+                    "MULTIPOINT",
+                    "MULTILINESTRING",
+                )
             ):
                 return "geometry"
             return "varchar"

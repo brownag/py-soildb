@@ -5,7 +5,7 @@ different database backends.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -85,7 +85,7 @@ class SchemaIntrospector:
 
     @staticmethod
     async def introspect_table(
-        backend,  # BaseBackend instance
+        backend: Any,  # BaseBackend instance
         table_name: str,
     ) -> TableSchema:
         """Get complete schema for a table.
@@ -123,7 +123,7 @@ class SchemaIntrospector:
 
     @staticmethod
     async def introspect_database(
-        backend,  # BaseBackend instance
+        backend: Any,  # BaseBackend instance
     ) -> Dict[str, TableSchema]:
         """Get schema for all tables in database.
 

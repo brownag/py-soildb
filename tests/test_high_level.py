@@ -7,9 +7,9 @@ import pytest
 
 import soildb
 from soildb.high_level import (
-    fetch_ssurgo_mapunit_by_point,
     fetch_labpedon_by_bbox,
     fetch_labpedon_by_id,
+    fetch_ssurgo_mapunit_by_point,
 )
 from soildb.schema_system import SoilMapUnit
 

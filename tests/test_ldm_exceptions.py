@@ -1,7 +1,6 @@
 """Unit tests for LDM exceptions."""
 
-import pytest
-
+from soildb.exceptions import SoilDBError
 from soildb.ldm import (
     LDMBackendError,
     LDMBackendSelectionError,
@@ -13,7 +12,6 @@ from soildb.ldm import (
     LDMSQLiteError,
     LDMTableError,
 )
-from soildb.exceptions import SoilDBError
 
 
 class TestLDMExceptions:

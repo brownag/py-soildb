@@ -172,9 +172,9 @@ class SSURGOClient:
         secondary_key: Optional[Union[List[int], List[str], int, str]] = None,
         tertiary_key: Optional[Union[List[str], str]] = None,
         where_clause: Optional[str] = None,
-        primary_field: str = None,
-        secondary_field: str = None,
-        alt_field: str = None,
+        primary_field: Optional[str] = None,
+        secondary_field: Optional[str] = None,
+        alt_field: Optional[str] = None,
     ) -> str:
         """Build SQL query for SSURGO table.
 
@@ -207,21 +207,19 @@ class SSURGOClient:
         }
 
         fields = field_defaults.get(table, (None, None, None))
-        primary_field = primary_field or fields[0]
-        secondary_field = secondary_field or fields[1]
-        tertiary_field = alt_field or fields[2] if len(fields) > 2 else None
+
+        # Resolve field names (prefer explicitly passed, then defaults)
+        p_field = primary_field or fields[0]
+        s_field = secondary_field or fields[1]
+        t_field = alt_field or fields[2] if len(fields) > 2 else None
 
         # Add conditions for non-None values
-        if primary_key is not None:
-            conditions.append(
-                self._build_in_condition(primary_field, primary_key)
-            )
-        if secondary_key is not None:
-            conditions.append(
-                self._build_in_condition(secondary_field, secondary_key)
-            )
-        if tertiary_key is not None:
-            conditions.append(self._build_in_condition(tertiary_field, tertiary_key))
+        if primary_key is not None and p_field is not None:
+            conditions.append(self._build_in_condition(p_field, primary_key))
+        if secondary_key is not None and s_field is not None:
+            conditions.append(self._build_in_condition(s_field, secondary_key))
+        if tertiary_key is not None and t_field is not None:
+            conditions.append(self._build_in_condition(t_field, tertiary_key))
 
         if not conditions:
             # No filter provided, return all rows

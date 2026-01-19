@@ -16,8 +16,6 @@ SoilDBError (inherited from main exceptions)
     └── LDMResponseError (response parsing/conversion errors)
 """
 
-from typing import Optional
-
 from soildb.exceptions import SoilDBError
 
 
