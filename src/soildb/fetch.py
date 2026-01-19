@@ -945,17 +945,15 @@ def _format_key_for_sql(key: Union[str, int]) -> str:
         return str(key)
 
 
+# Deprecated: Use get_geometry_column_for_table from utils instead
 def _get_geometry_column_for_table(table: str) -> Optional[str]:
-    """Get the geometry column name for a spatial table."""
-    geometry_columns = {
-        "mupolygon": "mupolygongeo",
-        "sapolygon": "sapolygongeo",
-        "mupoint": "mupointgeo",
-        "muline": "mulinegeo",
-        "featpoint": "featpointgeo",
-        "featline": "featlinegeo",
-    }
-    return geometry_columns.get(table.lower())
+    """Get the geometry column name for a spatial table.
+    
+    Deprecated: Use get_geometry_column_for_table from utils instead.
+    Kept for backward compatibility.
+    """
+    from .utils import get_geometry_column_for_table
+    return get_geometry_column_for_table(table)
 
 
 @add_sync_version
@@ -1473,3 +1471,161 @@ async def get_cokey_by_mukey(
     df = response.to_pandas()
 
     return df["cokey"].tolist() if not df.empty else []
+
+
+# ============================================================================
+# TIER 2 - DEPRECATED WRAPPER FUNCTIONS (Backward Compatibility)
+# ============================================================================
+# These functions are kept for backward compatibility with older code.
+# They wrap fetch_by_keys() for specific common use cases.
+# DEPRECATED: Use fetch_by_keys() directly - it's more flexible and simpler.
+# These will be removed in soildb 1.0. See migration guidance in docstrings.
+
+
+@add_sync_version
+async def fetch_mapunit_polygon(
+    mukeys: List[Union[str, int]],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query mapunit polygons by mapunit keys.
+
+    This is a convenience wrapper around fetch_by_keys() for the common
+    pattern of retrieving polygon geometry for mapunits.
+
+    **Deprecated**: Use `fetch_by_keys(mukeys, "mupolygon")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        mukeys: List of mapunit keys to query
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with mupolygon records including geometry
+
+    Example:
+        >>> response = await fetch_mapunit_polygon(['1234567', '7654321'])
+        >>> gdf = response.to_geodataframe()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_mapunit_polygon() is deprecated, use "
+        "fetch_by_keys(mukeys, 'mupolygon') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(mukeys, "mupolygon", include_geometry=True, client=client)
+
+
+@add_sync_version
+async def fetch_component_by_mukey(
+    mukeys: List[Union[str, int]],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query soil components by mapunit keys.
+
+    **Deprecated**: Use `fetch_by_keys(mukeys, "component", "mukey")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        mukeys: List of mapunit keys
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with component records
+
+    Example:
+        >>> response = await fetch_component_by_mukey(['1234567'])
+        >>> df = response.to_pandas()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_component_by_mukey() is deprecated, use "
+        "fetch_by_keys(mukeys, 'component', 'mukey') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        mukeys,
+        "component",
+        key_column="mukey",
+        client=client,
+    )
+
+
+@add_sync_version
+async def fetch_chorizon_by_cokey(
+    cokeys: List[Union[str, int]],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query soil component horizons by component keys.
+
+    **Deprecated**: Use `fetch_by_keys(cokeys, "chorizon", "cokey")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        cokeys: List of component keys
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with chorizon records
+
+    Example:
+        >>> response = await fetch_chorizon_by_cokey(['12345678'])
+        >>> df = response.to_pandas()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_chorizon_by_cokey() is deprecated, use "
+        "fetch_by_keys(cokeys, 'chorizon', 'cokey') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        cokeys,
+        "chorizon",
+        key_column="cokey",
+        client=client,
+    )
+
+
+@add_sync_version
+async def fetch_survey_area_polygon(
+    areasymbols: List[str],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query survey area polygons by area symbols.
+
+    Retrieves the geographic extent polygons for SSURGO survey areas.
+
+    **Deprecated**: Use `fetch_by_keys(areasymbols, "sapolygon", "areasymbol")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        areasymbols: List of SSURGO area symbols (e.g., ['IA001', 'IA025'])
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with sapolygon records including geometry
+
+    Example:
+        >>> response = await fetch_survey_area_polygon(['IA001', 'IA025'])
+        >>> gdf = response.to_geodataframe()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_survey_area_polygon() is deprecated, use "
+        "fetch_by_keys(areasymbols, 'sapolygon', 'areasymbol') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        areasymbols,
+        "sapolygon",
+        key_column="areasymbol",
+        include_geometry=True,
+        client=client,
+    )

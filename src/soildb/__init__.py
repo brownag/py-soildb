@@ -72,9 +72,13 @@ from .ldm import (
 from .fetch import (
     QueryPresets,
     fetch_by_keys,
+    fetch_chorizon_by_cokey,
+    fetch_component_by_mukey,
     fetch_ldm,
+    fetch_mapunit_polygon,
     fetch_pedon_horizons,
     fetch_pedons_by_bbox,
+    fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
@@ -272,6 +276,14 @@ __all__ = [
     "get_mukey_by_areasymbol",  # Discover mukeys from survey areas
     "get_cokey_by_mukey",  # Discover cokeys from map units
     "QueryPresets",  # Preset configurations for common queries
+    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_mapunit_polygon",     # DEPRECATED - use fetch_by_keys()
+    "fetch_survey_area_polygon", # DEPRECATED - use fetch_by_keys()
+    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_mapunit_polygon",     # DEPRECATED - use fetch_by_keys()
+    "fetch_survey_area_polygon", # DEPRECATED - use fetch_by_keys()
     # Lab Data Mart (LDM) client
     "LDMClient",
     # Modules

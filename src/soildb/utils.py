@@ -160,3 +160,30 @@ def add_sync_version(
     # Attach the synchronous wrapper to the original async function
     async_fn.sync = sync_wrapper  # type: ignore
     return async_fn
+
+
+# Shared geometry column mappings for spatial tables
+# Used by both fetch.py and spatial.py to ensure consistent behavior
+GEOMETRY_COLUMN_MAPPING = {
+    "mupolygon": "mupolygongeo",
+    "sapolygon": "sapolygongeo",
+    "mupoint": "mupointgeo",
+    "muline": "mulinegeo",
+    "featpoint": "featpointgeo",
+    "featline": "featlinegeo",
+}
+
+
+def get_geometry_column_for_table(table: str) -> Optional[str]:
+    """Get the geometry column name for a spatial table.
+    
+    This is the single source of truth for geometry column mappings,
+    shared between fetch.py and spatial.py modules.
+    
+    Args:
+        table: Table name (e.g., 'mupolygon', 'sapolygon')
+        
+    Returns:
+        Geometry column name if table is spatial, None otherwise
+    """
+    return GEOMETRY_COLUMN_MAPPING.get(table.lower())
