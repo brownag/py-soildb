@@ -687,126 +687,6 @@ class SDAResponse:
         self._validation_result = result
         return result
 
-    def validate_response(self) -> ValidationResult:
-        """Validate the response for common issues and return detailed results.
-
-        DEPRECATED: Use validate() instead for better API.
-        This method is maintained for backward compatibility.
-
-        Examples:
-            >>> response = SDAResponse(data)
-            >>> result = response.validate_response()  # Deprecated
-            >>> result = response.validate()  # Preferred
-        """
-        return self.validate("general")
-
-    @staticmethod
-    def validate_mapunit_response(response_data: Dict[str, Any]) -> ValidationResult:
-        """Validate a mapunit response for required fields and data integrity.
-
-        DEPRECATED: Use response.validate("mapunit") instead.
-        This static method is maintained for backward compatibility.
-
-        Args:
-            response_data: SDAResponse object or dict with response data
-
-        Returns:
-            ValidationResult with mapunit-specific validation details
-
-        Examples:
-            >>> result = SDAResponse.validate_mapunit_response(response)  # Deprecated
-            >>> result = response.validate("mapunit")  # Preferred
-        """
-        if isinstance(response_data, SDAResponse):
-            return ResponseValidator.validate_mapunit(response_data)
-
-        # Fallback for dict input (backward compatibility)
-        result = ValidationResult()
-        result.metadata["response_type"] = "mapunit"
-
-        # Check if it's an SDAResponse-compatible dict
-        if isinstance(response_data, SDAResponse):
-            base_validation = response_data.validate()
-            result.errors.extend(base_validation.errors)
-            result.warnings.extend(base_validation.warnings)
-            result.metadata.update(base_validation.metadata)
-
-        # Mapunit-specific validations
-        required_columns = ["mukey", "musym", "muname"]
-        if hasattr(response_data, "columns"):
-            missing_cols = [
-                col for col in required_columns if col not in response_data.columns
-            ]
-            if missing_cols:
-                result.add_error(f"Missing required mapunit columns: {missing_cols}")
-
-            # Check for data in key columns
-            if (
-                hasattr(response_data, "data")
-                and response_data.data
-                and "mukey" in response_data.columns
-            ):
-                empty_mukeys = sum(
-                    1
-                    for row in response_data.data
-                    if not row
-                    or str(row[response_data.columns.index("mukey")]).strip() == ""
-                )
-                if empty_mukeys > 0:
-                    result.add_warning(
-                        f"{empty_mukeys} mapunits have empty mukey values"
-                    )
-
-        return result
-
-    @staticmethod
-    def validate_pedon_response(response_data: Dict[str, Any]) -> ValidationResult:
-        """Validate a pedon response for required fields and data integrity.
-
-        DEPRECATED: Use response.validate("pedon") instead.
-        This static method is maintained for backward compatibility.
-
-        Args:
-            response_data: SDAResponse object or dict with response data
-
-        Returns:
-            ValidationResult with pedon-specific validation details
-
-        Examples:
-            >>> result = SDAResponse.validate_pedon_response(response)  # Deprecated
-            >>> result = response.validate("pedon")  # Preferred
-        """
-        if isinstance(response_data, SDAResponse):
-            return ResponseValidator.validate_pedon(response_data)
-
-        # Fallback for dict input (backward compatibility)
-        result = ValidationResult()
-        result.metadata["response_type"] = "pedon"
-
-        # Check if it's an SDAResponse-compatible dict
-        if isinstance(response_data, SDAResponse):
-            base_validation = response_data.validate()
-            result.errors.extend(base_validation.errors)
-            result.warnings.extend(base_validation.warnings)
-            result.metadata.update(base_validation.metadata)
-
-        # Pedon-specific validations
-        required_columns = ["pedon_id", "site_id"]
-        if hasattr(response_data, "columns"):
-            missing_cols = [
-                col for col in required_columns if col not in response_data.columns
-            ]
-            if missing_cols:
-                result.add_error(f"Missing required pedon columns: {missing_cols}")
-
-            # Check for coordinate columns
-            coord_cols = ["latitude", "longitude", "x", "y"]
-            has_coords = any(col in response_data.columns for col in coord_cols)
-            if not has_coords:
-                result.add_warning("No coordinate columns found in pedon data")
-
-        return result
-
     @staticmethod
     def handle_missing_fields(
         data: Dict[str, Any],
@@ -845,19 +725,6 @@ class SDAResponse:
                     )
 
         return processed_data, missing_fields
-
-    def validate_transformed_data(
-        self, data_dicts: List[Dict[str, Any]]
-    ) -> ValidationResult:
-        """Validate transformed data dictionaries for consistency and data quality.
-
-        Args:
-            data_dicts: List of dictionaries from to_dict() conversion
-
-        Returns:
-            ValidationResult with data quality assessment
-        """
-        return ResponseValidator.validate_type_system(self, data_dicts)
 
     def to_dict(self) -> List[Dict[str, Any]]:
         """Convert to list of dictionaries with basic type conversion and error recovery.
@@ -918,7 +785,7 @@ class SDAResponse:
 
         # Validate transformed data if requested
         if len(result) > 0:
-            data_validation = self.validate_transformed_data(result)
+            data_validation = ResponseValidator.validate_type_system(self, result)
             if not data_validation.is_valid():
                 logger.warning(f"Data validation found issues: {data_validation}")
             # Store validation result
@@ -1401,10 +1268,10 @@ class SDAResponse:
     def validation_result(self) -> ValidationResult:
         """Get the validation result for this response."""
         if self._validation_result is None:
-            self.validate_response()
+            self.validate("general")
         assert (
             self._validation_result is not None
-        )  # validate_response() should have set this
+        )  # validate() should have set this
         return self._validation_result
 
     @property

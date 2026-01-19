@@ -179,7 +179,7 @@ async def get_scan_soil_moisture_profile(
     """
     try:
         # Get monitoring data from nearest SCAN station
-        data = await awdb_convenience.get_monitoring_station_data(
+        data = await awdb_convenience.get_property_data_near(
             latitude=latitude,
             longitude=longitude,
             property_name="soil_moisture",
@@ -215,7 +215,7 @@ async def get_scan_soil_temperature_profile(
         Dictionary with soil temperature time series at available depths
     """
     try:
-        data = await awdb_convenience.get_monitoring_station_data(
+        data = await awdb_convenience.get_property_data_near(
             latitude=latitude,
             longitude=longitude,
             property_name="soil_temp",
@@ -251,7 +251,7 @@ async def get_precipitation_data(
         Dictionary with precipitation time series
     """
     try:
-        data = await awdb_convenience.get_monitoring_station_data(
+        data = await awdb_convenience.get_property_data_near(
             latitude=latitude,
             longitude=longitude,
             property_name="precipitation",
