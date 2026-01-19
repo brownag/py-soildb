@@ -7,7 +7,7 @@ import pytest
 
 import soildb
 from soildb.high_level import (
-    fetch_mapunit_struct_by_point,
+    fetch_ssurgo_mapunit_by_point,
     fetch_labpedon_by_bbox,
     fetch_labpedon_by_id,
 )
@@ -23,11 +23,11 @@ TEST_PEDON_ID = "S1999NY061001"
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_fetch_mapunit_struct_by_point(sda_client):
-    """Test fetching a structured SoilMapUnit by point."""
-    print("Testing fetch_mapunit_struct_by_point...")
+async def test_fetch_ssurgo_mapunit_by_point(sda_client):
+    """Test fetching a structured SSURGO map unit by point."""
+    print("Testing fetch_ssurgo_mapunit_by_point...")
     try:
-        map_unit = await fetch_mapunit_struct_by_point(
+        map_unit = await fetch_ssurgo_mapunit_by_point(
             TEST_LAT, TEST_LON, client=sda_client
         )
         assert isinstance(map_unit, SoilMapUnit)
@@ -40,7 +40,7 @@ async def test_fetch_mapunit_struct_by_point(sda_client):
         assert has_horizons, (
             f"No components have horizons. Components: {[len(comp.aggregate_horizons) for comp in map_unit.components]}"
         )
-        print("SUCCESS: fetch_mapunit_struct_by_point returned a valid SoilMapUnit.")
+        print("SUCCESS: fetch_ssurgo_mapunit_by_point returned a valid SoilMapUnit.")
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")
     except soildb.SDAMaintenanceError:
@@ -116,12 +116,12 @@ async def test_fetch_labpedon_by_id(sda_client):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_fetch_mapunit_struct_by_point_with_custom_columns(sda_client):
-    """Test fetching a structured SoilMapUnit by point with custom columns."""
-    print("Testing fetch_mapunit_struct_by_point with custom columns...")
+async def test_fetch_ssurgo_mapunit_by_point_with_custom_columns(sda_client):
+    """Test fetching a structured SSURGO map unit by point with custom columns."""
+    print("Testing fetch_ssurgo_mapunit_by_point with custom columns...")
     try:
         # Test with custom component and horizon columns (using known valid columns)
-        map_unit = await fetch_mapunit_struct_by_point(
+        map_unit = await fetch_ssurgo_mapunit_by_point(
             TEST_LAT,
             TEST_LON,
             component_columns=[
@@ -168,7 +168,7 @@ async def test_fetch_mapunit_struct_by_point_with_custom_columns(sda_client):
         assert "requested_columns" in map_unit.extra_fields
         assert "default_columns" in map_unit.extra_fields
 
-        print("SUCCESS: fetch_mapunit_struct_by_point with custom columns worked.")
+        print("SUCCESS: fetch_ssurgo_mapunit_by_point with custom columns worked.")
     except soildb.SDAConnectionError as e:
         pytest.fail(f"SDA Connection Error: {e}")
     except soildb.SDAMaintenanceError:

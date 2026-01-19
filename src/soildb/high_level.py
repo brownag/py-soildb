@@ -16,7 +16,7 @@ ALTERNATIVES BY USE CASE:
 
 API TIER REFERENCE (in order of preference):
 1. HIGH-LEVEL (this module):
-   - fetch_mapunit_struct_by_point()
+   - fetch_ssurgo_mapunit_by_point() [SSURGO map units]
    - fetch_labpedon_by_bbox()      [Lab pedon data from SDA]
    - fetch_labpedon_by_id()        [Lab pedon data from SDA]
 
@@ -32,8 +32,8 @@ API TIER REFERENCE (in order of preference):
 
 QUICK START:
 ```python
-# Get structured map unit with components and horizons
-mapunit = await fetch_mapunit_struct_by_point(latitude=42.0, longitude=-93.6)
+# Get structured SSURGO map unit with components and horizons
+mapunit = await fetch_ssurgo_mapunit_by_point(latitude=42.0, longitude=-93.6)
 for component in mapunit.components:
     print(f"{component.component_name}: {component.component_percentage}%")
 
@@ -136,7 +136,7 @@ def _create_pedon_horizon_from_row(
 
 
 @add_sync_version
-async def fetch_mapunit_struct_by_point(
+async def fetch_ssurgo_mapunit_by_point(
     latitude: float,
     longitude: float,
     fill_components: bool = True,
@@ -146,15 +146,15 @@ async def fetch_mapunit_struct_by_point(
     client: Optional[SDAClient] = None,
 ) -> SoilMapUnit:  # type: ignore
     """
-    Fetch a structured SoilMapUnit object for a specific geographic location.
+    Fetch a structured SSURGO map unit object for a specific geographic location.
 
-    Returns a NESTED OBJECT MODEL with Map Unit → Components → Aggregate Horizons.
+    Returns a NESTED OBJECT MODEL with SSURGO Map Unit → Components → Aggregate Horizons.
 
     **USAGE EXAMPLES:**
 
     ```python
-    # Get map unit with components and horizons
-    mapunit = await fetch_mapunit_struct_by_point(
+    # Get SSURGO map unit with components and horizons
+    mapunit = await fetch_ssurgo_mapunit_by_point(
         latitude=42.0,
         longitude=-93.6
     )
@@ -172,8 +172,8 @@ async def fetch_mapunit_struct_by_point(
         for horizon in component.horizons:
             print(f"    Horizon {horizon.designation}: {horizon.texture_class}")
 
-    # Get only map unit (no components/horizons)
-    mapunit = await fetch_mapunit_struct_by_point(
+    # Get SSURGO map unit without components/horizons
+    mapunit = await fetch_ssurgo_mapunit_by_point(
         latitude=42.0,
         longitude=-93.6,
         fill_components=False
@@ -655,11 +655,40 @@ async def fetch_labpedon_by_id(
         pedon.horizons = horizons
 
     return pedon
+@add_sync_version
+async def fetch_mapunit_struct_by_point(
+    latitude: float,
+    longitude: float,
+    fill_components: bool = True,
+    fill_horizons: bool = True,
+    component_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[List[str]] = None,
+    client: Optional[SDAClient] = None,
+) -> SoilMapUnit:  # type: ignore
+    """
+    [DEPRECATED] Use fetch_ssurgo_mapunit_by_point() instead.
+
+    Fetch a structured map unit object for a specific geographic location.
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_mapunit_struct_by_point() is deprecated, use fetch_ssurgo_mapunit_by_point() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_ssurgo_mapunit_by_point(
+        latitude=latitude,
+        longitude=longitude,
+        fill_components=fill_components,
+        fill_horizons=fill_horizons,
+        component_columns=component_columns,
+        horizon_columns=horizon_columns,
+        client=client,
+    )
 
 
-# ============================================================================
-# DEPRECATED ALIASES (for backward compatibility)
-# ============================================================================
+
 # These functions are deprecated and will be removed in a future version.
 # Use the new names instead (fetch_labpedon_* instead of fetch_pedon_struct_*).
 

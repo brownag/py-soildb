@@ -23,7 +23,7 @@ class TestSyncWrappers:
         assert hasattr(soildb.fetch_pedons_by_bbox, "sync")
 
         # Test high-level functions
-        assert hasattr(soildb.fetch_mapunit_struct_by_point, "sync")
+        assert hasattr(soildb.fetch_ssurgo_mapunit_by_point, "sync")
 
     def test_sync_is_callable(self):
         """Test that sync attributes are callable."""
