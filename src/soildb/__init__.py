@@ -11,7 +11,7 @@ try:
 except Exception:
     __version__ = "unknown"
 
-from . import fetch
+from . import fetch, ldm
 from .awdb import (
     AWDBClient,
     AWDBConnectionError,
@@ -58,14 +58,27 @@ from .exceptions import (
     SDATimeoutError,
     SoilDBError,
 )
+from .ldm import (
+    LDMBackendError,
+    LDMBackendSelectionError,
+    LDMError,
+    LDMParameterError,
+    LDMQueryError,
+    LDMResponseError,
+    LDMSDAError,
+    LDMSQLiteError,
+    LDMTableError,
+)
 from .fetch import (
     QueryPresets,
     fetch_by_keys,
+    fetch_ldm,
     fetch_pedon_horizons,
     fetch_pedons_by_bbox,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
+from .ldm import LDMClient
 from .high_level import (
     fetch_mapunit_struct_by_point,
     fetch_pedon_struct_by_bbox,
@@ -211,6 +224,16 @@ __all__ = [
     "SDAResponseError",
     "MetadataParseError",
     "WSSDownloadError",
+    # LDM Exceptions
+    "LDMError",
+    "LDMBackendError",
+    "LDMSQLiteError",
+    "LDMSDAError",
+    "LDMBackendSelectionError",
+    "LDMQueryError",
+    "LDMParameterError",
+    "LDMTableError",
+    "LDMResponseError",
     # Metadata parsing
     "SurveyMetadata",
     "parse_survey_metadata",
@@ -245,9 +268,13 @@ __all__ = [
     "fetch_by_keys",  # Universal key-based fetcher - RECOMMENDED
     "fetch_pedons_by_bbox",  # Lab pedons with flexible return types
     "fetch_pedon_horizons",  # Horizon data for pedon sites
+    "fetch_ldm",  # Laboratory Data Mart queries (SDA or SQLite)
     "get_mukey_by_areasymbol",  # Discover mukeys from survey areas
     "get_cokey_by_mukey",  # Discover cokeys from map units
     "QueryPresets",  # Preset configurations for common queries
-    # Module
+    # Lab Data Mart (LDM) client
+    "LDMClient",
+    # Modules
     "fetch",  # fetch module
+    "ldm",  # LDM module
 ]
