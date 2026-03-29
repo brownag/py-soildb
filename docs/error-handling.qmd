@@ -162,12 +162,13 @@ async def fetch_with_response_validation():
 Raised when there are connection issues with the AWDB service (timeouts, network errors, rate limiting).
 
 ```python
-from soildb.awdb import get_soil_moisture_data
+from soildb.awdb import AWDBClient
+from soildb.awdb.convenience import get_soil_moisture_by_depth
 from soildb.exceptions import AWDBConnectionError
 
 async def fetch_awdb_data():
     try:
-        data = await get_soil_moisture_data(
+        data = await get_soil_moisture_by_depth(
             latitude=42.0,
             longitude=-93.6,
             start_date="2024-01-01",
@@ -185,13 +186,14 @@ async def fetch_awdb_data():
 Raised when an AWDB query fails (invalid parameters, missing data).
 
 ```python
-from soildb.awdb import get_station_data
+from soildb.awdb import AWDBClient
 from soildb.exceptions import AWDBQueryError
 
 async def fetch_station_data():
     try:
-        # Query with invalid station ID
-        data = await get_station_data(station_id="INVALID_ID")
+        async with AWDBClient() as client:
+            # Query with invalid station triplet
+            data = await client.get_station_data("INVALID:STATION:TRIPLET", "SMS", "2024-01-01", "2024-01-10")
         return data
     except AWDBQueryError as e:
         print(f"AWDB query failed: {e}")

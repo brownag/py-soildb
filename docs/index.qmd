@@ -50,10 +50,10 @@ pip install soildb[all]
 - Spatial queries with points, bounding boxes, and polygons
 - Bulk data fetching with automatic pagination
 - Async I/O for high performance and concurrency
-- **NEW:** Access to AWDB (Air and Water Database) for real-time monitoring data
-- **NEW:** SCAN/SNOTEL station data with soil moisture, temperature, snow, and weather data
-- **NEW:** Advanced station filtering with wildcards and sensor discovery
-- **NEW:** Multi-depth soil data queries and forecast data retrieval
+- Access to AWDB (Air and Water Database) for real-time monitoring data
+- SCAN/SNOTEL station data with soil moisture, temperature, snow, and weather data
+- Advanced station filtering with wildcards and sensor discovery
+- Multi-depth soil data queries and forecast data retrieval
 
 ## Quick Start
 
@@ -227,7 +227,7 @@ The `component` table has a hierarchical relationship:
 
 So when fetching components, you typically want to filter by mukey to get all components for specific map units.
 
-The specialized `fetch_component_by_mukey()` convenience function handles this, but above we use the lower-level `fetch_by_keys()` with the `"mukey"` as the `key_column` to achieve the same result and demonstrate pagination over chunks with `100` rows each.
+Use `fetch_by_keys()` with `key_column="mukey"` to achieve this and demonstrate pagination over chunks with `100` rows each.
 
 ## AWDB (Air and Water Database) Access
 
@@ -281,21 +281,21 @@ except RuntimeError:
 ### Advanced Station Filtering
 
 ```python
-from soildb.awdb.convenience import find_stations_by_criteria
+from soildb.awdb.convenience import discover_stations
 
 # Find all SNOTEL stations in Oregon or Washington
-snotel_stations = await find_stations_by_criteria(
+snotel_stations = await discover_stations(
     station_triplets=['*:OR:SNTL', '*:WA:SNTL']
 )
 
 # Find stations with soil moisture sensors in specific HUC area
-soil_stations = await find_stations_by_criteria(
+soil_stations = await discover_stations(
     elements=['SMS:*'],
     hucs=['170601*']  # Columbia River basin
 )
 
 # Find stations by name pattern
-lake_stations = await find_stations_by_criteria(
+lake_stations = await discover_stations(
     station_names=['*Lake*']
 )
 ```
@@ -303,10 +303,10 @@ lake_stations = await find_stations_by_criteria(
 ### Multi-Depth Soil Data
 
 ```python
-from soildb.awdb.convenience import get_soil_moisture_data
+from soildb.awdb.convenience import get_soil_moisture_by_depth
 
 # Get soil moisture at multiple depths for a location
-soil_data = await get_soil_moisture_data(
+soil_data = await get_soil_moisture_by_depth(
     latitude=37.5,
     longitude=-120.5,
     start_date='2024-01-01',
@@ -324,7 +324,5 @@ for depth, readings in soil_data.items():
 See the [`examples/` directory](examples/) and [documentation](docs/) for detailed usage patterns.
 
 ## License
-
-This project 
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

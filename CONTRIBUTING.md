@@ -113,10 +113,11 @@ pytest -m integration
 
 ## Documentation
 
-Documentation is built using Sphinx. To build documentation locally:
+Documentation is built using Quarto. To build documentation locally:
 
 ```bash
 cd docs/
+quarto render
 make html
 ```
 

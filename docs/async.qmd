@@ -71,7 +71,7 @@ import soildb
 async def sequential_queries():
     async with soildb.SDAClient() as client:
         for area in ["IA109", "IA113", "IA117"]:
-            query = soildb.QueryBuilder.mapunits_by_legend(area)
+            query = soildb.query_templates.query_mapunits_by_legend(area)
             result = await client.execute(query)
             print(f"{area}: {len(result.to_pandas())} map units")
 
@@ -89,7 +89,7 @@ import soildb
 
 async def concurrent_queries_with_client():
     async with soildb.SDAClient() as client:
-        queries = [soildb.QueryBuilder.mapunits_by_legend(area) for area in ["IA109", "IA113", "IA117"]]
+        queries = [soildb.query_templates.query_mapunits_by_legend(area) for area in ["IA109", "IA113", "IA117"]]
         results = await asyncio.gather(*[client.execute(q) for q in queries])
         for result in results:
             print(f"Got {len(result.to_pandas())} map units")
@@ -190,6 +190,7 @@ app = FastAPI()
 
 @app.get("/soil/{areasymbol}")
 async def get_soil_data(areasymbol: str):
+    mapunits = await soildb.get_mapunit_by_areasymbol(areasymbol)
     return mapunits.to_pandas().to_dict('records')
 ```
 

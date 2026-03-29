@@ -92,9 +92,14 @@ query = (Query()
 print(query.to_sql())
 
 # Execute and get results
+import asyncio
 from soildb import SDAClient
-result = SDAClient().execute.sync(query)
-df = result.to_pandas()
+
+async def main():
+    result = await SDAClient().execute(query)
+    return result.to_pandas()
+
+df = asyncio.run(main())
 print(df.head())
 ```
 
@@ -341,10 +346,12 @@ paths = download_wss.sync(
 ```
 
 Each extracted survey area directory contains:
+
 - `tabular/` - Pipe-delimited TXT files with soil data tables
 - `spatial/` - ESRI shapefiles with map unit polygons and boundaries
 
 **Use Cases:**
+
 - **SDA**: Live queries, filtered data, programmatic access to current data
 - **WSS Downloads**: Complete offline datasets, bulk data for analysis, static snapshots updated annually
 

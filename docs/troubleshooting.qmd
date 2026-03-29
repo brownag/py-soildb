@@ -146,15 +146,15 @@ description: "Solutions to common issues with py-soildb"
        .limit(10))
    ```
 
-3. **Validate table and column names**
+3. **Inspect table structure**
    ```python
-   from soildb import SDAClient
-   from soildb.metadata import get_table_columns
-   
-   # Get available columns for a table
+   from soildb import Query, SDAClient
+
+   # Get sample data to see available columns
    async with SDAClient() as client:
-       columns = await get_table_columns("mapunit")
-       print(columns)
+       query = Query().select("*").from_("mapunit").limit(1)
+       result = await client.execute(query)
+       print(f"Available columns: {result.columns}")
    ```
 
 ### Issue: "No results returned"
@@ -202,8 +202,8 @@ description: "Solutions to common issues with py-soildb"
    
    # Check if data exists at a location
    response = await point_query(-93.6, 42.0, "mupolygon")
-   if response.rows:
-       print(f"Found {len(response.rows)} mapunits")
+   if response.data:
+       print(f"Found {len(response.data)} mapunits")
    else:
        print("No mapunits found at this location")
    ```
@@ -219,12 +219,13 @@ description: "Solutions to common issues with py-soildb"
 
 1. **Use existing templates for complex queries**
    ```python
-   from soildb import query_templates
-   
+   from soildb import query_templates, fetch_by_keys
+
    # Use pre-built templates instead of writing complex joins
    query = query_templates.query_mapunits_by_legend("IA109")
-   # or
-   query = query_templates.query_components_by_mapunit([mukey1, mukey2])
+
+   # For components, use fetch_by_keys with specific mukeys
+   response = await fetch_by_keys([mukey1, mukey2], "component", key_column="mukey")
    ```
 
 2. **Execute separate queries instead of complex joins**
@@ -481,7 +482,7 @@ description: "Solutions to common issues with py-soildb"
        response = await client.execute(query)
        
        # Process row by row
-       for row in response.rows:
+       for row in response.data:
            yield row
    ```
 
