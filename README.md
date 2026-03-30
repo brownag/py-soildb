@@ -6,24 +6,20 @@ version](https://badge.fury.io/py/soildb.svg)](https://pypi.org/project/soildb/)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Python client for the USDA-NRCS Soil Data Access (SDA) web service, NRCS
-monitoring networks (SCAN, SNOTEL), and other National Cooperative Soil
-Survey data sources.
+Python client for the USDA-NRCS Soil Data Access (SDA) web service and other
+National Cooperative Soil Survey data sources.
 
 ## Overview
 
 `soildb` provides Python access to:
-- **Soil Data**: USDA Soil Data Access (SDA) web service for soil survey data
-- **Weather Data**: NRCS Air and Water Database (AWDB) for soil and weather monitoring
+
+- **Soil Survey Data**: USDA Soil Data Access (SDA) web service for SSURGO/STATSGO
+- **Laboratory Data**: NCSS Kellogg Soil Survey Laboratory (KSSL) characterization data
 - **Bulk Downloads**: Complete SSURGO/STATSGO datasets from Web Soil Survey
-- **Integration**: Tools for combining soil and weather data for comprehensive analysis
+- **Multiple Backends**: Query data from SDA web service, local SQLite snapshots, or GeoPackage files
 
-Query soil survey data, environmental monitoring data, export to pandas/polars
-DataFrames, and handle spatial queries.
-
-**Note**: AWDB module provides complementary environmental data (soil moisture,
-temperature, precipitation). See the documentation in `docs/awdb.qmd` for guidance
-on how to use AWDB with soil data.
+Query soil survey data via web service or local database, export to pandas/polars DataFrames,
+and handle spatial queries.
 
 ## Installation
 
@@ -45,31 +41,36 @@ pip install soildb[all]
 
 ## Features
 
-**Soil Data (SDA)**
-- Query soil survey data from NRCS Soil Data Access
-- Export to pandas and polars DataFrames
+### Soil Survey Data (SDA)
+
+- Query SSURGO/STATSGO data from NRCS Soil Data Access web service
 - Build custom SQL queries with fluent interface
 - Spatial queries with points, bounding boxes, and polygons
-- Bulk data fetching with automatic pagination
-- Full pedon laboratory characterization data
+- Bulk data fetching with automatic pagination and chunking
+- Export to pandas and polars DataFrames
 
-**Web Soil Survey Downloads**
+### Laboratory Characterization Data
+
+- Access NCSS Kellogg Soil Survey Laboratory (KSSL) pedon data
+- Query via SDA web service or local SQLite snapshot databases
+- Full horizon-level data with lab analyses
+- Structured object models for nested pedon data
+- Support for flexible column selection
+
+### Web Soil Survey Downloads
+
 - Download complete SSURGO datasets as ZIP files
 - Download STATSGO (general soil map) data
 - Concurrent downloads with progress tracking
 - Automatic file extraction and organization
 - State-wide and custom area selections
 
-**Environmental Data (AWDB)**
-- Access soil moisture and temperature monitoring from SCAN stations
-- Retrieve precipitation, temperature, and weather data from SNOTEL and NWCC networks
-- Find nearest monitoring stations by location
-- Query historical weather patterns for climate analysis
+### Multi-Backend Support
 
-**Integration Features**
-- Combine soil properties with weather patterns for suitability analysis
-- Correlate soil characteristics with environmental responses
-- Validate soil survey data against field observations
+- Query from SDA web service (live data)
+- Query from local SQLite snapshots (offline analysis)
+- Support for GeoPackage files with spatial features
+- Unified interface across all backends
 - Async I/O for high performance and concurrency
 
 ## Quick Start
@@ -313,7 +314,7 @@ Use the `fetch_by_keys()` function with the `"mukey"` as the
 `key_column` to achieve this with automatic pagination over chunks with
 `100` rows each (or specify your own `chunk_size`).
 
-### Web Soil Survey Downloads
+### Bulk Downloads (Web Soil Survey)
 
 Download complete SSURGO and STATSGO datasets as ZIP files from the USDA Web Soil Survey portal:
 
