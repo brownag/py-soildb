@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.7.0] - 2026-03-29
+
+Major refactoring introducing multi-backend architecture and Laboratory Data Mart support.
+
+### Added
+
+- **Multi-Backend Architecture**: Unified data access across multiple sources
+  - `BaseBackend` abstract class defining unified interface
+  - SDABackend for HTTP queries via Soil Data Access
+  - SQLiteBackend for local SQLite database queries
+  - GeoPackageBackend for spatial GeoPackage files
+  - ResponseAdapter for converting backend results to SDAResponse
+  - SchemaIntrospector for database-agnostic schema discovery
+  - TypeMapperFactory for database-specific type mappings
+
+- **Laboratory Data Mart (LDM) Module**: Complete access to NCSS Soil Characterization Database
+  - `fetch_ldm()` high-level convenience function
+  - LDMClient for unified lab data queries via SDA or SQLite
+  - LDMQueryBuilder for LDM-specific SQL query building
+  - Comprehensive LDM table schema definitions
+  - Support for flexible column selection in lab pedon queries
+  - Structured object models for nested pedon data with horizons
+
+- **Backend Integration**: Extended fetch tier with backend support
+  - `fetch_by_keys()` now supports multiple backends
+  - SSURGOClient for structured SSURGO data from any backend
+  - Automatic backend selection based on data source
+
+### Changed
+
+- **API Naming Clarity**:
+  - `fetch_pedon_struct_*` → `fetch_labpedon_*` (lab pedon data)
+  - `fetch_mapunit_struct_by_point` → `fetch_ssurgo_mapunit_by_point` (structured SSURGO)
+  - Better distinction between generic and structured data access
+
+
+### Fixed
+
+- Type annotations across all new backend modules
+- Schema introspection for diverse database systems
+
+### Deprecated
+
+- Direct use of deprecated fetch functions (use `fetch_by_keys()` instead)
+
 ## [0.6.0] - 2026-01-09
 
 Release adding Web Soil Survey download capabilities for bulk SSURGO and STATSGO data acquisition.
@@ -15,15 +60,15 @@ Release adding Web Soil Survey download capabilities for bulk SSURGO and STATSGO
 
 ## [0.5.0] - 2026-01-02
 
-Release focusing on AWDB API improvements, HENRY database integration, and function renaming for semantic clarity.
+Release with function renaming for semantic clarity, HENRY database integration, and improved timezone handling.
 
 ### Breaking Changes
 
-- **AWDB API Function Renaming**: Introduced semantically clearer function names
+- **Function Renaming**: Introduced semantically clearer function names
   - `find_stations_by_criteria` → `discover_stations`
   - `get_monitoring_station_data` → `get_property_data_near`
   - Deprecated older function names (backward compatibility maintained)
-- **AWDB Parameter Renaming**: `begin_publication_date` → `start_publication_date` in AWDB client
+- **Parameter Renaming**: `begin_publication_date` → `start_publication_date`
 
 ### Added
 

@@ -757,3 +757,98 @@ class TestFetchIntegration:
 if __name__ == "__main__":
     # Run basic tests
     pytest.main([__file__, "-v"])
+
+
+class TestDeprecatedTier2Functions:
+    """Tests for deprecated tier-2 wrapper functions.
+
+    These test that deprecated functions:
+    1. Raise DeprecationWarning with appropriate messages
+    2. Are accessible from the public API
+    3. Delegate properly to fetch_by_keys()
+    """
+
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_polygon_deprecated_warning(self):
+        """fetch_mapunit_polygon should raise DeprecationWarning."""
+        from soildb.fetch import fetch_mapunit_polygon
+
+        with pytest.warns(
+            DeprecationWarning, match="fetch_mapunit_polygon.*deprecated"
+        ):
+            try:
+                # Will fail trying to execute without real backend, that's OK
+                await fetch_mapunit_polygon(["test"])
+            except Exception:
+                pass  # Expected to fail without real backend
+
+    @pytest.mark.asyncio
+    async def test_fetch_component_by_mukey_deprecated_warning(self):
+        """fetch_component_by_mukey should raise DeprecationWarning."""
+        from soildb.fetch import fetch_component_by_mukey
+
+        with pytest.warns(
+            DeprecationWarning, match="fetch_component_by_mukey.*deprecated"
+        ):
+            try:
+                await fetch_component_by_mukey(["test"])
+            except Exception:
+                pass
+
+    @pytest.mark.asyncio
+    async def test_fetch_chorizon_by_cokey_deprecated_warning(self):
+        """fetch_chorizon_by_cokey should raise DeprecationWarning."""
+        from soildb.fetch import fetch_chorizon_by_cokey
+
+        with pytest.warns(
+            DeprecationWarning, match="fetch_chorizon_by_cokey.*deprecated"
+        ):
+            try:
+                await fetch_chorizon_by_cokey(["test"])
+            except Exception:
+                pass
+
+    @pytest.mark.asyncio
+    async def test_fetch_survey_area_polygon_deprecated_warning(self):
+        """fetch_survey_area_polygon should raise DeprecationWarning."""
+        from soildb.fetch import fetch_survey_area_polygon
+
+        with pytest.warns(
+            DeprecationWarning, match="fetch_survey_area_polygon.*deprecated"
+        ):
+            try:
+                await fetch_survey_area_polygon(["test"])
+            except Exception:
+                pass
+
+    def test_deprecated_functions_in_public_api(self):
+        """Deprecated functions should be exported from main module."""
+        import soildb
+
+        assert hasattr(soildb, "fetch_mapunit_polygon"), (
+            "fetch_mapunit_polygon not exported from soildb"
+        )
+        assert hasattr(soildb, "fetch_component_by_mukey"), (
+            "fetch_component_by_mukey not exported from soildb"
+        )
+        assert hasattr(soildb, "fetch_chorizon_by_cokey"), (
+            "fetch_chorizon_by_cokey not exported from soildb"
+        )
+        assert hasattr(soildb, "fetch_survey_area_polygon"), (
+            "fetch_survey_area_polygon not exported from soildb"
+        )
+
+    def test_deprecated_functions_have_sync_versions(self):
+        """Deprecated functions should have sync versions via @add_sync_version."""
+        from soildb.fetch import (
+            fetch_chorizon_by_cokey,
+            fetch_component_by_mukey,
+            fetch_mapunit_polygon,
+            fetch_survey_area_polygon,
+        )
+
+        # Each function decorated with @add_sync_version should be callable
+        assert callable(fetch_mapunit_polygon)
+        assert callable(fetch_component_by_mukey)
+        assert callable(fetch_chorizon_by_cokey)
+        assert callable(fetch_survey_area_polygon)

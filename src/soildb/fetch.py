@@ -21,6 +21,7 @@ TIER 2 - SPECIALIZED CONVENIENCE FUNCTIONS (Use for specific tables):
 TIER 3 - COMPLEX MULTI-STEP FETCHES:
   fetch_pedons_by_bbox() - Lab pedons with optional site+horizon data
   fetch_pedon_horizons() - Horizon data for pedon sites
+  fetch_ldm() - Laboratory Data Mart queries (SDA or SQLite)
     - Complex: Multi-table joins, optional geometry, custom return types
     - Keep: Significant value over raw queries
 
@@ -75,6 +76,7 @@ RECOMMENDED USAGE PATTERNS:
 import asyncio
 import logging
 import math
+from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 
 from .client import SDAClient
@@ -943,17 +945,16 @@ def _format_key_for_sql(key: Union[str, int]) -> str:
         return str(key)
 
 
+# Deprecated: Use get_geometry_column_for_table from utils instead
 def _get_geometry_column_for_table(table: str) -> Optional[str]:
-    """Get the geometry column name for a spatial table."""
-    geometry_columns = {
-        "mupolygon": "mupolygongeo",
-        "sapolygon": "sapolygongeo",
-        "mupoint": "mupointgeo",
-        "muline": "mulinegeo",
-        "featpoint": "featpointgeo",
-        "featline": "featlinegeo",
-    }
-    return geometry_columns.get(table.lower())
+    """Get the geometry column name for a spatial table.
+
+    Deprecated: Use get_geometry_column_for_table from utils instead.
+    Kept for backward compatibility.
+    """
+    from .utils import get_geometry_column_for_table
+
+    return get_geometry_column_for_table(table)
 
 
 @add_sync_version
@@ -1130,6 +1131,217 @@ async def fetch_pedon_horizons(
     return await client.execute(query)
 
 
+@add_sync_version
+async def fetch_ldm(
+    x: Optional[Union[List[Union[str, int]], str, int]] = None,
+    what: str = "pedlabsampnum",
+    bycol: str = "pedon_key",
+    tables: Optional[List[str]] = None,
+    WHERE: Optional[str] = None,
+    chunk_size: int = 1000,
+    max_retries: int = 3,
+    layer_type: Optional[str] = None,
+    area_type: Optional[str] = None,
+    prep_code: str = "S",
+    analyzed_size_frac: str = "<2 mm",
+    dsn: Optional[Union[str, Path]] = None,
+    client: Optional[Union[SDAClient, Any]] = None,
+) -> SDAResponse:
+    """
+    Query Kellogg Soil Survey Laboratory Data Mart via SDA or SQLite snapshot.
+
+    This function provides access to laboratory soil characterization data from
+    the NCSS Kellogg Soil Survey Laboratory (KSSL). Data can be queried from the
+    Soil Data Access (SDA) web service or from a local SQLite snapshot.
+
+    This is a high-level convenience function that wraps LDMClient. For advanced
+    use cases or reusing connections, use LDMClient directly.
+
+    Args:
+        x: Values to search for in column specified by 'what'. Can be single value
+           or list. If both 'x' and 'WHERE' are None, returns empty result.
+        what: Column name for filtering. Common values:
+            - 'pedlabsampnum': Laboratory Pedon ID
+            - 'upedonid': User Pedon ID
+            - 'corr_name': Correlated Taxon Name
+            - 'samp_name': Sampled As Taxon Name
+            - 'pedon_key': Pedon internal key
+        bycol: Column name for chunking operations (default: 'pedon_key').
+               Used when 'x' contains more records than chunk_size.
+        tables: List of LDM tables to retrieve. If None, returns default tables:
+                - lab_physical_properties
+                - lab_chemical_properties
+                - lab_calculations_including_estimates_and_default_values
+                - lab_rosetta_Key
+                Optional tables available:
+                - lab_major_and_trace_elements_and_oxides
+                - lab_mineralogy_glass_count_and_optical_properties
+                - lab_mir
+                - lab_xrd_and_thermal
+        WHERE: Custom SQL WHERE clause. Cannot be combined with 'x' parameter.
+               Example: "corr_name LIKE 'Miami%' AND area_code = 'US'"
+        chunk_size: Number of records per query chunk (default: 1000).
+                    When 'x' exceeds this size, queries are split into chunks
+                    and executed concurrently for better performance.
+        max_retries: Maximum retry attempts with halved chunk_size (default: 3).
+                     If a chunked query fails, the chunk size is halved and
+                     the query is retried up to max_retries times.
+        layer_type: Filter by horizon type. Options:
+                    - None: All types (default)
+                    - 'horizon': Standard horizon
+                    - 'layer': Custom layer
+                    - 'reporting layer': Reporting layer
+        area_type: Filter by geographic classification. Options:
+                   - None: All types (default)
+                   - 'ssa': Soil Survey Area
+                   - 'state': State
+                   - 'county': County
+                   - 'mlra': Major Land Resource Area
+                   - 'nforest': National Forest
+                   - 'npark': National Park
+        prep_code: Sample preparation code (default: 'S' for sieved).
+                   Options:
+                   - 'S': Sieved (for topologically valid minimal overlaps)
+                   - 'D': Dispersed
+                   - 'C': Crushed
+                   - '': All preparation codes
+        analyzed_size_frac: Analyzed soil particle size (default: '<2 mm').
+                            Options:
+                            - '<2 mm': Standard soil fraction (most common)
+                            - '>2 mm': Coarse fraction
+                            - '2-5 mm': Specific size range
+                            - '': All size fractions
+        dsn: Path to SQLite database. If None, queries Soil Data Access web service.
+             Download SQLite snapshots from:
+             https://ncsslabdatamart.sc.egov.usda.gov/database_download.aspx
+        client: Optional LDMClient instance for connection reuse. If LDMClient
+                is not provided and dsn is None, a temporary SDAClient will be
+                created for the query.
+
+    Returns:
+        SDAResponse: Query results with laboratory data
+
+    Raises:
+        LDMParameterError: If invalid parameters provided
+        LDMQueryError: If query execution fails
+        LDMBackendSelectionError: If data source unavailable
+        FileNotFoundError: If dsn path doesn't exist
+
+    Examples:
+        Query by laboratory pedon ID via Soil Data Access::
+
+            >>> response = await fetch_ldm(
+            ...     x=['85P0234', '40A3306'],
+            ...     what='pedlabsampnum'
+            ... )
+            >>> df = response.to_pandas()
+
+        Query from local SQLite snapshot::
+
+            >>> response = await fetch_ldm(
+            ...     x=['85P0234'],
+            ...     what='pedlabsampnum',
+            ...     dsn='path/to/LDM_FY2025.sqlite'
+            ... )
+            >>> df = response.to_pandas()
+
+        Query by correlated taxon name via custom WHERE clause::
+
+            >>> response = await fetch_ldm(
+            ...     WHERE="corr_name LIKE 'Miami%' AND area_code = 'US'",
+            ...     tables=['lab_physical_properties', 'lab_chemical_properties']
+            ... )
+            >>> df = response.to_pandas()
+
+        Query with specific filtering for sieved samples::
+
+            >>> response = await fetch_ldm(
+            ...     x=['85P0234'],
+            ...     what='pedlabsampnum',
+            ...     prep_code='S',
+            ...     analyzed_size_frac='<2 mm',
+            ...     layer_type='horizon'
+            ... )
+
+        Synchronous API (automatic .sync() method)::
+
+            >>> response = fetch_ldm.sync(x=['85P0234'], what='pedlabsampnum')
+            >>> df = response.to_pandas()
+
+        Convert to other formats::
+
+            >>> response = await fetch_ldm(x=['85P0234'], what='pedlabsampnum')
+            >>> df = response.to_pandas()  # pandas DataFrame
+            >>> gdf = response.to_geodataframe()  # geopandas GeoDataFrame
+            >>> spc = response.to_soilprofilecollection()  # SoilProfileCollection
+
+    See Also:
+        - LDMClient: Lower-level client for advanced use cases
+        - fetch_by_keys: Universal key-based fetcher for any SSURGO table
+        - fetch_pedons_by_bbox: Fetch pedons in geographic area
+        - R fetchLDM docs: https://ncss-tech.github.io/soilDB/reference/fetchLDM.html
+        - Lab Data Mart: https://ncsslabdatamart.sc.egov.usda.gov
+    """
+
+    from .ldm import LDMClient
+
+    # Determine which backend to use
+    if client is None:
+        # Create temporary client
+        ldm_client = LDMClient(dsn=dsn)
+        try:
+            return await ldm_client.query(
+                x=x,
+                what=what,
+                bycol=bycol,
+                tables=tables,
+                WHERE=WHERE,
+                chunk_size=chunk_size,
+                max_retries=max_retries,
+                layer_type=layer_type,
+                area_type=area_type,
+                prep_code=prep_code,
+                analyzed_size_frac=analyzed_size_frac,
+            )
+        finally:
+            await ldm_client.close()
+    else:
+        # Use provided client
+        if isinstance(client, LDMClient):
+            return await client.query(
+                x=x,
+                what=what,
+                bycol=bycol,
+                tables=tables,
+                WHERE=WHERE,
+                chunk_size=chunk_size,
+                max_retries=max_retries,
+                layer_type=layer_type,
+                area_type=area_type,
+                prep_code=prep_code,
+                analyzed_size_frac=analyzed_size_frac,
+            )
+        else:
+            # Client is SDAClient, wrap it
+            ldm_client = LDMClient(dsn=dsn, sda_client=client)
+            try:
+                return await ldm_client.query(
+                    x=x,
+                    what=what,
+                    bycol=bycol,
+                    tables=tables,
+                    WHERE=WHERE,
+                    chunk_size=chunk_size,
+                    max_retries=max_retries,
+                    layer_type=layer_type,
+                    area_type=area_type,
+                    prep_code=prep_code,
+                    analyzed_size_frac=analyzed_size_frac,
+                )
+            finally:
+                await ldm_client.close()
+
+
 # ============================================================================
 # TIER 4 - KEY LOOKUP HELPERS (For planning multi-step fetches)
 # ============================================================================
@@ -1259,3 +1471,163 @@ async def get_cokey_by_mukey(
     df = response.to_pandas()
 
     return df["cokey"].tolist() if not df.empty else []
+
+
+# ============================================================================
+# TIER 2 - DEPRECATED WRAPPER FUNCTIONS (Backward Compatibility)
+# ============================================================================
+# These functions are kept for backward compatibility with older code.
+# They wrap fetch_by_keys() for specific common use cases.
+# DEPRECATED: Use fetch_by_keys() directly - it's more flexible and simpler.
+# These will be removed in soildb 1.0. See migration guidance in docstrings.
+
+
+@add_sync_version
+async def fetch_mapunit_polygon(
+    mukeys: List[Union[str, int]],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query mapunit polygons by mapunit keys.
+
+    This is a convenience wrapper around fetch_by_keys() for the common
+    pattern of retrieving polygon geometry for mapunits.
+
+    **Deprecated**: Use `fetch_by_keys(mukeys, "mupolygon")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        mukeys: List of mapunit keys to query
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with mupolygon records including geometry
+
+    Example:
+        >>> response = await fetch_mapunit_polygon(['1234567', '7654321'])
+        >>> gdf = response.to_geodataframe()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_mapunit_polygon() is deprecated, use "
+        "fetch_by_keys(mukeys, 'mupolygon') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        mukeys, "mupolygon", include_geometry=True, client=client
+    )
+
+
+@add_sync_version
+async def fetch_component_by_mukey(
+    mukeys: List[Union[str, int]],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query soil components by mapunit keys.
+
+    **Deprecated**: Use `fetch_by_keys(mukeys, "component", "mukey")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        mukeys: List of mapunit keys
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with component records
+
+    Example:
+        >>> response = await fetch_component_by_mukey(['1234567'])
+        >>> df = response.to_pandas()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_component_by_mukey() is deprecated, use "
+        "fetch_by_keys(mukeys, 'component', 'mukey') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        mukeys,
+        "component",
+        key_column="mukey",
+        client=client,
+    )
+
+
+@add_sync_version
+async def fetch_chorizon_by_cokey(
+    cokeys: List[Union[str, int]],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query soil component horizons by component keys.
+
+    **Deprecated**: Use `fetch_by_keys(cokeys, "chorizon", "cokey")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        cokeys: List of component keys
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with chorizon records
+
+    Example:
+        >>> response = await fetch_chorizon_by_cokey(['12345678'])
+        >>> df = response.to_pandas()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_chorizon_by_cokey() is deprecated, use "
+        "fetch_by_keys(cokeys, 'chorizon', 'cokey') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        cokeys,
+        "chorizon",
+        key_column="cokey",
+        client=client,
+    )
+
+
+@add_sync_version
+async def fetch_survey_area_polygon(
+    areasymbols: List[str],
+    client: Optional[SDAClient] = None,
+) -> SDAResponse:
+    """[DEPRECATED] Query survey area polygons by area symbols.
+
+    Retrieves the geographic extent polygons for SSURGO survey areas.
+
+    **Deprecated**: Use `fetch_by_keys(areasymbols, "sapolygon", "areasymbol")` instead.
+    This wrapper will be removed in soildb 1.0.
+
+    Args:
+        areasymbols: List of SSURGO area symbols (e.g., ['IA001', 'IA025'])
+        client: Optional SDAClient instance
+
+    Returns:
+        SDAResponse with sapolygon records including geometry
+
+    Example:
+        >>> response = await fetch_survey_area_polygon(['IA001', 'IA025'])
+        >>> gdf = response.to_geodataframe()
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_survey_area_polygon() is deprecated, use "
+        "fetch_by_keys(areasymbols, 'sapolygon', 'areasymbol') instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_by_keys(
+        areasymbols,
+        "sapolygon",
+        key_column="areasymbol",
+        include_geometry=True,
+        client=client,
+    )

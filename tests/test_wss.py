@@ -47,7 +47,9 @@ class TestWSSClient:
                 async def __aexit__(self, exc_type, exc_val, exc_tb):
                     pass
 
-            mock_client.stream = MagicMock(return_value=MockAsyncContextManager(mock_response))
+            mock_client.stream = MagicMock(
+                return_value=MockAsyncContextManager(mock_response)
+            )
 
             async with WSSClient() as client:
                 result = await client.download_zip(url, dest_path)
@@ -68,9 +70,12 @@ class TestWSSClient:
 
             # Mock 404 response
             from httpx import HTTPStatusError
+
             mock_response = MagicMock()
             mock_response.status_code = 404
-            mock_error = HTTPStatusError("Not Found", request=MagicMock(), response=mock_response)
+            mock_error = HTTPStatusError(
+                "Not Found", request=MagicMock(), response=mock_response
+            )
 
             mock_client.stream = MagicMock(side_effect=mock_error)
 
@@ -90,7 +95,7 @@ class TestWSSClient:
         test_files = {
             "file1.txt": "content1",
             "file2.csv": "content2",
-            "spatial.shp": "shapefile content"
+            "spatial.shp": "shapefile content",
         }
 
         with zipfile.ZipFile(zip_path, "w") as zf:
@@ -119,7 +124,7 @@ class TestWSSClient:
             "spatial.shp",
             "spatial.shx",
             "spatial.dbf",
-            "readme.md"
+            "readme.md",
         ]
 
         for filename in test_files:
@@ -178,7 +183,7 @@ class TestDownloadWSS:
         mock_df.empty = False
         mock_df.iterrows.return_value = [
             ("IA109", MagicMock(areasymbol="IA109", saverest="2023-10-01")),
-            ("IA113", MagicMock(areasymbol="IA113", saverest="2023-10-01"))
+            ("IA113", MagicMock(areasymbol="IA113", saverest="2023-10-01")),
         ]
         mock_response.to_pandas.return_value = mock_df
 
@@ -199,13 +204,12 @@ class TestDownloadWSS:
 
             # Mock extraction
             with patch.object(WSSClient, "extract_zip") as mock_extract:
-
                 mock_extract.side_effect = [dest_dir / "IA109", dest_dir / "IA113"]
 
                 result = await download_wss(
                     areasymbols=["IA109", "IA113"],
                     dest_dir=dest_dir,
-                    client=mock_sda_client
+                    client=mock_sda_client,
                 )
 
                 assert len(result) == 2
@@ -243,7 +247,7 @@ class TestDownloadWSS:
                 result = await download_wss(
                     where_clause="areasymbol LIKE 'IA%'",
                     dest_dir=dest_dir,
-                    client=mock_sda_client
+                    client=mock_sda_client,
                 )
 
                 assert len(result) == 1
@@ -280,7 +284,7 @@ class TestDownloadWSS:
                     areasymbols=["IA"],
                     db="STATSGO",
                     dest_dir=dest_dir,
-                    client=mock_sda_client
+                    client=mock_sda_client,
                 )
 
                 assert len(result) == 1
@@ -296,10 +300,7 @@ class TestDownloadWSS:
         mock_sda_client = AsyncMock()
         mock_sda_client.execute.return_value = mock_response
 
-        result = await download_wss(
-            areasymbols=["NONEXISTENT"],
-            client=mock_sda_client
-        )
+        result = await download_wss(areasymbols=["NONEXISTENT"], client=mock_sda_client)
 
         assert result == []
 
@@ -312,5 +313,7 @@ class TestDownloadWSS:
     @pytest.mark.asyncio
     async def test_missing_parameters(self):
         """Test missing required parameters."""
-        with pytest.raises(ValueError, match="Either areasymbols or where_clause must be provided"):
+        with pytest.raises(
+            ValueError, match="Either areasymbols or where_clause must be provided"
+        ):
             await download_wss()

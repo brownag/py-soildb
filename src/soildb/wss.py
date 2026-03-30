@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class WSSDownloadError(SoilDBError):
     """Exception raised for Web Soil Survey download errors."""
+
     pass
 
 
@@ -45,7 +46,12 @@ class WSSClient:
         self._client = httpx.AsyncClient(timeout=self.timeout)
         return self
 
-    async def __aexit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> None:
         """Async context manager exit."""
         if self._client:
             await self._client.aclose()
@@ -59,7 +65,7 @@ class WSSClient:
         self,
         url: str,
         dest_path: Union[str, Path],
-        progress_callback: Optional[Callable[[float, int, int], None]] = None
+        progress_callback: Optional[Callable[[float, int, int], None]] = None,
     ) -> Path:
         """
         Download a ZIP file from WSS.
@@ -107,7 +113,7 @@ class WSSClient:
     def extract_zip(
         zip_path: Union[str, Path],
         extract_dir: Union[str, Path],
-        remove_zip: bool = False
+        remove_zip: bool = False,
     ) -> Path:
         """
         Extract a ZIP file to a directory, handling nested directory structures.
@@ -162,13 +168,28 @@ class WSSClient:
                 filename = file_path.name.lower()
                 # Exclude known metadata files from tabular organization
                 is_metadata = (
-                    filename.startswith(('readme', 'metadata', 'soil_metadata')) or
-                    'metadata' in filename
+                    filename.startswith(("readme", "metadata", "soil_metadata"))
+                    or "metadata" in filename
                 )
 
                 if file_path.suffix.lower() in [".txt", ".csv"] and not is_metadata:
                     file_path.rename(tabular_dir / file_path.name)
-                elif file_path.suffix.lower() in [".shp", ".shx", ".dbf", ".prj", ".sbn", ".sbx", ".fbn", ".fbx", ".ain", ".aih", ".ixs", ".mxs", ".atx", ".shp.xml"]:
+                elif file_path.suffix.lower() in [
+                    ".shp",
+                    ".shx",
+                    ".dbf",
+                    ".prj",
+                    ".sbn",
+                    ".sbx",
+                    ".fbn",
+                    ".fbx",
+                    ".ain",
+                    ".aih",
+                    ".ixs",
+                    ".mxs",
+                    ".atx",
+                    ".shp.xml",
+                ]:
                     file_path.rename(spatial_dir / file_path.name)
             # Skip existing tabular/ and spatial/ subdirectories - they're already correctly organized
 
@@ -185,8 +206,8 @@ def build_ssurgo_url(areasymbol: str, saverest: Union[str, Any]) -> str:
         Download URL string
     """
     # Convert to string if it's a pandas Timestamp
-    if hasattr(saverest, 'strftime'):
-        date_str = saverest.strftime('%Y-%m-%d')
+    if hasattr(saverest, "strftime"):
+        date_str = saverest.strftime("%Y-%m-%d")
     else:
         # Assume it's already a string in YYYY-MM-DD format
         date_str = str(saverest)
@@ -205,8 +226,8 @@ def build_statsgo_url(areasymbol: str, saverest: Union[str, Any]) -> str:
         Download URL string
     """
     # Convert to string if it's a pandas Timestamp
-    if hasattr(saverest, 'strftime'):
-        date_str = saverest.strftime('%Y-%m-%d')
+    if hasattr(saverest, "strftime"):
+        date_str = saverest.strftime("%Y-%m-%d")
     else:
         # Assume it's already a string in YYYY-MM-DD format
         date_str = str(saverest)
@@ -281,6 +302,7 @@ async def download_wss(
 
     # Query sacatalog with custom WHERE
     from .query import Query
+
     query = Query().select(*columns).from_("sacatalog").where(where)
     response = await client.execute(query)
     metadata_df = response.to_pandas()
@@ -307,8 +329,8 @@ async def download_wss(
 
         # Create destination path
         # Convert saverest to string for filename
-        if hasattr(saverest, 'strftime'):
-            saverest_str = saverest.strftime('%Y%m%d')
+        if hasattr(saverest, "strftime"):
+            saverest_str = saverest.strftime("%Y%m%d")
         else:
             saverest_str = str(saverest).replace("-", "")
         zip_filename = f"{areasymbol}_{saverest_str}.zip"
@@ -319,7 +341,9 @@ async def download_wss(
     # Download files concurrently
     semaphore = asyncio.Semaphore(max_concurrent)
 
-    async def download_with_semaphore(url: str, zip_path: Path, areasymbol: str) -> Path:
+    async def download_with_semaphore(
+        url: str, zip_path: Path, areasymbol: str
+    ) -> Path:
         async with semaphore:
             logger.info(f"Downloading {areasymbol}...")
             async with WSSClient() as wss_client:
@@ -327,9 +351,11 @@ async def download_wss(
 
     # Execute downloads
     downloaded_paths = await asyncio.gather(
-        *[download_with_semaphore(url, zip_path, areasymbol)
-          for url, zip_path, areasymbol in download_tasks],
-        return_exceptions=True
+        *[
+            download_with_semaphore(url, zip_path, areasymbol)
+            for url, zip_path, areasymbol in download_tasks
+        ],
+        return_exceptions=True,
     )
 
     # Handle exceptions and collect successful downloads
@@ -348,7 +374,7 @@ async def download_wss(
     if extract:
         extracted_paths = []
         for zip_path in successful_paths:
-            areasymbol = zip_path.stem.split('_')[0]  # Extract areasymbol from filename
+            areasymbol = zip_path.stem.split("_")[0]  # Extract areasymbol from filename
             extract_dir = dest_dir / areasymbol
 
             try:

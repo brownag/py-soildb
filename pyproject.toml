@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "soildb"
-version = "0.6.0"
+version = "0.7.0"
 readme = "README.md"
 authors = [
     {name = "Andrew Brown", email = "brown.andrewg@gmail.com"},
@@ -28,6 +28,7 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "httpx>=0.24.0",
+    "aiosqlite>=0.19.0",
     "typing-extensions>=4.0.0; python_version<'3.10'",
 ]
 

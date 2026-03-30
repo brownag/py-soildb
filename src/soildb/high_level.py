@@ -16,9 +16,9 @@ ALTERNATIVES BY USE CASE:
 
 API TIER REFERENCE (in order of preference):
 1. HIGH-LEVEL (this module):
-   - fetch_mapunit_struct_by_point()
-   - fetch_pedon_struct_by_bbox()
-   - fetch_pedon_struct_by_id()
+   - fetch_ssurgo_mapunit_by_point() [SSURGO map units]
+   - fetch_labpedon_by_bbox()      [Lab pedon data from SDA]
+   - fetch_labpedon_by_id()        [Lab pedon data from SDA]
 
 2. MID-LEVEL (convenience):
    - get_mapunit_by_point()
@@ -32,13 +32,13 @@ API TIER REFERENCE (in order of preference):
 
 QUICK START:
 ```python
-# Get structured map unit with components and horizons
-mapunit = await fetch_mapunit_struct_by_point(latitude=42.0, longitude=-93.6)
+# Get structured SSURGO map unit with components and horizons
+mapunit = await fetch_ssurgo_mapunit_by_point(latitude=42.0, longitude=-93.6)
 for component in mapunit.components:
     print(f"{component.component_name}: {component.component_percentage}%")
 
-# Get pedons with nested horizons
-pedons = await fetch_pedon_struct_by_bbox(-94, 41.5, -93, 42.5)
+# Get lab pedons with nested horizons
+pedons = await fetch_labpedon_by_bbox(-94, 41.5, -93, 42.5)
 for pedon in pedons:
     depth = pedon.get_profile_depth()
     print(f"Pedon {pedon.pedon_id}: {depth} cm deep")
@@ -136,7 +136,7 @@ def _create_pedon_horizon_from_row(
 
 
 @add_sync_version
-async def fetch_mapunit_struct_by_point(
+async def fetch_ssurgo_mapunit_by_point(
     latitude: float,
     longitude: float,
     fill_components: bool = True,
@@ -146,15 +146,15 @@ async def fetch_mapunit_struct_by_point(
     client: Optional[SDAClient] = None,
 ) -> SoilMapUnit:  # type: ignore
     """
-    Fetch a structured SoilMapUnit object for a specific geographic location.
+    Fetch a structured SSURGO map unit object for a specific geographic location.
 
-    Returns a NESTED OBJECT MODEL with Map Unit → Components → Aggregate Horizons.
+    Returns a NESTED OBJECT MODEL with SSURGO Map Unit → Components → Aggregate Horizons.
 
     **USAGE EXAMPLES:**
 
     ```python
-    # Get map unit with components and horizons
-    mapunit = await fetch_mapunit_struct_by_point(
+    # Get SSURGO map unit with components and horizons
+    mapunit = await fetch_ssurgo_mapunit_by_point(
         latitude=42.0,
         longitude=-93.6
     )
@@ -172,8 +172,8 @@ async def fetch_mapunit_struct_by_point(
         for horizon in component.horizons:
             print(f"    Horizon {horizon.designation}: {horizon.texture_class}")
 
-    # Get only map unit (no components/horizons)
-    mapunit = await fetch_mapunit_struct_by_point(
+    # Get SSURGO map unit without components/horizons
+    mapunit = await fetch_ssurgo_mapunit_by_point(
         latitude=42.0,
         longitude=-93.6,
         fill_components=False
@@ -399,7 +399,7 @@ async def fetch_mapunit_struct_by_point(
 
 
 @add_sync_version
-async def fetch_pedon_struct_by_bbox(
+async def fetch_labpedon_by_bbox(
     min_x: float,
     min_y: float,
     max_x: float,
@@ -409,15 +409,15 @@ async def fetch_pedon_struct_by_bbox(
     client: Optional[SDAClient] = None,
 ) -> List[PedonData]:
     """
-    Fetch structured pedon data within a bounding box.
+    Fetch structured lab pedon data within a bounding box.
 
     Returns a list of PedonData objects with site information and laboratory-analyzed horizons.
 
     **USAGE EXAMPLES:**
 
     ```python
-    # Get all pedons in bounding box with horizons
-    pedons = await fetch_pedon_struct_by_bbox(
+    # Get all lab pedons in bounding box with horizons
+    pedons = await fetch_labpedon_by_bbox(
         min_x=-94.0,
         min_y=41.5,
         max_x=-93.0,
@@ -436,8 +436,8 @@ async def fetch_pedon_struct_by_bbox(
             for prop in horizon.properties:
                 print(f"      {prop.property_name}: {prop.representative_value}")
 
-    # Get pedons without horizons
-    pedons = await fetch_pedon_struct_by_bbox(
+    # Get lab pedons without horizons
+    pedons = await fetch_labpedon_by_bbox(
         min_x=-94.0,
         min_y=41.5,
         max_x=-93.0,
@@ -543,22 +543,22 @@ async def fetch_pedon_struct_by_bbox(
 
 
 @add_sync_version
-async def fetch_pedon_struct_by_id(
+async def fetch_labpedon_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
     horizon_columns: Optional[List[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> Optional[PedonData]:
     """
-    Fetch structured pedon data for a specific pedon.
+    Fetch structured lab pedon data for a specific pedon.
 
     Returns a PedonData object with site information and laboratory-analyzed horizons.
 
     **USAGE EXAMPLES:**
 
     ```python
-    # Get single pedon with all horizons
-    pedon = await fetch_pedon_struct_by_id("S1999NY061001")
+    # Get single lab pedon with all horizons
+    pedon = await fetch_labpedon_by_id("S1999NY061001")
 
     if pedon:
         print(f"Pedon: {pedon.pedon_id}")
@@ -574,8 +574,8 @@ async def fetch_pedon_struct_by_id(
             if depth_at:
                 print(f"    At 50 cm depth: {depth_at.designation}")
 
-    # Get pedon without horizons
-    pedon = await fetch_pedon_struct_by_id(
+    # Get lab pedon without horizons
+    pedon = await fetch_labpedon_by_id(
         "S1999NY061001",
         fill_horizons=False
     )
@@ -655,3 +655,100 @@ async def fetch_pedon_struct_by_id(
         pedon.horizons = horizons
 
     return pedon
+
+
+@add_sync_version
+async def fetch_mapunit_struct_by_point(
+    latitude: float,
+    longitude: float,
+    fill_components: bool = True,
+    fill_horizons: bool = True,
+    component_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[List[str]] = None,
+    client: Optional[SDAClient] = None,
+) -> SoilMapUnit:  # type: ignore
+    """
+    [DEPRECATED] Use fetch_ssurgo_mapunit_by_point() instead.
+
+    Fetch a structured map unit object for a specific geographic location.
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_mapunit_struct_by_point() is deprecated, use fetch_ssurgo_mapunit_by_point() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_ssurgo_mapunit_by_point(
+        latitude=latitude,
+        longitude=longitude,
+        fill_components=fill_components,
+        fill_horizons=fill_horizons,
+        component_columns=component_columns,
+        horizon_columns=horizon_columns,
+        client=client,
+    )
+
+
+# These functions are deprecated and will be removed in a future version.
+# Use the new names instead (fetch_labpedon_* instead of fetch_pedon_struct_*).
+
+
+@add_sync_version
+async def fetch_pedon_struct_by_bbox(
+    min_x: float,
+    min_y: float,
+    max_x: float,
+    max_y: float,
+    fill_horizons: bool = True,
+    horizon_columns: Optional[List[str]] = None,
+    client: Optional[SDAClient] = None,
+) -> List[PedonData]:
+    """
+    [DEPRECATED] Use fetch_labpedon_by_bbox() instead.
+
+    Fetch structured pedon data within a bounding box.
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_pedon_struct_by_bbox() is deprecated, use fetch_labpedon_by_bbox() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_labpedon_by_bbox(
+        min_x=min_x,
+        min_y=min_y,
+        max_x=max_x,
+        max_y=max_y,
+        fill_horizons=fill_horizons,
+        horizon_columns=horizon_columns,
+        client=client,
+    )
+
+
+@add_sync_version
+async def fetch_pedon_struct_by_id(
+    pedon_id: str,
+    fill_horizons: bool = True,
+    horizon_columns: Optional[List[str]] = None,
+    client: Optional[SDAClient] = None,
+) -> Optional[PedonData]:
+    """
+    [DEPRECATED] Use fetch_labpedon_by_id() instead.
+
+    Fetch structured pedon data for a specific pedon.
+    """
+    import warnings
+
+    warnings.warn(
+        "fetch_pedon_struct_by_id() is deprecated, use fetch_labpedon_by_id() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return await fetch_labpedon_by_id(
+        pedon_id=pedon_id,
+        fill_horizons=fill_horizons,
+        horizon_columns=horizon_columns,
+        client=client,
+    )

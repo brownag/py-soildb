@@ -11,7 +11,7 @@ try:
 except Exception:
     __version__ = "unknown"
 
-from . import fetch
+from . import fetch, ldm
 from .awdb import (
     AWDBClient,
     AWDBConnectionError,
@@ -25,16 +25,8 @@ from .awdb import (
     # New names (recommended)
     discover_stations,
     discover_stations_nearby,
-    # Deprecated names (for backward compatibility)
-    find_stations_by_criteria,
-    get_monitoring_station_data,
-    get_nearby_stations,
     get_property_data_near,
     get_soil_moisture_by_depth,
-    get_soil_moisture_data,
-    get_station_sensor_heights,
-    get_station_sensor_metadata,
-    list_available_variables,
     station_available_properties,
     station_sensor_depths,
     station_sensors,
@@ -61,15 +53,36 @@ from .exceptions import (
 from .fetch import (
     QueryPresets,
     fetch_by_keys,
+    fetch_chorizon_by_cokey,
+    fetch_component_by_mukey,
+    fetch_ldm,
+    fetch_mapunit_polygon,
     fetch_pedon_horizons,
     fetch_pedons_by_bbox,
+    fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
 from .high_level import (
+    fetch_labpedon_by_bbox,
+    fetch_labpedon_by_id,
+    # Deprecated names (for backward compatibility)
     fetch_mapunit_struct_by_point,
     fetch_pedon_struct_by_bbox,
     fetch_pedon_struct_by_id,
+    fetch_ssurgo_mapunit_by_point,
+)
+from .ldm import (
+    LDMBackendError,
+    LDMBackendSelectionError,
+    LDMClient,
+    LDMError,
+    LDMParameterError,
+    LDMQueryError,
+    LDMResponseError,
+    LDMSDAError,
+    LDMSQLiteError,
+    LDMTableError,
 )
 from .metadata import (
     MetadataParseError,
@@ -185,14 +198,6 @@ __all__ = [
     "station_available_properties",
     "station_sensor_depths",
     "station_sensors",
-    # Deprecated names (for backward compatibility)
-    "find_stations_by_criteria",
-    "get_monitoring_station_data",
-    "get_nearby_stations",
-    "get_soil_moisture_data",
-    "get_station_sensor_heights",
-    "get_station_sensor_metadata",
-    "list_available_variables",
     "AWDBError",
     "AWDBConnectionError",
     "AWDBQueryError",
@@ -211,6 +216,16 @@ __all__ = [
     "SDAResponseError",
     "MetadataParseError",
     "WSSDownloadError",
+    # LDM Exceptions
+    "LDMError",
+    "LDMBackendError",
+    "LDMSQLiteError",
+    "LDMSDAError",
+    "LDMBackendSelectionError",
+    "LDMQueryError",
+    "LDMParameterError",
+    "LDMTableError",
+    "LDMResponseError",
     # Metadata parsing
     "SurveyMetadata",
     "parse_survey_metadata",
@@ -230,7 +245,11 @@ __all__ = [
     "download_wss",
     # Sync versions available via .sync() decorator on all async functions
     # Example: get_mapunit_by_areasymbol.sync("IA109")
-    # High-level functions
+    # High-level functions (SSURGO and lab pedon data from SDA)
+    "fetch_ssurgo_mapunit_by_point",
+    "fetch_labpedon_by_bbox",
+    "fetch_labpedon_by_id",
+    # Deprecated names (for backward compatibility)
     "fetch_mapunit_struct_by_point",
     "fetch_pedon_struct_by_bbox",
     "fetch_pedon_struct_by_id",
@@ -245,9 +264,21 @@ __all__ = [
     "fetch_by_keys",  # Universal key-based fetcher - RECOMMENDED
     "fetch_pedons_by_bbox",  # Lab pedons with flexible return types
     "fetch_pedon_horizons",  # Horizon data for pedon sites
+    "fetch_ldm",  # Laboratory Data Mart queries (SDA or SQLite)
     "get_mukey_by_areasymbol",  # Discover mukeys from survey areas
     "get_cokey_by_mukey",  # Discover cokeys from map units
     "QueryPresets",  # Preset configurations for common queries
-    # Module
+    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
+    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
+    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
+    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
+    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
+    # Lab Data Mart (LDM) client
+    "LDMClient",
+    # Modules
     "fetch",  # fetch module
+    "ldm",  # LDM module
 ]

@@ -171,7 +171,7 @@ df = response.to_pandas()
 
 ```{python}
 #| eval: false
-from soildb import get_sacatalog, list_survey_areas
+from soildb import get_sacatalog
 
 # Get survey area catalog with custom columns
 response = await get_sacatalog(columns=['areasymbol', 'areaname'])
@@ -227,10 +227,10 @@ response = await spatial_query(
 from soildb import point_query, bbox_query
 
 # Point query (shorthand for spatial_query with POINT geometry)
-response = await point_query(-93.6, 42.0, "mupolygon")
+response = await point_query(42.0, -93.6, "mupolygon")
 
 # Bounding box query (shorthand for spatial_query with bbox)
-response = await bbox_query((-93.7, 42.0, -93.6, 42.1), "mupolygon")
+response = await bbox_query(-93.7, 42.0, -93.6, 42.1, "mupolygon")
 ```
 
 ## Bulk Data Fetching
@@ -297,31 +297,6 @@ mukeys = await get_mukey_by_areasymbol(["IA109", "IA113"])
 # Get cokeys for map units (major components only)
 cokeys = await get_cokey_by_mukey(mukeys, major_components_only=True)
 ```
-
-## AWDB Integration (NEW in v0.4.0)
-
-### Soil Water Availability Monitoring
-
-```{python}
-#| eval: false
-from soildb.awdb_integration import get_water_availability_by_location
-
-# Get water availability data for a location
-water_data = await get_water_availability_by_location(
-    lat=42.0,
-    lon=-93.6,
-    start_date="2024-01-01",
-    end_date="2024-12-31"
-)
-
-# Results include:
-# - Soil properties (e.g., available water capacity)
-# - Environmental data (soil moisture, temperature)
-# - Water stress indicators
-# - Time series analysis
-```
-
-See [AWDB Integration Guide](awdb.qmd) for detailed documentation.
 
 ## Error Handling
 
