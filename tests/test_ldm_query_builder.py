@@ -1,7 +1,11 @@
 """Unit tests for LDM query builder."""
 
+import inspect
+
 import pytest
 
+from soildb.fetch import fetch_ldm
+from soildb.ldm.client import LDMClient
 from soildb.ldm.exceptions import LDMParameterError, LDMTableError
 from soildb.ldm.query_builder import LDMQueryBuilder, build_ldm_query
 
@@ -12,14 +16,40 @@ class TestLDMQueryBuilder:
     def test_builder_initialization_default(self):
         """Test query builder with default parameters."""
         builder = LDMQueryBuilder()
-        assert builder.prep_code == "S"
-        assert builder.analyzed_size_frac == "<2 mm"
+        assert builder.prep_codes == ["S", ""]
+        assert builder.analyzed_size_fracs == ["<2 mm", ""]
+        assert builder.layer_types == ["horizon", "layer", "reporting layer"]
+        assert builder.area_type == "ssa"
 
     def test_builder_initialization_custom(self):
         """Test query builder with custom parameters."""
-        builder = LDMQueryBuilder(prep_code="D", analyzed_size_frac="")
-        assert builder.prep_code == "D"
-        assert builder.analyzed_size_frac == ""
+        builder = LDMQueryBuilder(prep_code="HM", analyzed_size_frac="")
+        assert builder.prep_codes == ["HM"]
+        assert builder.analyzed_size_fracs == [""]
+
+    def test_r_default_parity_fetch_ldm_signature(self):
+        """Ensure fetch_ldm defaults match R fetchLDM defaults."""
+        sig = inspect.signature(fetch_ldm)
+        assert sig.parameters["layer_type"].default == (
+            "horizon",
+            "layer",
+            "reporting layer",
+        )
+        assert sig.parameters["area_type"].default == "ssa"
+        assert sig.parameters["prep_code"].default == ("S", "")
+        assert sig.parameters["analyzed_size_frac"].default == ("<2 mm", "")
+
+    def test_r_default_parity_ldmclient_query_signature(self):
+        """Ensure LDMClient.query defaults match R fetchLDM defaults."""
+        sig = inspect.signature(LDMClient.query)
+        assert sig.parameters["layer_type"].default == (
+            "horizon",
+            "layer",
+            "reporting layer",
+        )
+        assert sig.parameters["area_type"].default == "ssa"
+        assert sig.parameters["prep_code"].default == ("S", "")
+        assert sig.parameters["analyzed_size_frac"].default == ("<2 mm", "")
 
     def test_builder_invalid_prep_code(self):
         """Test that invalid prep_code raises error."""
@@ -105,15 +135,24 @@ class TestLDMQueryBuilder:
         """Test query building with multiple filters."""
         builder = LDMQueryBuilder(
             layer_type="horizon",
-            area_type="state",
             prep_code="S",
             analyzed_size_frac="<2 mm",
         )
         query = builder.build_query(keys=["85P0234"], key_column="pedlabsampnum")
 
         assert "horizon" in query.lower()
-        assert "state" in query.lower()
         assert "prep_code" in query
+
+    def test_analyzed_size_frac_not_applied_to_default_flat_tables(self):
+        """Ensure analyzed_size_frac filter is only applied to fraction tables."""
+        builder = LDMQueryBuilder(
+            prep_code="S",
+            analyzed_size_frac="<2 mm",
+        )
+        query = builder.build_query(keys=["85P0234"], key_column="pedlabsampnum")
+
+        assert "prep_code" in query
+        assert "analyzed_size_frac" not in query
 
     def test_build_ldm_query_convenience(self):
         """Test convenience function for building queries."""

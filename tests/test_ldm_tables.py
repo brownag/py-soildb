@@ -11,6 +11,7 @@ class TestLDMTables:
         assert tables.DEFAULT_TABLES is not None
         assert len(tables.DEFAULT_TABLES) > 0
         assert "lab_physical_properties" in tables.DEFAULT_TABLES
+        assert "lab_rosetta_Key" in tables.DEFAULT_TABLES
 
     def test_all_tables_include_default(self):
         """Test that ALL_TABLES includes DEFAULT_TABLES."""
@@ -30,13 +31,13 @@ class TestLDMTables:
     def test_valid_prep_codes(self):
         """Test valid prep code values."""
         assert "S" in tables.PREP_CODES
-        assert "D" in tables.PREP_CODES
+        assert "HM" in tables.PREP_CODES
         assert "" in tables.PREP_CODES
 
     def test_valid_size_fractions(self):
         """Test valid size fraction values."""
         assert "<2 mm" in tables.ANALYZED_SIZE_FRACTIONS
-        assert ">2 mm" in tables.ANALYZED_SIZE_FRACTIONS
+        assert "0.02-0.05 mm" in tables.ANALYZED_SIZE_FRACTIONS
 
     def test_is_valid_table(self):
         """Test table validation."""

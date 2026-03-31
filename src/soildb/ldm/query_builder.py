@@ -6,7 +6,7 @@ filtering, and chunking support.
 """
 
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union
 
 from .exceptions import (
     LDMParameterError,
@@ -15,6 +15,10 @@ from .exceptions import (
 )
 from .tables import (
     DEFAULT_TABLES,
+    DEFAULT_ANALYZED_SIZE_FRACTIONS,
+    DEFAULT_AREA_TYPE,
+    DEFAULT_LAYER_TYPES,
+    DEFAULT_PREP_CODES,
     LAB_LAYER_TABLE,
     PEDON_TABLE,
     SITE_TABLE,
@@ -28,6 +32,27 @@ from .tables import (
 
 logger = logging.getLogger(__name__)
 
+# Mirror soilDB::fetchLDM filter behavior.
+# prep_code applies to selected flat property tables (excluding rosetta/mir),
+# analyzed_size_frac applies only to fractionated tables.
+PREP_FILTER_TABLES = {
+    "lab_physical_properties",
+    "lab_chemical_properties",
+    "lab_calculations_including_estimates_and_default_values",
+    "lab_major_and_trace_elements_and_oxides",
+    "lab_xray_and_thermal",
+    "lab_xrd_and_thermal",
+    "lab_mineralogy_glass_count",
+    "lab_mineralogy_glass_count_and_optical_properties",
+}
+
+FRACTION_FILTER_TABLES = {
+    "lab_mineralogy_glass_count",
+    "lab_mineralogy_glass_count_and_optical_properties",
+    "lab_xray_and_thermal",
+    "lab_xrd_and_thermal",
+}
+
 
 class LDMQueryBuilder:
     """Builder for LDM SQL queries with filtering and chunking support."""
@@ -35,24 +60,30 @@ class LDMQueryBuilder:
     def __init__(
         self,
         tables: Optional[List[str]] = None,
-        layer_type: Optional[str] = None,
-        area_type: Optional[str] = None,
-        prep_code: str = "S",
-        analyzed_size_frac: str = "<2 mm",
+        layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
+        area_type: Optional[str] = DEFAULT_AREA_TYPE,
+        prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
+        analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
     ):
         """Initialize query builder with filtering options.
 
         Args:
             tables: List of LDM tables to query. If None, uses defaults.
-            layer_type: Filter by horizon type (None for all)
-            area_type: Filter by geographic classification (None for all)
-            prep_code: Sample preparation code (default: "S")
-            analyzed_size_frac: Analyzed size fraction (default: "<2 mm")
+            layer_type: Filter by horizon type (single value or list)
+            area_type: Filter by geographic classification
+            prep_code: Sample preparation code(s). Can be string or list.
+                      Pass None for no filter. Defaults to ('S', '').
+            analyzed_size_frac: Analyzed size fraction(s). String or list.
+                               Pass None for no filter. Defaults to ('<2 mm', '').
 
         Raises:
             LDMParameterError: If invalid parameters provided
             LDMTableError: If invalid table names provided
         """
+        self.prep_codes: Optional[List[str]] = None
+        self.analyzed_size_fracs: Optional[List[str]] = None
+        self.layer_types: Optional[List[str]] = None
+
         # Validate and set tables
         self.tables = tables or DEFAULT_TABLES
         if not validate_tables(self.tables):
@@ -60,30 +91,58 @@ class LDMQueryBuilder:
             raise LDMTableError(f"Invalid table names: {invalid}")
 
         # Validate filtering parameters
-        if not is_valid_prep_code(prep_code):
-            raise LDMParameterError(
-                f"Invalid prep_code: '{prep_code}'",
-            )
+        if prep_code is not None:
+            if isinstance(prep_code, str):
+                if not is_valid_prep_code(prep_code):
+                    raise LDMParameterError(
+                        f"Invalid prep_code: '{prep_code}'",
+                    )
+                self.prep_codes = [prep_code]
+            else:
+                for code in prep_code:
+                    if not is_valid_prep_code(code):
+                        raise LDMParameterError(
+                            f"Invalid prep_code: '{code}'",
+                        )
+                self.prep_codes = list(prep_code)
 
-        if not is_valid_size_fraction(analyzed_size_frac):
-            raise LDMParameterError(
-                f"Invalid analyzed_size_frac: '{analyzed_size_frac}'",
-            )
+        if analyzed_size_frac is not None:
+            if isinstance(analyzed_size_frac, str):
+                if not is_valid_size_fraction(analyzed_size_frac):
+                    raise LDMParameterError(
+                        f"Invalid analyzed_size_frac: '{analyzed_size_frac}'",
+                    )
+                self.analyzed_size_fracs = [analyzed_size_frac]
+            else:
+                for frac in analyzed_size_frac:
+                    if not is_valid_size_fraction(frac):
+                        raise LDMParameterError(
+                            f"Invalid analyzed_size_frac: '{frac}'",
+                        )
+                self.analyzed_size_fracs = list(analyzed_size_frac)
 
-        if layer_type is not None and layer_type not in all_valid_layer_types():
-            raise LDMParameterError(
-                f"Invalid layer_type: '{layer_type}'",
-            )
+        if layer_type is not None:
+            if isinstance(layer_type, str):
+                if layer_type not in all_valid_layer_types():
+                    raise LDMParameterError(
+                        f"Invalid layer_type: '{layer_type}'",
+                    )
+                self.layer_types = [layer_type]
+            else:
+                for value in layer_type:
+                    if value not in all_valid_layer_types():
+                        raise LDMParameterError(
+                            f"Invalid layer_type: '{value}'",
+                        )
+                self.layer_types = list(layer_type)
 
         if area_type is not None and area_type not in all_valid_area_types():
             raise LDMParameterError(
                 f"Invalid area_type: '{area_type}'",
             )
 
-        self.layer_type = layer_type
+        self.layer_type = self.layer_types[0] if self.layer_types and len(self.layer_types) == 1 else None
         self.area_type = area_type
-        self.prep_code = prep_code
-        self.analyzed_size_frac = analyzed_size_frac
 
     def build_query(
         self,
@@ -123,7 +182,7 @@ class LDMQueryBuilder:
             if where_clause:
                 query += f"\n{where_clause}"
 
-            query += "\nORDER BY pedon_key, lab_layer_key"
+            query += f"\nORDER BY {LAB_LAYER_TABLE}.pedon_key, {LAB_LAYER_TABLE}.layer_key"
 
             return query
 
@@ -163,12 +222,8 @@ class LDMQueryBuilder:
         Returns:
             SELECT clause string
         """
-        # Start with pedon/site/layer tables
-        columns = [
-            f"{PEDON_TABLE}.*",
-            f"{SITE_TABLE}.*",
-            f"{LAB_LAYER_TABLE}.*",
-        ]
+        # Start with lab_layer table
+        columns = [f"{LAB_LAYER_TABLE}.*"]
 
         # Add columns from data tables
         for table in self.tables:
@@ -187,22 +242,36 @@ class LDMQueryBuilder:
         # Start with lab_layer as base (contains actual lab data)
         from_parts = [f"FROM {LAB_LAYER_TABLE}"]
 
-        # Join to pedon table
-        from_parts.append(
-            f"INNER JOIN {PEDON_TABLE} ON {LAB_LAYER_TABLE}.pedon_key = {PEDON_TABLE}.pedon_key"
-        )
-
-        # Join to site table
-        from_parts.append(
-            f"INNER JOIN {SITE_TABLE} ON {PEDON_TABLE}.site_key = {SITE_TABLE}.site_key"
-        )
-
-        # Join data tables
+        # Join data tables based on their key type
         for table in self.tables:
             if table not in [PEDON_TABLE, SITE_TABLE, LAB_LAYER_TABLE]:
-                from_parts.append(
-                    f"LEFT JOIN {table} ON {LAB_LAYER_TABLE}.lab_layer_key = {table}.lab_layer_key"
-                )
+                # Tables that join on labsampnum
+                if table in [
+                    "lab_physical_properties",
+                    "lab_chemical_properties",
+                    "lab_calculations_including_estimates_and_default_values",
+                    "lab_major_and_trace_elements_and_oxides",
+                    "lab_mir",
+                ]:
+                    join = (
+                        f"LEFT JOIN {table} ON {LAB_LAYER_TABLE}.labsampnum "
+                        f"= {table}.labsampnum"
+                    )
+                    from_parts.append(join)
+                # Tables that join on layer_key
+                elif table in ["lab_rosetta_Key"]:
+                    join = (
+                        f"LEFT JOIN {table} ON {LAB_LAYER_TABLE}.layer_key "
+                        f"= {table}.layer_key"
+                    )
+                    from_parts.append(join)
+                # Fractionated tables with special handling
+                elif table in ["lab_mineralogy_glass_count", "lab_xray_and_thermal"]:
+                    join = (
+                        f"LEFT JOIN {table} ON {LAB_LAYER_TABLE}.labsampnum "
+                        f"= {table}.labsampnum"
+                    )
+                    from_parts.append(join)
 
         return " ".join(from_parts)
 
@@ -241,23 +310,45 @@ class LDMQueryBuilder:
                     formatted_keys.append(str(key))
 
             key_list = ", ".join(formatted_keys)
-            conditions.append(f"{key_column} IN ({key_list})")
-
-        # Add prep_code filter
-        if self.prep_code:
-            conditions.append(f"prep_code = '{self.prep_code}'")
-
-        # Add analyzed_size_frac filter
-        if self.analyzed_size_frac:
-            conditions.append(f"analyzed_size_frac = '{self.analyzed_size_frac}'")
+            conditions.append(f"{LAB_LAYER_TABLE}.{key_column} IN ({key_list})")
 
         # Add layer_type filter
-        if self.layer_type:
-            conditions.append(f"layer_type = '{self.layer_type}'")
+        if self.layer_types:
+            if len(self.layer_types) == 1:
+                conditions.append(
+                    f"{LAB_LAYER_TABLE}.layer_type = '{self.layer_types[0]}'"
+                )
+            else:
+                layer_type_list = ", ".join(f"'{value}'" for value in self.layer_types)
+                conditions.append(
+                    f"{LAB_LAYER_TABLE}.layer_type IN ({layer_type_list})"
+                )
 
-        # Add area_type filter
-        if self.area_type:
-            conditions.append(f"area_type = '{self.area_type}'")
+        # Add prep_code filter for selected tables that support this field.
+        # Use AND across selected tables to match the reference implementation.
+        if self.prep_codes and self.tables:
+            prep_conditions = []
+            prep_code_list = ", ".join(f"'{code}'" for code in self.prep_codes)
+            for table in self.tables:
+                if table in PREP_FILTER_TABLES:
+                    prep_conditions.append(
+                        f"ISNULL({table}.prep_code, '') IN ({prep_code_list})"
+                    )
+            if prep_conditions:
+                conditions.append(f"({' AND '.join(prep_conditions)})")
+
+        # Add analyzed_size_frac filter only for fractionated tables.
+        # This prevents invalid column errors on non-fractionated tables.
+        if self.analyzed_size_fracs and self.tables:
+            frac_conditions = []
+            frac_list = ", ".join(f"'{frac}'" for frac in self.analyzed_size_fracs)
+            for table in self.tables:
+                if table in FRACTION_FILTER_TABLES:
+                    frac_conditions.append(
+                        f"ISNULL({table}.analyzed_size_frac, '') IN ({frac_list})"
+                    )
+            if frac_conditions:
+                conditions.append(f"({' AND '.join(frac_conditions)})")
 
         if not conditions:
             return ""
@@ -265,15 +356,37 @@ class LDMQueryBuilder:
         return "WHERE " + " AND ".join(conditions)
 
 
+def build_ldm_site_query(
+    WHERE: Optional[str] = None,
+) -> str:
+    """Build SQL query to get pedon_keys from lab_combine_nasis_ncss.
+
+    First-stage query retrieves site/pedon metadata and returns pedon_keys
+    needed for the second-stage layer query.
+
+    Args:
+        WHERE: Custom WHERE clause to filter on site/pedon columns
+
+    Returns:
+        SQL query string for site/pedon lookup
+    """
+    query = "SELECT DISTINCT pedon_key FROM lab_combine_nasis_ncss"
+
+    if WHERE:
+        query += f" WHERE {WHERE}"
+
+    return query
+
+
 def build_ldm_query(
     x: Optional[List[Union[str, int]]] = None,
     what: str = "pedon_key",
     tables: Optional[List[str]] = None,
     WHERE: Optional[str] = None,
-    layer_type: Optional[str] = None,
-    area_type: Optional[str] = None,
-    prep_code: str = "S",
-    analyzed_size_frac: str = "<2 mm",
+    layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
+    area_type: Optional[str] = DEFAULT_AREA_TYPE,
+    prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
+    analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
 ) -> str:
     """Convenience function to build a single LDM query.
 

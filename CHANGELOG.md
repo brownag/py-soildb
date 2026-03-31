@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.1] - 2026-03-30
+
+Patch release focused on LDM query parity, typing fixes, and cleanup.
+
+### Changed
+
+- Aligned LDM filter logic with `soilDB::fetchLDM` (table-scoped `prep_code`/`analyzed_size_frac`, `AND` semantics)
+- Minor LDM diagnostics/docs polish (table descriptions and parameter error messages)
+
+### Fixed
+
+- Fixed `Invalid column name 'analyzed_size_frac'` by applying size-fraction filters only to fractionated tables
+- Resolved remaining mypy issues in `LDMQueryBuilder` via explicit optional typing for filter attributes
+- Added a regression test for default flat-table queries and applied lint/format follow-up fixes
+
 ## [0.7.0] - 2026-03-29
 
 Major refactoring introducing multi-backend architecture and Laboratory Data Mart support.

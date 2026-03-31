@@ -15,8 +15,8 @@ from typing import Dict, List, Optional, Set
 # ============================================================================
 
 # Core tables (always available)
-PEDON_TABLE = "pedon"
-SITE_TABLE = "site"
+PEDON_TABLE = "lab_pedon"
+SITE_TABLE = "lab_site"
 LAB_LAYER_TABLE = "lab_layer"
 
 # Physical properties
@@ -107,18 +107,29 @@ TABLE_KEY_COLUMNS: Dict[str, str] = {
 
 # Sample preparation codes
 PREP_CODES = {
-    "S": "Sieved",
-    "D": "Dispersed",
-    "C": "Crushed",
     "": "All prep codes",
+    "F": "Fine-earth",
+    "GP": "Ground and passed",
+    "HM": "Hand mixed",
+    "HM_SK": "Hand mixed and sieved KSSL variant",
+    "M": "Mixed",
+    "N": "Natural",
+    "S": "Sieved",
 }
 
 # Analyzed size fractions
 ANALYZED_SIZE_FRACTIONS = {
-    "<2 mm": "Less than 2 mm (standard)",
-    ">2 mm": "Greater than 2 mm",
-    "2-5 mm": "2 to 5 mm",
     "": "All size fractions",
+    "<0.002 mm": "Clay-sized fraction",
+    "0.02-0.05 mm": "0.02 to 0.05 mm",
+    "0.05-0.1 mm": "0.05 to 0.1 mm",
+    "0.1-0.25 mm": "0.1 to 0.25 mm",
+    "0.25-0.5 mm": "0.25 to 0.5 mm",
+    "0.5-1 mm": "0.5 to 1 mm",
+    "1-2 mm": "1 to 2 mm",
+    "0.02-2 mm": "0.02 to 2 mm",
+    "0.05-2 mm": "0.05 to 2 mm",
+    "<2 mm": "Less than 2 mm (standard)",
 }
 
 # Layer types (horizon classifications)
@@ -178,6 +189,12 @@ DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_BY_COLUMN = "pedon_key"
 DEFAULT_MAX_RETRIES = 3
 
+# Default filtering behavior aligned with soilDB::fetchLDM
+DEFAULT_LAYER_TYPES = ("horizon", "layer", "reporting layer")
+DEFAULT_AREA_TYPE = "ssa"
+DEFAULT_PREP_CODES = ("S", "")
+DEFAULT_ANALYZED_SIZE_FRACTIONS = ("<2 mm", "")
+
 
 def get_table_description(table_name: str) -> str:
     """Get human-readable description of an LDM table.
@@ -189,11 +206,11 @@ def get_table_description(table_name: str) -> str:
         Description of the table
     """
     descriptions = {
-        LAB_PHYSICAL_PROPERTIES_TABLE: "Physical properties (texture, density, porosity, etc.)",
-        LAB_CHEMICAL_PROPERTIES_TABLE: "Chemical properties (pH, CEC, organic matter, nutrients, etc.)",
-        LAB_CALCULATIONS_TABLE: "Calculated properties and default estimates",
-        LAB_ROSETTA_KEY_TABLE: "ROSETTA model water retention parameters",
-        LAB_MAJOR_TRACE_ELEMENTS_TABLE: "Major and trace elements, oxides",
+        LAB_PHYSICAL_PROPERTIES_TABLE: "Physical properties (texture, density, etc.)",
+        LAB_CHEMICAL_PROPERTIES_TABLE: "Chemical properties (pH, CEC, organic matter, etc.)",
+        LAB_CALCULATIONS_TABLE: "Calculated properties and estimates",
+        LAB_ROSETTA_KEY_TABLE: "ROSETTA water retention model parameters",
+        LAB_MAJOR_TRACE_ELEMENTS_TABLE: "Major and trace elements and oxides",
         LAB_MINERALOGY_TABLE: "Mineralogy, glass count, optical properties",
         LAB_MIR_TABLE: "Mid-Infrared spectroscopy data",
         LAB_XRD_THERMAL_TABLE: "X-ray diffraction and thermal analysis",

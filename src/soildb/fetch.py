@@ -1140,10 +1140,10 @@ async def fetch_ldm(
     WHERE: Optional[str] = None,
     chunk_size: int = 1000,
     max_retries: int = 3,
-    layer_type: Optional[str] = None,
-    area_type: Optional[str] = None,
-    prep_code: str = "S",
-    analyzed_size_frac: str = "<2 mm",
+    layer_type: Union[str, Sequence[str], None] = ("horizon", "layer", "reporting layer"),
+    area_type: Optional[str] = "ssa",
+    prep_code: Union[str, Sequence[str], None] = ("S", ""),
+    analyzed_size_frac: Union[str, Sequence[str], None] = ("<2 mm", ""),
     dsn: Optional[Union[str, Path]] = None,
     client: Optional[Union[SDAClient, Any]] = None,
 ) -> SDAResponse:
@@ -1187,30 +1187,26 @@ async def fetch_ldm(
                      If a chunked query fails, the chunk size is halved and
                      the query is retried up to max_retries times.
         layer_type: Filter by horizon type. Options:
-                    - None: All types (default)
+                - ('horizon', 'layer', 'reporting layer') (default)
                     - 'horizon': Standard horizon
                     - 'layer': Custom layer
                     - 'reporting layer': Reporting layer
         area_type: Filter by geographic classification. Options:
-                   - None: All types (default)
+               - 'ssa': Soil Survey Area (default)
                    - 'ssa': Soil Survey Area
                    - 'state': State
                    - 'county': County
                    - 'mlra': Major Land Resource Area
                    - 'nforest': National Forest
                    - 'npark': National Park
-        prep_code: Sample preparation code (default: 'S' for sieved).
+        prep_code: Sample preparation code(s) (default: ('S', '')).
                    Options:
-                   - 'S': Sieved (for topologically valid minimal overlaps)
-                   - 'D': Dispersed
-                   - 'C': Crushed
-                   - '': All preparation codes
-        analyzed_size_frac: Analyzed soil particle size (default: '<2 mm').
+               - 'S', 'F', 'HM', 'HM_SK', 'GP', 'M', 'N', ''
+        analyzed_size_frac: Analyzed soil particle size (default: ('<2 mm', '')).
                             Options:
-                            - '<2 mm': Standard soil fraction (most common)
-                            - '>2 mm': Coarse fraction
-                            - '2-5 mm': Specific size range
-                            - '': All size fractions
+                    - '<2 mm', '<0.002 mm', '0.02-0.05 mm', '0.05-0.1 mm'
+                    - '0.1-0.25 mm', '0.25-0.5 mm', '0.5-1 mm', '1-2 mm'
+                    - '0.02-2 mm', '0.05-2 mm', ''
         dsn: Path to SQLite database. If None, queries Soil Data Access web service.
              Download SQLite snapshots from:
              https://ncsslabdatamart.sc.egov.usda.gov/database_download.aspx

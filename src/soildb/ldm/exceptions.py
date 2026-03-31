@@ -18,6 +18,8 @@ SoilDBError (inherited from main exceptions)
 
 from soildb.exceptions import SoilDBError
 
+from .tables import all_valid_prep_codes, all_valid_size_fractions
+
 
 class LDMError(SoilDBError):
     """Base exception for all LDM-related errors.
@@ -37,7 +39,7 @@ class LDMError(SoilDBError):
 class LDMBackendError(LDMError):
     """Base exception for LDM backend-related errors.
 
-    Catch this exception to handle all issues related to backend selection and operations.
+    Catch this exception to handle all backend selection and operation issues.
     """
 
     pass
@@ -108,13 +110,19 @@ class LDMParameterError(LDMQueryError):
     def __str__(self) -> str:
         """Return helpful parameter error message."""
         if "prep_code" in self.message:
-            return f"{self.message}. Valid prep_codes are: S (sieved), D (dispersed), C (crushed), or empty string."
+            codes = ", ".join(f"'{code}'" for code in sorted(all_valid_prep_codes()))
+            return f"{self.message}. Valid prep_codes: {codes}"
         elif "analyzed_size_frac" in self.message:
-            return f"{self.message}. Valid size fractions are: '<2 mm', '>2 mm', '2-5 mm', or empty string."
+            fracs = ", ".join(
+                f"'{frac}'" for frac in sorted(all_valid_size_fractions())
+            )
+            return f"{self.message}. Valid fractions: {fracs}"
         elif "layer_type" in self.message:
-            return f"{self.message}. Valid layer_types are: 'horizon', 'layer', 'reporting layer', or None."
+            types = "'horizon', 'layer', 'reporting layer', or None"
+            return f"{self.message}. Valid layer_types: {types}"
         elif "area_type" in self.message:
-            return f"{self.message}. Valid area_types are: 'ssa', 'state', 'county', 'mlra', 'nforest', 'npark', or None."
+            types = "'ssa', 'state', 'county', 'mlra', 'nforest', 'npark'"
+            return f"{self.message}. Valid area_types: {types} or None"
         return self.message
 
 

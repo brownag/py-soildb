@@ -8,7 +8,7 @@ or local SQLite snapshots with automatic chunking and retry logic.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Sequence, Union, cast
 
 from soildb.base_client import BaseDataAccessClient, ClientConfig
 from soildb.client import SDAClient
@@ -20,8 +20,15 @@ from .exceptions import (
     LDMParameterError,
     LDMQueryError,
 )
-from .query_builder import LDMQueryBuilder
-from .tables import DEFAULT_CHUNK_SIZE, DEFAULT_MAX_RETRIES
+from .query_builder import LDMQueryBuilder, build_ldm_site_query
+from .tables import (
+    DEFAULT_ANALYZED_SIZE_FRACTIONS,
+    DEFAULT_AREA_TYPE,
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_LAYER_TYPES,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_PREP_CODES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,12 +133,16 @@ class LDMClient(BaseDataAccessClient):
         WHERE: Optional[str] = None,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         max_retries: int = DEFAULT_MAX_RETRIES,
-        layer_type: Optional[str] = None,
-        area_type: Optional[str] = None,
-        prep_code: str = "S",
-        analyzed_size_frac: str = "<2 mm",
+        layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
+        area_type: Optional[str] = DEFAULT_AREA_TYPE,
+        prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
+        analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
     ) -> SDAResponse:
         """Execute LDM query with automatic chunking and retry logic.
+
+        Implements two-stage query pattern:
+        1. Query lab_combine_nasis_ncss for matching pedon_keys
+        2. Query lab_layer for data from those pedons
 
         Args:
             x: Values to search for in 'what' column. Can be single value or list.
@@ -141,10 +152,10 @@ class LDMClient(BaseDataAccessClient):
             WHERE: Custom SQL WHERE clause (overrides x/what parameters)
             chunk_size: Number of records per query chunk (default: 1000)
             max_retries: Maximum retry attempts with halved chunk_size (default: 3)
-            layer_type: Filter by horizon type
-            area_type: Filter by geographic classification
-            prep_code: Sample preparation code (default: 'S' for sieved)
-            analyzed_size_frac: Analyzed size fraction (default: '<2 mm')
+            layer_type: Filter by horizon type(s)
+            area_type: Filter by geographic classification (default: 'ssa')
+            prep_code: Sample preparation code(s) (default: ('S', ''))
+            analyzed_size_frac: Analyzed size fraction(s) (default: ('<2 mm', ''))
 
         Returns:
             SDAResponse: Query results
@@ -167,7 +178,48 @@ class LDMClient(BaseDataAccessClient):
             logger.warning("No query criteria provided (no x or WHERE)")
             return SDAResponse({"Table": [[], []]})
 
-        # Build query using query builder
+        # Build site WHERE clause if x and what provided
+        site_where = None
+        if x is not None and not WHERE:
+            # Escape string values
+            formatted_values = []
+            for val in x:
+                if isinstance(val, str):
+                    escaped = val.replace("'", "''")
+                    formatted_values.append(f"'{escaped}'")
+                else:
+                    formatted_values.append(str(val))
+            site_where = f"LOWER({what}) IN ({','.join([f'LOWER({v})' for v in formatted_values])})"
+        elif WHERE:
+            site_where = WHERE
+
+        # Stage 1: Get pedon_keys from lab_combine_nasis_ncss
+        pedon_keys = None
+        if site_where:
+            try:
+                site_query = build_ldm_site_query(WHERE=site_where)
+                logger.debug(f"Site query: {site_query}")
+                backend = await self._get_backend()
+                site_response = await backend.execute_query(site_query)
+
+                if not site_response.is_empty():
+                    # Extract pedon_keys from response
+                    response_data = site_response.to_dict()
+                    if response_data:
+                        # Each row is a dict with 'pedon_key' column
+                        pedon_keys = [row["pedon_key"] for row in response_data]
+
+                if not pedon_keys:
+                    logger.warning("No pedons matched site query criteria")
+                    return SDAResponse({"Table": [[], []]})
+
+            except Exception as e:
+                raise LDMQueryError(
+                    f"Failed to query site data: {str(e)}",
+                    details=str(e),
+                ) from e
+
+        # Stage 2: Query layer data
         try:
             query_builder = LDMQueryBuilder(
                 tables=tables,
@@ -179,19 +231,22 @@ class LDMClient(BaseDataAccessClient):
         except Exception as e:
             raise LDMParameterError(f"Invalid query parameters: {str(e)}") from e
 
-        # Execute query with chunking and retry logic
-        if x is not None and len(x) > chunk_size:
+        # Use pedon_keys from site query, or the original x values
+        keys_for_layer = pedon_keys or x
+
+        # Execute layer query with chunking and retry logic
+        if keys_for_layer and len(keys_for_layer) > chunk_size:
             # Need to chunk
             return await self._query_chunked(
                 query_builder=query_builder,
-                keys=x,
-                key_column=what,
+                keys=keys_for_layer,
+                key_column=bycol,
                 chunk_size=chunk_size,
                 max_retries=max_retries,
             )
         else:
             # Single query
-            sql = query_builder.build_query(keys=x, key_column=what, custom_where=WHERE)
+            sql = query_builder.build_query(keys=keys_for_layer, key_column=bycol)
             return await self._execute_query(sql, max_retries=max_retries)
 
     async def get_available_tables(self) -> List[str]:
