@@ -12,7 +12,7 @@ All spatial queries should use spatial_query(). See that function's docstring fo
 comprehensive documentation, examples, and design rationale.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from .client import SDAClient
 from .query import Query
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         BaseGeometry = Any
 
 # Type aliases for clarity
-GeometryInput = Union[str, "BaseGeometry", Dict[str, float]]
+GeometryInput = Union[str, "BaseGeometry", dict[str, float]]
 TableType = Literal[
     "legend",
     "mapunit",

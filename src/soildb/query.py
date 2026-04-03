@@ -3,7 +3,7 @@ SQL query building classes for SDA queries.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 
 # Standard column sets for common query patterns
@@ -195,8 +195,8 @@ class Query(BaseQuery):
         self._raw_sql: Optional[str] = None
         self._select_clause: str = "*"
         self._from_clause: str = ""
-        self._where_conditions: List[str] = []
-        self._join_clauses: List[str] = []
+        self._where_conditions: list[str] = []
+        self._join_clauses: list[str] = []
         self._order_by_clause: Optional[str] = None
         self._limit_count: Optional[int] = None
         # Spatial query support

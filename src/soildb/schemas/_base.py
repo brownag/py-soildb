@@ -6,7 +6,7 @@ This module is shared by all schema definitions.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 
 @dataclass
@@ -44,21 +44,21 @@ class TableSchema:
     """
 
     name: str
-    columns: Dict[str, ColumnSchema]
-    base_fields: Dict[str, Any] = field(default_factory=dict)
+    columns: dict[str, ColumnSchema]
+    base_fields: dict[str, Any] = field(default_factory=dict)
     version: str = "1.0"
 
-    def get_default_columns(self) -> List[str]:
+    def get_default_columns(self) -> list[str]:
         """Get list of default column names."""
         return [col.name for col in self.columns.values() if col.default]
 
-    def get_required_columns(self) -> List[str]:
+    def get_required_columns(self) -> list[str]:
         """Get list of required column names."""
         return [col.name for col in self.columns.values() if col.required]
 
     def process_row(
-        self, row: Any, requested_columns: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        self, row: Any, requested_columns: Optional[list[str]] = None
+    ) -> dict[str, Any]:
         """Process a data row according to the schema.
 
         Args:
@@ -101,7 +101,7 @@ class TableSchema:
                 return col
         return None
 
-    def get_columns_for_field(self, field_name: str) -> List[str]:
+    def get_columns_for_field(self, field_name: str) -> list[str]:
         """Get all database columns that map to a specific field."""
         return [
             col.name for col in self.columns.values() if col.field_name == field_name

@@ -21,7 +21,7 @@ Example:
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
 
 @dataclass
@@ -43,10 +43,10 @@ class ColumnConfig:
     horizon_top_col: str
     horizon_bottom_col: str
     description: str = ""
-    required_columns: Optional[List[str]] = None
-    optional_columns: Optional[List[str]] = None
+    required_columns: Optional[list[str]] = None
+    optional_columns: Optional[list[str]] = None
 
-    def get_config_dict(self) -> Dict[str, str]:
+    def get_config_dict(self) -> dict[str, str]:
         """Get configuration as dictionary for to_soilprofilecollection()."""
         return {
             "site_id_col": self.site_id_col,
@@ -55,7 +55,7 @@ class ColumnConfig:
             "hz_bot_col": self.horizon_bottom_col,
         }
 
-    def get_required_columns(self) -> List[str]:
+    def get_required_columns(self) -> list[str]:
         """Get list of all required columns for this configuration."""
         if self.required_columns is None:
             return [
@@ -66,7 +66,7 @@ class ColumnConfig:
             ]
         return self.required_columns
 
-    def get_all_columns(self) -> List[str]:
+    def get_all_columns(self) -> list[str]:
         """Get list of all required + optional columns."""
         required = self.get_required_columns()
         optional = self.optional_columns or []
@@ -267,8 +267,8 @@ class CustomColumnConfig(ColumnConfig):
         horizon_top_col: str,
         horizon_bottom_col: str,
         description: str = "Custom column configuration",
-        required_columns: Optional[List[str]] = None,
-        optional_columns: Optional[List[str]] = None,
+        required_columns: Optional[list[str]] = None,
+        optional_columns: Optional[list[str]] = None,
     ):
         super().__init__(
             site_id_col=site_id_col,
@@ -314,7 +314,7 @@ def get_preset(name: str) -> ColumnConfig:
     return PRESET_REGISTRY[name]()
 
 
-def list_presets() -> Dict[str, str]:
+def list_presets() -> dict[str, str]:
     """
     List all available presets with descriptions.
 

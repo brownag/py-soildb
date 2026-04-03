@@ -4,7 +4,7 @@ Data models for AWDB (Air and Water Database)
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -30,9 +30,9 @@ class StationInfo:
     operator: Optional[str] = None
     begin_date: Optional[str] = None
     end_date: Optional[str] = None
-    forecast_point: Optional[Dict[str, Any]] = None
-    reservoir_metadata: Optional[Dict[str, Any]] = None
-    station_elements: Optional[List[Dict[str, Any]]] = None  # type: ignore
+    forecast_point: Optional[dict[str, Any]] = None
+    reservoir_metadata: Optional[dict[str, Any]] = None
+    station_elements: Optional[list[dict[str, Any]]] = None  # type: ignore
 
 
 @dataclass
@@ -41,7 +41,7 @@ class TimeSeriesDataPoint:
 
     timestamp: datetime
     value: Optional[float]
-    flags: List[str] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
 
     # Element/variable identification
     element_code: Optional[str] = None  # e.g., 'SMS:-20:1', 'TOBS:0:1'
@@ -71,7 +71,7 @@ class StationTimeSeries:
 
     station: StationInfo
     property_name: str
-    data_points: List[TimeSeriesDataPoint]
+    data_points: list[TimeSeriesDataPoint]
     unit: str
     depth_cm: Optional[int] = None
 
@@ -82,20 +82,20 @@ class ForecastData:
 
     station_triplet: str
     forecast_point_name: Optional[str] = None
-    data: List[Dict[str, Any]] = field(default_factory=list)
+    data: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
 class ReferenceData:
     """Reference data from AWDB."""
 
-    dcos: Optional[List[Dict[str, Any]]] = None
-    durations: Optional[List[Dict[str, Any]]] = None
-    elements: Optional[List[Dict[str, Any]]] = None
-    forecast_periods: Optional[List[Dict[str, Any]]] = None
-    functions: Optional[List[Dict[str, Any]]] = None
-    instruments: Optional[List[Dict[str, Any]]] = None
-    networks: Optional[List[Dict[str, Any]]] = None
-    physical_elements: Optional[List[Dict[str, Any]]] = None
-    states: Optional[List[Dict[str, Any]]] = None
-    units: Optional[List[Dict[str, Any]]] = None
+    dcos: Optional[list[dict[str, Any]]] = None
+    durations: Optional[list[dict[str, Any]]] = None
+    elements: Optional[list[dict[str, Any]]] = None
+    forecast_periods: Optional[list[dict[str, Any]]] = None
+    functions: Optional[list[dict[str, Any]]] = None
+    instruments: Optional[list[dict[str, Any]]] = None
+    networks: Optional[list[dict[str, Any]]] = None
+    physical_elements: Optional[list[dict[str, Any]]] = None
+    states: Optional[list[dict[str, Any]]] = None
+    units: Optional[list[dict[str, Any]]] = None

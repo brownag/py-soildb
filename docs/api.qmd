@@ -1,5 +1,9 @@
 # API Reference
 
+**This is the API reference tier** - for detailed usage patterns and examples, see [Common Workflows](workflows.qmd) or [Quick Start](quickstart.qmd).
+
+---
+
 ## Client
 
 ### `SDAClient`

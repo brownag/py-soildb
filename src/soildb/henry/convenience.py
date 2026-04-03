@@ -5,7 +5,7 @@ These functions provide simple async/sync interfaces for common Henry database
 queries without needing to instantiate the client directly.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..utils import add_sync_version
 from .client import HenryClient
@@ -18,7 +18,7 @@ async def find_henry_stations(
     sso_code: Optional[str] = None,
     state_code: Optional[str] = None,
     active_only: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Find Henry stations matching specified criteria.
 
@@ -92,7 +92,7 @@ async def fetch_henry_data(
     start_date: str,
     end_date: str,
     duration: str = "DAILY",
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch time series data from a Henry station.
 
@@ -171,7 +171,7 @@ async def fetch_henry_data(
 @add_sync_version
 async def get_henry_variables(
     station_id: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get available variables/sensors for a Henry station.
 
@@ -215,7 +215,7 @@ async def get_henry_variables(
 @add_sync_version
 async def list_henry_projects(
     sso_code: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     List unique projects available in Henry database.
 

@@ -6,7 +6,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from functools import cached_property
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .exceptions import SoilDBError
 
@@ -74,7 +74,7 @@ class SurveyMetadata:
         element = self._root.find(xpath)
         return element.text.strip() if element is not None and element.text else default
 
-    def _find_all_text(self, xpath: str) -> List[str]:
+    def _find_all_text(self, xpath: str) -> list[str]:
         """Find all text content matching XPath."""
         if self._root is None:
             return []
@@ -173,7 +173,7 @@ class SurveyMetadata:
         return self._find_text(".//idinfo/ptcontac/cntinfo/cntvoice")
 
     @cached_property
-    def bounding_box(self) -> Dict[str, Optional[float]]:
+    def bounding_box(self) -> dict[str, Optional[float]]:
         """Geographic bounding box coordinates in decimal degrees (WGS84)."""
         return {
             "west": self._parse_float(
@@ -200,19 +200,19 @@ class SurveyMetadata:
             return None
 
     @cached_property
-    def keywords(self) -> List[str]:
+    def keywords(self) -> list[str]:
         """Combined list of all theme and place keywords from the metadata."""
         theme_keywords = self._find_all_text(".//idinfo/keywords/theme/themekey")
         place_keywords = self._find_all_text(".//idinfo/keywords/place/placekey")
         return theme_keywords + place_keywords
 
     @cached_property
-    def theme_keywords(self) -> List[str]:
+    def theme_keywords(self) -> list[str]:
         """Theme-based keywords."""
         return self._find_all_text(".//idinfo/keywords/theme/themekey")
 
     @cached_property
-    def place_keywords(self) -> List[str]:
+    def place_keywords(self) -> list[str]:
         """Place-based keywords."""
         return self._find_all_text(".//idinfo/keywords/place/placekey")
 
@@ -263,7 +263,7 @@ class SurveyMetadata:
         """Reference ellipsoid."""
         return self._find_text(".//spref/horizsys/geodetic/ellips")
 
-    def get_process_steps(self) -> List[Dict[str, Optional[str]]]:
+    def get_process_steps(self) -> list[dict[str, Optional[str]]]:
         """Get all processing steps with dates and descriptions."""
         if self._root is None:
             return []
@@ -300,7 +300,7 @@ class SurveyMetadata:
 
         return steps
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metadata to dictionary format.
 
         Returns:
@@ -396,7 +396,7 @@ def parse_survey_metadata(
     return SurveyMetadata(xml_content, areasymbol)
 
 
-def extract_metadata_summary(xml_content: str) -> Dict[str, Any]:
+def extract_metadata_summary(xml_content: str) -> dict[str, Any]:
     """
     Extract a summary of key metadata fields.
 
@@ -430,8 +430,8 @@ def extract_metadata_summary(xml_content: str) -> Dict[str, Any]:
 
 
 def search_metadata_by_keywords(
-    metadata_list: List[SurveyMetadata], keywords: List[str], match_all: bool = False
-) -> List[SurveyMetadata]:
+    metadata_list: list[SurveyMetadata], keywords: list[str], match_all: bool = False
+) -> list[SurveyMetadata]:
     """
     Search metadata by keywords.
 
@@ -485,12 +485,12 @@ def search_metadata_by_keywords(
 
 
 def filter_metadata_by_bbox(
-    metadata_list: List[SurveyMetadata],
+    metadata_list: list[SurveyMetadata],
     west: float,
     south: float,
     east: float,
     north: float,
-) -> List[SurveyMetadata]:
+) -> list[SurveyMetadata]:
     """
     Filter metadata by geographic bounding box.
 
@@ -551,7 +551,7 @@ def filter_metadata_by_bbox(
     return results
 
 
-def get_metadata_statistics(metadata_list: List[SurveyMetadata]) -> Dict[str, Any]:
+def get_metadata_statistics(metadata_list: list[SurveyMetadata]) -> dict[str, Any]:
     """
     Get aggregate statistics from a list of metadata objects.
 

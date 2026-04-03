@@ -4,9 +4,10 @@ Response handling for SDA query results with proper data type conversion.
 
 import json
 import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from .exceptions import SDAResponseError
 from .spc_presets import ColumnConfig
@@ -161,9 +162,9 @@ class ResponseValidator:
     @staticmethod
     def _validate_schema(
         response: "SDAResponse",
-        required_columns: List[str],
+        required_columns: list[str],
         response_type: str,
-        optional_columns: Optional[List[str]] = None,
+        optional_columns: Optional[list[str]] = None,
     ) -> "ValidationResult":
         """Validate response schema against required columns.
 
@@ -317,7 +318,7 @@ class ResponseValidator:
 
     @staticmethod
     def validate_type_system(
-        response: "SDAResponse", data_dicts: List[Dict[str, Any]]
+        response: "SDAResponse", data_dicts: list[dict[str, Any]]
     ) -> "ValidationResult":
         """Validate data types in transformed data.
 
@@ -447,12 +448,12 @@ class ResponseValidator:
 class ValidationResult:
     """Result of response validation with warnings and errors."""
 
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     data_quality_score: float = 1.0  # 1.0 = perfect, 0.0 = unusable
-    transformations_applied: List[str] = field(default_factory=list)
-    processing_stats: Dict[str, Any] = field(default_factory=dict)
+    transformations_applied: list[str] = field(default_factory=list)
+    processing_stats: dict[str, Any] = field(default_factory=dict)
 
     def add_error(self, error: str) -> None:
         """Add a validation error."""
@@ -538,15 +539,15 @@ class SDAResponse:
         "xml": "string",
     }
 
-    def __init__(self, raw_data: Dict[str, Any]):
+    def __init__(self, raw_data: dict[str, Any]):
         """Initialize from SDA JSON response."""
         self._raw_data = raw_data
         self._validation_result: Optional[ValidationResult] = None
-        self._transformations_applied: List[str] = []
-        self._processing_stats: Dict[str, Any] = {}
-        self._columns: List[str] = []
-        self._metadata: List[str] = []
-        self._data: List[List[Any]] = []
+        self._transformations_applied: list[str] = []
+        self._processing_stats: dict[str, Any] = {}
+        self._columns: list[str] = []
+        self._metadata: list[str] = []
+        self._data: list[list[Any]] = []
         self._parse_response()
 
     def _parse_response(self) -> None:
@@ -628,17 +629,17 @@ class SDAResponse:
             raise SDAResponseError(f"Failed to parse JSON response: {e}") from e
 
     @property
-    def columns(self) -> List[str]:
+    def columns(self) -> list[str]:
         """Get column names."""
         return self._columns
 
     @property
-    def data(self) -> List[List[Any]]:
+    def data(self) -> list[list[Any]]:
         """Get raw data rows."""
         return self._data
 
     @property
-    def metadata(self) -> List[str]:
+    def metadata(self) -> list[str]:
         """Get column metadata."""
         return self._metadata
 
@@ -650,7 +651,7 @@ class SDAResponse:
         """Check if the response contains any data rows."""
         return len(self._data) == 0
 
-    def __iter__(self) -> "Iterator[List[Any]]":
+    def __iter__(self) -> "Iterator[list[Any]]":
         """Iterate over data rows."""
         return iter(self._data)
 
@@ -689,10 +690,10 @@ class SDAResponse:
 
     @staticmethod
     def handle_missing_fields(
-        data: Dict[str, Any],
-        required_fields: List[str],
-        fallback_values: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Dict[str, Any], List[str]]:
+        data: dict[str, Any],
+        required_fields: list[str],
+        fallback_values: Optional[dict[str, Any]] = None,
+    ) -> tuple[dict[str, Any], list[str]]:
         """Handle missing required fields with fallbacks or defaults.
 
         Args:
@@ -726,7 +727,7 @@ class SDAResponse:
 
         return processed_data, missing_fields
 
-    def to_dict(self) -> List[Dict[str, Any]]:
+    def to_dict(self) -> list[dict[str, Any]]:
         """Convert to list of dictionaries with basic type conversion and error recovery.
 
         Returns:
@@ -794,7 +795,7 @@ class SDAResponse:
 
         return result
 
-    def to_records(self) -> List[Dict[str, Any]]:
+    def to_records(self) -> list[dict[str, Any]]:
         """Alias for to_dict() for compatibility."""
         return self.to_dict()
 
@@ -807,7 +808,7 @@ class SDAResponse:
         type_map = get_default_type_map()
         return type_map.convert_value(value, sda_type, strict=False)
 
-    def _get_pandas_dtype_mapping(self) -> Dict[str, str]:
+    def _get_pandas_dtype_mapping(self) -> dict[str, str]:
         """Get pandas-compatible dtype mapping using unified TypeMap."""
         column_types = self.get_column_types()
         dtype_mapping = {}
@@ -818,7 +819,7 @@ class SDAResponse:
 
         return dtype_mapping
 
-    def _get_polars_dtype_mapping(self) -> Dict[str, Any]:
+    def _get_polars_dtype_mapping(self) -> dict[str, Any]:
         """Get polars-compatible dtype mapping using unified TypeMap."""
         try:
             import polars  # noqa: F401
@@ -1224,7 +1225,7 @@ class SDAResponse:
 
         return report
 
-    def get_column_types(self) -> Dict[str, str]:
+    def get_column_types(self) -> dict[str, str]:
         """Extract column data types from metadata."""
         if not self._metadata:
             return {}
@@ -1243,7 +1244,7 @@ class SDAResponse:
 
         return types
 
-    def get_python_types(self) -> Dict[str, str]:
+    def get_python_types(self) -> dict[str, str]:
         """Get Python-compatible type mapping using unified TypeMap."""
         sda_types = self.get_column_types()
         python_types = {}
@@ -1287,7 +1288,7 @@ class SDAResponse:
         """Check if the response passed validation (no errors)."""
         return self.validation_result.is_valid()
 
-    def get_validation_summary(self) -> Dict[str, Any]:
+    def get_validation_summary(self) -> dict[str, Any]:
         """Get a summary of validation results."""
         result = self.validation_result
         return {
@@ -1303,7 +1304,7 @@ class SDAResponse:
 
     def recover_partial_data(
         self, max_errors: int = 10
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Attempt to recover partial data by skipping malformed records.
 
         Args:
@@ -1374,10 +1375,10 @@ class SDAResponse:
 
     @staticmethod
     def find_fallback_columns(
-        available_columns: List[str],
-        preferred_columns: List[str],
-        fallback_mappings: Optional[Dict[str, List[str]]] = None,
-    ) -> Dict[str, str]:
+        available_columns: list[str],
+        preferred_columns: list[str],
+        fallback_mappings: Optional[dict[str, list[str]]] = None,
+    ) -> dict[str, str]:
         """Find fallback column names when preferred columns are not available.
 
         Args:

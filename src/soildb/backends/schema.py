@@ -5,7 +5,7 @@ different database backends.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -54,7 +54,7 @@ class TableSchema:
     """
 
     name: str
-    columns: Dict[str, ColumnInfo]
+    columns: dict[str, ColumnInfo]
     primary_key: Optional[str] = None
     geometry_column: Optional[str] = None
     spatial_index: Optional[str] = None
@@ -70,7 +70,7 @@ class TableSchema:
         return list(self.columns.keys())
 
     @property
-    def column_types(self) -> Dict[str, str]:
+    def column_types(self) -> dict[str, str]:
         """Get dict of column_name -> type."""
         return {name: col.type for name, col in self.columns.items()}
 
@@ -124,7 +124,7 @@ class SchemaIntrospector:
     @staticmethod
     async def introspect_database(
         backend: Any,  # BaseBackend instance
-    ) -> Dict[str, TableSchema]:
+    ) -> dict[str, TableSchema]:
         """Get schema for all tables in database.
 
         Args:

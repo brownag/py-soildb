@@ -1,7 +1,8 @@
-.PHONY: help install test lint lint-fix format docs clean build all
+.PHONY: help install test lint lint-fix format docs docs-validate clean build all examples-validate examples-test
 .DEFAULT_GOAL := help
+RUFF_ARGS ?=
 
-all: clean install lint-fix test build docs ## Run full build pipeline (clean, install, lint-fix, test, build, docs)
+all: clean install lint-fix test build docs examples-validate ## Run full build pipeline (clean, install, lint-fix, test, build, docs, validate examples)
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -23,25 +24,25 @@ test-integration: ## Run integration tests (requires network)
 	pytest tests/test_integration.py -v
 
 lint: ## Run linting checks
-	ruff check src/ tests/ examples/
+	ruff check $(RUFF_ARGS) src/ tests/ docs/examples/
 	mypy src/soildb --ignore-missing-imports
 
-lint-fix: ## Run linting checks and auto-fix issues
-	ruff check --fix src/ tests/ examples/
-	ruff format src/ tests/ examples/
+lint-fix: ## Run linting checks and auto-fix issues (use RUFF_ARGS="--unsafe-fixes" for unsafe fixes)
+	ruff check --fix $(RUFF_ARGS) src/ tests/ docs/examples/
+	ruff format src/ tests/ docs/examples/
 	mypy src/soildb --ignore-missing-imports
 
 format: ## Format code
-	ruff format src/ tests/ examples/
+	ruff format $(RUFF_ARGS) src/ tests/ docs/examples/
 
 format-check: ## Check code formatting without making changes
-	ruff format --check src/ tests/ examples/
+	ruff format --check $(RUFF_ARGS) src/ tests/ docs/examples/
 
 security: ## Run security checks
 	bandit -r src/
 	safety check
 
-docs: ## Build documentation with Quarto
+docs: docs-validate ## Build documentation with Quarto (includes validation)
 	@echo "Extracting version from pyproject.toml..."
 	@SOILDB_VERSION=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
 	echo "Version: $$SOILDB_VERSION"; \
@@ -50,7 +51,7 @@ docs: ## Build documentation with Quarto
 	sed -i "s/\"version\": \"0.0.9999\"/\"version\": \"$$SOILDB_VERSION\"/g" docs/objects.json; \
 	quarto render docs
 
-docs-serve: ## Serve documentation with Quarto and watch for changes
+docs-serve: docs-validate ## Serve documentation with Quarto and watch for changes (includes validation)
 	@echo "Extracting version from pyproject.toml..."
 	@SOILDB_VERSION=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
 	echo "Version: $$SOILDB_VERSION"; \
@@ -79,8 +80,29 @@ pre-commit-install: ## Install pre-commit hooks
 pre-commit-run: ## Run pre-commit on all files
 	pre-commit run --all-files
 
-examples: ## Run example scripts (basic functionality test)
-	@echo "Testing basic examples..."
-	@python -c "import soildb; print('Package imports successfully')"
-	@python examples/basic_examples.py
-	@echo "All examples completed successfully"
+examples-validate: ## Validate all example scripts (import check, not runtime)
+	python scripts/validate_examples.py
+
+examples-test: ## Run example scripts (requires network access to SDA/AWDB)
+	@echo "Running example scripts..."
+	@echo "  Testing 04_schema.py (SDA schema inspection)..."
+	@timeout 60 python docs/examples/04_schema.py > /dev/null && echo "  ✓ 04_schema.py" || echo "  ✗ 04_schema.py"
+	@echo "  Testing 05_awdb.py (AWDB with throttling)..."
+	@timeout 120 python docs/examples/05_awdb.py > /dev/null && echo "  ✓ 05_awdb.py" || echo "  ✗ 05_awdb.py (may timeout due to AWDB rate limits)"
+	@echo ""
+	@echo "Note: Other examples require network access and may timeout due to SDA/AWDB limits."
+	@echo "      Run individually with: python docs/examples/0X_*.py"
+
+docs-validate: ## Validate that doc code blocks are syntactically correct
+	@echo "Validating documentation code examples..."
+	@for qmd in docs/*.qmd docs/examples/*.qmd; do \
+		[ ! -f "$$qmd" ] && continue; \
+		echo "  Checking $$qmd..."; \
+		if grep -qE "from.*awdb_integration|import.*get_component_water_properties|import.*get_scan_soil_moisture|from.*import.*auto_schema|\.auto_schema\(" "$$qmd"; then \
+			echo "  ✗ $$qmd contains phantom functions"; \
+			grep -n "awdb_integration\|get_component_water_properties\|get_scan_soil_moisture" "$$qmd" | head -3; \
+			exit 1; \
+		fi; \
+		echo "  ✓ $$qmd"; \
+	done
+	@echo "✓ All documentation validated"

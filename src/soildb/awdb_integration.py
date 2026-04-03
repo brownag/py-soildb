@@ -12,7 +12,7 @@ Use these functions to:
 - Optimize irrigation scheduling based on soil and weather data
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .awdb import convenience as awdb_convenience
 from .awdb.exceptions import AWDBError
@@ -160,7 +160,7 @@ async def get_scan_soil_moisture_profile(
     start_date: str,
     end_date: str,
     max_distance_km: float = 50.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch soil moisture measurements from nearby SCAN station.
 
@@ -200,7 +200,7 @@ async def get_scan_soil_temperature_profile(
     start_date: str,
     end_date: str,
     max_distance_km: float = 50.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch soil temperature measurements from nearby SCAN station.
 
@@ -236,7 +236,7 @@ async def get_precipitation_data(
     start_date: str,
     end_date: str,
     max_distance_km: float = 50.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch precipitation data from nearby monitoring station.
 
@@ -271,7 +271,7 @@ async def estimate_water_availability(
     longitude: float,
     start_date: str,
     end_date: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Estimate soil water availability by combining SDA predictions with AWDB measurements.
 
@@ -380,7 +380,7 @@ async def estimate_water_availability(
 
 def get_water_stress_categories(
     awc_in_per_in: float, current_moisture_pct: float
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Assess soil water stress condition given AWC and current moisture.
 
@@ -427,7 +427,7 @@ def should_use_awdb_for_water_analysis() -> bool:
     return True
 
 
-def get_recommended_awdb_depths_for_soil(clay_pct: float) -> List[int]:
+def get_recommended_awdb_depths_for_soil(clay_pct: float) -> list[int]:
     """
     Get recommended SCAN soil depths based on soil texture.
 

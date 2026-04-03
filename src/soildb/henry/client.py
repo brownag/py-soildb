@@ -14,7 +14,7 @@ API Documentation:
 import gzip
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -109,7 +109,7 @@ class HenryClient(BaseDataAccessClient):
             raise HenryNetworkError(f"Connection test failed: {e}") from e
 
     async def _make_henry_request(
-        self, endpoint: str, params: Optional[Dict[str, str]] = None
+        self, endpoint: str, params: Optional[dict[str, str]] = None
     ) -> Any:
         """
         Make an async request to the Henry API with error handling.
@@ -180,8 +180,8 @@ class HenryClient(BaseDataAccessClient):
         project_code: Optional[str] = None,
         sso_code: Optional[str] = None,
         state_code: Optional[str] = None,
-        station_ids: Optional[List[str]] = None,
-    ) -> List[HenryStation]:
+        station_ids: Optional[list[str]] = None,
+    ) -> list[HenryStation]:
         """
         Fetch Henry station metadata.
 
@@ -293,7 +293,7 @@ class HenryClient(BaseDataAccessClient):
         start_date: str,
         end_date: str,
         duration: str = "DAILY",
-    ) -> List[HenryTimeSeriesDataPoint]:
+    ) -> list[HenryTimeSeriesDataPoint]:
         """
         Fetch time series data for a Henry station.
 
@@ -395,7 +395,7 @@ class HenryClient(BaseDataAccessClient):
     async def get_available_variables(
         self,
         station_id: str,
-    ) -> List[HenrySensor]:
+    ) -> list[HenrySensor]:
         """
         Get available variables/sensors for a Henry station.
 

@@ -14,7 +14,7 @@ All user input that appears in SQL must be:
 """
 
 import re
-from typing import List, Union
+from typing import Union
 
 # SQL Identifier validation pattern: letters, numbers, underscores, periods (for alias.column)
 _IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$"
@@ -164,7 +164,7 @@ def validate_wkt_geometry(wkt: str) -> str:
     return wkt
 
 
-def sanitize_sql_string_list(values: List[str]) -> List[str]:
+def sanitize_sql_string_list(values: list[str]) -> list[str]:
     """
     Sanitize a list of string values for safe SQL insertion.
 

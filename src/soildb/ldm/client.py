@@ -7,8 +7,9 @@ or local SQLite snapshots with automatic chunking and retry logic.
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union, cast
+from typing import Optional, Union, cast
 
 from soildb.base_client import BaseDataAccessClient, ClientConfig
 from soildb.client import SDAClient
@@ -126,17 +127,19 @@ class LDMClient(BaseDataAccessClient):
 
     async def query(
         self,
-        x: Optional[Union[List[Union[str, int]], str, int]] = None,
+        x: Optional[Union[list[Union[str, int]], str, int]] = None,
         what: str = "pedlabsampnum",
         bycol: str = "pedon_key",
-        tables: Optional[List[str]] = None,
+        tables: Optional[list[str]] = None,
         WHERE: Optional[str] = None,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         max_retries: int = DEFAULT_MAX_RETRIES,
         layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
         area_type: Optional[str] = DEFAULT_AREA_TYPE,
         prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
-        analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
+        analyzed_size_frac: Union[
+            str, Sequence[str], None
+        ] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
     ) -> SDAResponse:
         """Execute LDM query with automatic chunking and retry logic.
 
@@ -249,7 +252,7 @@ class LDMClient(BaseDataAccessClient):
             sql = query_builder.build_query(keys=keys_for_layer, key_column=bycol)
             return await self._execute_query(sql, max_retries=max_retries)
 
-    async def get_available_tables(self) -> List[str]:
+    async def get_available_tables(self) -> list[str]:
         """Get list of available LDM tables in data source.
 
         Returns:
@@ -261,7 +264,7 @@ class LDMClient(BaseDataAccessClient):
         backend = await self._get_backend()
         return await backend.get_available_tables()
 
-    async def get_table_schema(self, table_name: str) -> Dict[str, str]:
+    async def get_table_schema(self, table_name: str) -> dict[str, str]:
         """Get column names and types for an LDM table.
 
         Args:
@@ -348,7 +351,7 @@ class LDMClient(BaseDataAccessClient):
     async def _query_chunked(
         self,
         query_builder: LDMQueryBuilder,
-        keys: List[Union[str, int]],
+        keys: list[Union[str, int]],
         key_column: str = "pedon_key",
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         max_retries: int = DEFAULT_MAX_RETRIES,
@@ -396,7 +399,7 @@ class LDMClient(BaseDataAccessClient):
                 responses = await asyncio.gather(*tasks, return_exceptions=True)
 
                 # Check for errors
-                valid_responses: List[SDAResponse] = []
+                valid_responses: list[SDAResponse] = []
                 for r in responses:
                     if isinstance(r, BaseException):
                         raise r
@@ -425,7 +428,7 @@ class LDMClient(BaseDataAccessClient):
             f"Final chunk size: {current_chunk_size}",
         ) from last_error
 
-    def _combine_responses(self, responses: List[SDAResponse]) -> SDAResponse:
+    def _combine_responses(self, responses: list[SDAResponse]) -> SDAResponse:
         """Combine multiple SDAResponse objects into one.
 
         Args:

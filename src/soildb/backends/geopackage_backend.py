@@ -9,7 +9,7 @@ is widely supported by GIS tools (QGIS, ArcGIS, Grass, etc.).
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import aiosqlite
 
@@ -47,7 +47,7 @@ class GeoPackageBackend(SQLiteBackend):
         """
         super().__init__(db_path, config)
         # GeoPackage uses same type mapping as SQLite
-        self._geometry_columns_cache: Dict[str, Optional[str]] = {}
+        self._geometry_columns_cache: dict[str, Optional[str]] = {}
 
     async def get_geometry_column(self, table: str) -> Optional[str]:
         """Get name of geometry column for a table.
@@ -170,7 +170,7 @@ class GeoPackageBackend(SQLiteBackend):
         else:
             raise ValueError(f"Unknown spatial predicate: {predicate}")
 
-    async def get_tables(self) -> List[str]:
+    async def get_tables(self) -> list[str]:
         """Get list of available tables in GeoPackage.
 
         Filters out system tables (gpkg_* and sqlite_*).

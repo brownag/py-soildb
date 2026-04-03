@@ -8,7 +8,7 @@ Reference:
     https://jneme910.github.io/Lab_Data_Mart_Documentation/Documents/SDA_KSSL_Data_model.html
 """
 
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 # ============================================================================
 # LDM Table Names
@@ -84,7 +84,7 @@ XRD_THERMAL_TABLES = [LAB_XRD_THERMAL_TABLE]
 # Key Columns for Tables
 # ============================================================================
 
-TABLE_KEY_COLUMNS: Dict[str, str] = {
+TABLE_KEY_COLUMNS: dict[str, str] = {
     # Core tables
     PEDON_TABLE: "pedon_key",
     SITE_TABLE: "site_key",
@@ -285,7 +285,7 @@ def is_valid_area_type(area_type: str) -> bool:
     return area_type in AREA_TYPES
 
 
-def validate_tables(tables: List[str]) -> bool:
+def validate_tables(tables: list[str]) -> bool:
     """Validate a list of table names.
 
     Args:
@@ -297,7 +297,7 @@ def validate_tables(tables: List[str]) -> bool:
     return all(is_valid_table(t) for t in tables)
 
 
-def all_valid_prep_codes() -> Set[str]:
+def all_valid_prep_codes() -> set[str]:
     """Get all valid prep codes.
 
     Returns:
@@ -306,7 +306,7 @@ def all_valid_prep_codes() -> Set[str]:
     return set(PREP_CODES.keys())
 
 
-def all_valid_size_fractions() -> Set[str]:
+def all_valid_size_fractions() -> set[str]:
     """Get all valid analyzed size fractions.
 
     Returns:
@@ -315,7 +315,7 @@ def all_valid_size_fractions() -> Set[str]:
     return set(ANALYZED_SIZE_FRACTIONS.keys())
 
 
-def all_valid_layer_types() -> Set[Optional[str]]:
+def all_valid_layer_types() -> set[Optional[str]]:
     """Get all valid layer types.
 
     Returns:
@@ -324,7 +324,7 @@ def all_valid_layer_types() -> Set[Optional[str]]:
     return set(LAYER_TYPES.keys()) | {None}
 
 
-def all_valid_area_types() -> Set[Optional[str]]:
+def all_valid_area_types() -> set[Optional[str]]:
     """Get all valid area types.
 
     Returns:

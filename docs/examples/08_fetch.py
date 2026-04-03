@@ -1,47 +1,28 @@
 """
 Example: Fetching SSURGO Data (Bulk Operations)
 
-This example demonstrates fetching SSURGO soil survey data in bulk.
-Multiple approaches are shown (from legacy to modern):
+This example demonstrates modern bulk data fetching using fetch_by_keys().
+fetch_by_keys is the primary recommended approach for:
+  - Fetching data for multiple keys
+  - Intelligent chunking and pagination
+  - Works with all SSURGO tables (mapunit, component, chorizon, etc.)
+  - Supports column filtering and geometry retrieval
 
-1. DEPRECATED: Tier-2 wrapper functions (fetch_mapunit_polygon, etc.)
-   - Still supported for backward compatibility
-   - Will be removed in soildb 1.0
-   - Use modern approach instead
-
-2. MODERN: fetch_by_keys() with table names (RECOMMENDED)
-   - Primary recommended approach
-   - Supports intelligent chunking and all SSURGO tables
-   - Works with all backends via configuration
-
-3. FUTURE: SSURGOClient with specific backends
-   - Most flexible approach for advanced users
-   - Choose different backends (SDA, SQLite, GeoPackage, PostgreSQL)
-   - Enables non-SDA data sources
-   - Note: Requires explicit imports from soildb.backends
-
-All approaches return SDAResponse for consistent handling.
+See also:
+- Workflows: Bulk Data Fetching → ../workflows.qmd#bulk-data-fetching
+- Quick Start:  Bulk Data Fetching → ../quickstart.qmd
 """
 
 import asyncio
 
-from soildb import (
-    fetch_by_keys,
-    # Deprecated functions (kept for backward compatibility, will be removed in 1.0)
-    fetch_chorizon_by_cokey,
-    fetch_component_by_mukey,
-    fetch_mapunit_polygon,
-    fetch_survey_area_polygon,
-    get_cokey_by_mukey,
-    get_mukey_by_areasymbol,
-)
+from soildb import fetch_by_keys, get_cokey_by_mukey, get_mukey_by_areasymbol
 
 
 async def main():
     print("=== SSURGO Bulk Data Fetching Examples ===\n")
 
     # 1. Basic key-based fetching
-    print("1. Basic fetch by keys (MODERN APPROACH)")
+    print("1. Basic fetch by keys")
     print("-" * 60)
 
     # Get some mukeys for California survey areas
@@ -52,7 +33,7 @@ async def main():
     sample_mukeys = mukeys[:10] if len(mukeys) > 10 else mukeys
     print(f"Using sample of {len(sample_mukeys)} mukeys: {sample_mukeys[:5]}...")
 
-    # Fetch map unit data using modern approach
+    # Fetch map unit data
     response = await fetch_by_keys(sample_mukeys, "mapunit")
     df = response.to_pandas()
     print(f"\nFetched {len(df)} map units:")
@@ -60,77 +41,43 @@ async def main():
 
     print("\n" + "=" * 60 + "\n")
 
-    # 2. Polygon fetching - DEPRECATED vs MODERN
+    # 2. Polygon fetching with geometry
     print("2. Fetch map unit polygons with geometry")
     print("-" * 60)
 
     poly_mukeys = sample_mukeys[:5]
+    print(f"Fetching geometry for {len(poly_mukeys)} map units...")
 
-    # DEPRECATED APPROACH (still supported)
-    print("DEPRECATED: Using fetch_mapunit_polygon()")
-    print("  ⚠️  This function is deprecated and will be removed in soildb 1.0")
-    print("  ✅ Modern replacement: fetch_by_keys(keys, 'mupolygon')")
-    print()
+    response = await fetch_by_keys(poly_mukeys, "mupolygon", include_geometry=True)
+    df = response.to_pandas()
+    print(f"Fetched {len(df)} polygons")
 
-    response_old = await fetch_mapunit_polygon(poly_mukeys)
-    df_old = response_old.to_pandas()
-    print(f"Old approach result: Fetched {len(df_old)} polygons")
-
-    # MODERN APPROACH (recommended)
-    print("\nMODERN: Using fetch_by_keys() directly")
-    response_new = await fetch_by_keys(poly_mukeys, "mupolygon", include_geometry=True)
-    df_new = response_new.to_pandas()
-    print(f"New approach result: Fetched {len(df_new)} polygons")
-
-    if not df_new.empty:
-        print(df_new[["mukey", "musym", "muareaacres"]].head())
+    if not df.empty:
+        print(df[["mukey", "musym", "muareaacres"]].head())
 
     print("\n" + "=" * 60 + "\n")
 
-    # 3. Hierarchical data fetching (mukey -> cokey -> chkey)
-    print("3. Hierarchical data fetching - DEPRECATED vs MODERN")
+    # 3. Hierarchical data fetching (mukey -> cokey -> chorizon)
+    print("3. Hierarchical data fetching")
     print("-" * 60)
 
     hier_mukeys = sample_mukeys[:3]
     print(f"Starting with mukeys: {hier_mukeys}")
 
-    # DEPRECATED: Using fetch_component_by_mukey()
-    print("\nDEPRECATED APPROACH:")
-    print("  comp_response = await fetch_component_by_mukey(mukeys)")
-    print("  ⚠️  Will be removed in soildb 1.0")
-    print()
-
-    comp_response = await fetch_component_by_mukey(hier_mukeys)
+    # Fetch components
+    print("\nFetching components for these mukeys...")
+    comp_response = await fetch_by_keys(hier_mukeys, "component", key_column="mukey")
     comp_df = comp_response.to_pandas()
     print(f"Found {len(comp_df)} components")
-
-    # MODERN: Using fetch_by_keys() explicitly
-    print("\nMODERN APPROACH (recommended):")
-    print("  comp_response = await fetch_by_keys(mukeys, 'component', 'mukey')")
-    print()
-
-    comp_response_modern = await fetch_by_keys(
-        hier_mukeys, "component", key_column="mukey"
-    )
-    comp_df_modern = comp_response_modern.to_pandas()
-    print(f"Found {len(comp_df_modern)} components")
 
     if not comp_df.empty:
         print(comp_df[["mukey", "cokey", "compname", "comppct_r"]].head())
 
-    # Get horizons for those components
-    if not comp_df.empty:
+        # Get horizons for those components
         cokeys = comp_df["cokey"].tolist()[:5]
         print(f"\nFetching horizons for {len(cokeys)} components...")
 
-        # DEPRECATED: Using fetch_chorizon_by_cokey()
-        print("DEPRECATED: fetch_chorizon_by_cokey(cokeys)")
-        hz_response = await fetch_chorizon_by_cokey(cokeys)
-
-        # MODERN: Using fetch_by_keys()
-        print("MODERN: fetch_by_keys(cokeys, 'chorizon', 'cokey')")
-        await fetch_by_keys(cokeys, "chorizon", key_column="cokey")
-
+        hz_response = await fetch_by_keys(cokeys, "chorizon", key_column="cokey")
         hz_df = hz_response.to_pandas()
         print(f"Found {len(hz_df)} horizons")
         if not hz_df.empty:
@@ -139,18 +86,15 @@ async def main():
     print("\n" + "=" * 60 + "\n")
 
     # 4. Survey area polygons
-    print("4. Survey area polygon fetching - DEPRECATED vs MODERN")
+    print("4. Survey area polygon fetching")
     print("-" * 60)
 
     areas = ["CA630", "CA632", "CA644"]
+    print(f"Fetching survey area polygons for {areas}...")
 
-    # DEPRECATED
-    print("DEPRECATED: fetch_survey_area_polygon(areas)")
-    print("  ⚠️  Will be removed in soildb 1.0")
-    print("  ✅ Modern: fetch_by_keys(areas, 'sapolygon', 'areasymbol')")
-    print()
-
-    sa_response = await fetch_survey_area_polygon(areas)
+    sa_response = await fetch_by_keys(
+        areas, "sapolygon", key_column="areasymbol", include_geometry=True
+    )
     sa_df = sa_response.to_pandas()
     print(f"Fetched {len(sa_df)} survey area polygons:")
     if not sa_df.empty:
@@ -241,8 +185,7 @@ async def main():
         print(f"Unexpected error for invalid keys: {type(e).__name__}: {e}")
 
     print("\n" + "=" * 60)
-    print("MIGRATION GUIDE: Use fetch_by_keys() for all new code!")
-    print("Deprecated functions will be removed in soildb 1.0")
+    print("fetch_by_keys() is the primary API for bulk operations")
     print("=" * 60)
 
 

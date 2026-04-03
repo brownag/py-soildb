@@ -115,6 +115,13 @@ result
 
 For comprehensive async usage, see the [Async Programming Guide](async.qmd).
 
+### Getting Started
+
+**New to soildb?** Start with:
+1. [Quick Start](quickstart.qmd) — Choose your pattern (script vs app)
+2. [Common Workflows](workflows.qmd) — Detailed task-based examples
+3. [Examples](examples/README.md) — Runnable code samples
+
 ### Convenience Functions
 
 soildb provides several high-level functions for common tasks:

@@ -91,7 +91,7 @@ Type conversion uses a "fail gracefully" strategy:
 import logging
 import re
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -305,11 +305,11 @@ class TypeMap:
 
     def __init__(self) -> None:
         """Initialize the type map with default processors."""
-        self._processors: Dict[str, Callable[[Any], Any]] = {}
-        self._python_types: Dict[str, Type] = self.SDA_TYPE_TO_PYTHON.copy()
-        self._pandas_dtypes: Dict[Type, str] = self.PYTHON_TO_PANDAS_DTYPE.copy()
-        self._polars_dtypes: Dict[Type, Any] = {}  # Built lazily
-        self._type_processor_cache: Dict[str, Callable[[Any], Any]] = {}
+        self._processors: dict[str, Callable[[Any], Any]] = {}
+        self._python_types: dict[str, type] = self.SDA_TYPE_TO_PYTHON.copy()
+        self._pandas_dtypes: dict[type, str] = self.PYTHON_TO_PANDAS_DTYPE.copy()
+        self._polars_dtypes: dict[type, Any] = {}  # Built lazily
+        self._type_processor_cache: dict[str, Callable[[Any], Any]] = {}
 
         # Initialize default processors
         self._init_default_processors()
@@ -386,7 +386,7 @@ class TypeMap:
     def register_processor(
         self,
         sda_type: str,
-        python_type: Type = str,
+        python_type: type = str,
         processor: Optional[Callable[[Any], Any]] = None,
     ) -> None:
         """
@@ -484,7 +484,7 @@ class TypeMap:
                 )
                 return None
 
-    def get_python_type(self, sda_type: str) -> Type:
+    def get_python_type(self, sda_type: str) -> type:
         """
         Get Python type for an SDA type.
 
@@ -551,8 +551,8 @@ class TypeMap:
         return self._polars_dtypes.get(python_type, "Utf8")
 
     def convert_row(
-        self, row: Dict[str, Any], type_map: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self, row: dict[str, Any], type_map: dict[str, str]
+    ) -> dict[str, Any]:
         """
         Convert all values in a row dictionary based on column type map.
 
@@ -577,8 +577,8 @@ class TypeMap:
         return converted
 
     def convert_rows(
-        self, rows: List[Dict[str, Any]], type_map: Dict[str, str]
-    ) -> List[Dict[str, Any]]:
+        self, rows: list[dict[str, Any]], type_map: dict[str, str]
+    ) -> list[dict[str, Any]]:
         """
         Convert all values in multiple row dictionaries.
 
@@ -601,7 +601,7 @@ class TypeMap:
         """
         return [self.convert_row(row, type_map) for row in rows]
 
-    def get_type_mappings(self) -> Dict[str, Dict[str, str]]:
+    def get_type_mappings(self) -> dict[str, dict[str, str]]:
         """
         Get all registered SDA -> Python -> Pandas -> Polars type mappings.
 
@@ -644,7 +644,7 @@ class TypeMap:
         return cls()
 
     @staticmethod
-    def get_pandas_dtype_for_python_type(python_type: Type) -> str:
+    def get_pandas_dtype_for_python_type(python_type: type) -> str:
         """
         Get Pandas dtype for a Python type directly.
 
@@ -664,7 +664,7 @@ class TypeMap:
         return type_map._pandas_dtypes.get(python_type, "string")
 
     @staticmethod
-    def get_polars_dtype_for_python_type(python_type: Type) -> Any:
+    def get_polars_dtype_for_python_type(python_type: type) -> Any:
         """
         Get Polars dtype for a Python type directly.
 

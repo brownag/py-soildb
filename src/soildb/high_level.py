@@ -51,7 +51,7 @@ df.to_csv('mapunit.csv')
 """
 
 from datetime import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -76,7 +76,7 @@ from .utils import add_sync_version
 
 
 def _create_pedon_horizon_from_row(
-    pedon_key: str, h_row: Any, requested_columns: Optional[List[str]] = None
+    pedon_key: str, h_row: Any, requested_columns: Optional[list[str]] = None
 ) -> Any:
     """
     Create a PedonHorizon object from a horizon data row.
@@ -141,8 +141,8 @@ async def fetch_ssurgo_mapunit_by_point(
     longitude: float,
     fill_components: bool = True,
     fill_horizons: bool = True,
-    component_columns: Optional[List[str]] = None,
-    horizon_columns: Optional[List[str]] = None,
+    component_columns: Optional[list[str]] = None,
+    horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> SoilMapUnit:  # type: ignore
     """
@@ -280,7 +280,7 @@ async def fetch_ssurgo_mapunit_by_point(
             field_name: str,
             processed_dict: dict,
             extra_fields_dict: dict,
-            alt_names: Optional[List[str]] = None,
+            alt_names: Optional[list[str]] = None,
         ) -> Any:
             if field_name in processed_dict:
                 return processed_dict[field_name]
@@ -328,7 +328,7 @@ async def fetch_ssurgo_mapunit_by_point(
         return map_unit  # type: ignore
 
     # Step 4: Fetch and attach aggregate horizons for all components in one call
-    all_cokeys: List[Union[str, int]] = [c.component_key for c in components]
+    all_cokeys: list[Union[str, int]] = [c.component_key for c in components]
     hz_schema = get_schema("chorizon")
     if not hz_schema:
         raise ValueError("Chorizon schema not found")
@@ -405,9 +405,9 @@ async def fetch_labpedon_by_bbox(
     max_x: float,
     max_y: float,
     fill_horizons: bool = True,
-    horizon_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
-) -> List[PedonData]:
+) -> list[PedonData]:
     """
     Fetch structured lab pedon data within a bounding box.
 
@@ -546,7 +546,7 @@ async def fetch_labpedon_by_bbox(
 async def fetch_labpedon_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
-    horizon_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> Optional[PedonData]:
     """
@@ -663,8 +663,8 @@ async def fetch_mapunit_struct_by_point(
     longitude: float,
     fill_components: bool = True,
     fill_horizons: bool = True,
-    component_columns: Optional[List[str]] = None,
-    horizon_columns: Optional[List[str]] = None,
+    component_columns: Optional[list[str]] = None,
+    horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> SoilMapUnit:  # type: ignore
     """
@@ -701,9 +701,9 @@ async def fetch_pedon_struct_by_bbox(
     max_x: float,
     max_y: float,
     fill_horizons: bool = True,
-    horizon_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
-) -> List[PedonData]:
+) -> list[PedonData]:
     """
     [DEPRECATED] Use fetch_labpedon_by_bbox() instead.
 
@@ -731,7 +731,7 @@ async def fetch_pedon_struct_by_bbox(
 async def fetch_pedon_struct_by_id(
     pedon_id: str,
     fill_horizons: bool = True,
-    horizon_columns: Optional[List[str]] = None,
+    horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
 ) -> Optional[PedonData]:
     """

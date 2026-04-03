@@ -57,7 +57,7 @@ sda_type = sqlite_mapper.map_to_sda("custom_type")  # Returns "varchar"
 - All types from standard SQL Server type system
 """
 
-from typing import Any, Dict, Optional, Type
+from typing import Any, Optional
 
 from soildb.type_conversion import TypeMap
 
@@ -73,7 +73,7 @@ class DatabaseTypeMapper:
 
     def __init__(
         self,
-        native_to_sda: Dict[str, str],
+        native_to_sda: dict[str, str],
         name: str = "unknown",
     ):
         """
@@ -112,7 +112,7 @@ class DatabaseTypeMapper:
         # Default to varchar for unknown types
         return "varchar"
 
-    def get_python_type(self, native_type: str) -> Type:
+    def get_python_type(self, native_type: str) -> type:
         """
         Get the Python type for a database-native type.
 
@@ -338,7 +338,7 @@ class TypeMapperFactory:
     # GeoPackage type mappings (inherits from SQLite)
     _GEOPACKAGE_TYPES = _SQLITE_TYPES.copy()
 
-    _mappers: Dict[str, DatabaseTypeMapper] = {}
+    _mappers: dict[str, DatabaseTypeMapper] = {}
 
     @classmethod
     def for_sqlite(cls) -> DatabaseTypeMapper:
@@ -419,7 +419,7 @@ class TypeMapperFactory:
     @classmethod
     def create(
         cls,
-        native_to_sda: Dict[str, str],
+        native_to_sda: dict[str, str],
         name: str = "custom",
     ) -> DatabaseTypeMapper:
         """

@@ -38,7 +38,7 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        ruff check src/ tests/ examples/ --output-format=github
+        ruff check src/ tests/ docs/examples/ --output-format=github
       continue-on-error: true
       
     - name: Type check with mypy
@@ -74,7 +74,7 @@ jobs:
     
     - name: Lint with ruff
       run: |
-        ruff check src/ tests/ examples/ --output-format=github
+        ruff check src/ tests/ docs/examples/ --output-format=github
       continue-on-error: true
     
     - name: Type check with mypy
@@ -129,25 +129,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[all]"
     
-    - name: Test basic examples (no network)
+    - name: Validate example scripts
       run: |
-        python -c "
-        import sys
-        sys.path.insert(0, 'examples')
-        
-        # Test imports and basic functionality
-        try:
-            import soildb
-            print('Package imports successfully')
-            
-            query = soildb.get_mapunit_by_areasymbol('IA169')
-            print('Basic query construction works')
-            
-            print('All basic functionality tests passed')
-        except Exception as e:
-            print(f'Basic functionality test failed: {e}')
-            sys.exit(1)
-        "
+        python scripts/validate_examples.py
 
   integration:
     runs-on: ubuntu-latest
