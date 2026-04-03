@@ -1,0 +1,264 @@
+---
+title: "Quick Start"
+description: "Get started with py-soildb in 5 minutes"
+---
+
+# Quick Start
+
+Choose your pattern based on your use case, then see [Workflows](workflows.qmd) for detailed examples.
+
+## Pattern: Simple Script or Jupyter Notebook
+
+**Use this for:** Scripts, Jupyter notebooks, quick analysis, most one-off queries.
+
+**Recommended** because it's simplest and handles client management automatically.
+
+```python
+from soildb import get_mapunit_by_point
+
+# Direct call - client created automatically
+response = get_mapunit_by_point(-93.6, 42.0)
+df = response.to_pandas()
+print(df)
+```
+
+See also:
+- [01_basic.py](examples/01_basic.py) — Full working example
+- [Workflows: Point Queries](workflows.qmd#point-queries) — Detailed walkthrough
+
+---
+
+## Pattern: Production Application or High-Performance Queries
+
+**Use this for:** Web services, long-running applications, concurrent requests, bulk operations.
+
+**Why:** Explicit client management and async/await allow concurrent processing and better resource control.
+
+```python
+import asyncio
+from soildb import SDAClient, query_templates
+
+async def fetch_data():
+    async with SDAClient() as client:
+        query = query_templates.query_mapunits_by_legend("IA109")
+        response = await client.execute(query)
+        return response.to_pandas()
+
+df = asyncio.run(fetch_data())
+```
+
+See also:
+- [Async Guide](async.qmd) — Concurrency, error handling, patterns
+- [Workflows: Async Examples](workflows.qmd#async-patterns) — Detailed async patterns
+
+---
+
+## Pattern: Query by Location
+
+**Use this for:** "What soil is at this point?" or "Show me soil in this area."
+
+```python
+from soildb import get_mapunit_by_point, spatial_query
+
+# Single point
+response = get_mapunit_by_point(-93.6, 42.0)
+
+# Bounding box
+response = spatial_query(
+    {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}, 
+    table="mupolygon"
+)
+
+# Polygon (WKT)
+response = spatial_query(
+    "POLYGON((-93.7 42.0, -93.6 42.0, -93.6 42.1, -93.7 42.1, -93.7 42.0))",
+    table="mupolygon"
+)
+```
+
+See also:
+- [02_spatial.py](examples/02_spatial.py) — Full spatial examples
+- [Workflows: Spatial Queries](workflows.qmd#spatial-queries) — Detailed patterns
+
+---
+
+## Pattern: Query by Survey Area
+
+**Use this for:** "Get all soil data for county XYZ."
+
+```python
+from soildb import get_mapunit_by_areasymbol
+
+# Get all map units in Iowa survey area IA109
+response = get_mapunit_by_areasymbol("IA109")
+df = response.to_pandas()
+```
+
+See also:
+- [Workflows: Survey Area Queries](workflows.qmd#survey-area-queries) — Details
+
+---
+
+## Pattern: Bulk Data Fetching
+
+**Use this for:** "Fetch components/horizons for 1000+ map units."
+
+```python
+from soildb import fetch_by_keys, get_mukey_by_areasymbol
+
+# Get mukeys first
+mukeys = get_mukey_by_areasymbol(["IA109", "IA113"])
+
+# Fetch all components - automatic pagination/chunking
+response = fetch_by_keys(
+    mukeys, 
+    "component", 
+    key_column="mukey",
+    chunk_size=500  # Auto-handled internally
+)
+df = response.to_pandas()
+```
+
+See also:
+- [08_fetch.py](examples/08_fetch.py) — Full bulk fetching examples
+- [Workflows: Bulk Data Fetching](workflows.qmd#bulk-data-fetching) — Advanced patterns
+
+---
+
+## Pattern: Custom SQL Query
+
+**Use this for:** Complex queries, joins, specific WHERE conditions.
+
+```python
+from soildb import Query, SDAClient
+
+query = (Query()
+    .select("mukey", "muname", "compname")
+    .from_("mapunit m")
+    .inner_join("component c", "m.mukey = c.mukey")
+    .where("m.areasymbol = 'IA109'")
+    .where("c.majcompflag = 'Yes'")
+    .limit(100))
+
+# Async (recommended)
+async with SDAClient() as client:
+    response = await client.execute(query)
+
+# Or synchronous (runs its own event loop)
+response = SDAClient.execute.sync(query)
+```
+
+See also:
+- [Workflows: Custom Queries](workflows.qmd#custom-queries) — Query builder details
+- [API Reference](api.qmd) — Full Query API
+
+---
+
+## Pattern: AWDB Monitoring Data
+
+**Use this for:** "Get soil water data from SCAN/SNOTEL stations."
+
+```python
+import asyncio
+from soildb.awdb import discover_stations, get_soil_moisture_by_depth
+
+async def main():
+    # Find SCAN stations in Idaho
+    stations = await discover_stations(
+        state_codes=["ID"],
+        network_codes=["SCAN"],
+        active_only=True,
+    )
+    print(f"Found {len(stations)} SCAN stations in Idaho")
+
+    # Get soil moisture data for a specific station
+    data = await get_soil_moisture_by_depth(
+        "2126:NV:SCAN",
+        depths_inches=[-2, -8],
+        start_date="2024-01-01",
+        end_date="2024-01-31",
+    )
+    print(f"Data points: {data['depths'][-2]['n_data_points']}")
+
+asyncio.run(main())
+```
+
+**Note:** AWDB is a free public resource. Space out requests and avoid hammering it with concurrent queries. If you encounter errors, reduce request frequency and retry with backoff.
+
+See also:
+- [05_awdb.py](examples/05_awdb.py) — Full AWDB examples
+- [AWDB Integration](awdb.qmd) — Detailed guide
+
+---
+
+## Pattern: Convert to SoilProfileCollection
+
+**Use this for:** Specialized soil horizon analysis (requires `soilprofilecollection` package).
+
+```python
+from soildb import get_mapunit_by_point
+
+# Fetch horizon data (includes component info)
+response = get_mapunit_by_point(-93.6, 42.0)
+
+# Convert to SoilProfileCollection
+spc = response.to_soilprofilecollection()
+
+# Use SPC methods
+print(f"Number of profiles: {len(spc)}")
+print(f"Deepest profile: {spc.depth.max()} cm")
+```
+
+See also:
+- [SoilProfileCollection examples](examples/soilprofilecollection/) — Detailed strategies
+- [Workflows: SoilProfileCollection](workflows.qmd#soilprofilecollection) — Integration patterns
+
+---
+
+## Export Formats
+
+All API calls return `SDAResponse` which supports multiple formats:
+
+```python
+# pandas DataFrame (most common)
+df = response.to_pandas()
+
+# Polars DataFrame (performant alternative)
+df = response.to_polars()
+
+# Dictionary list (JSON-like)
+data = response.to_dict()
+
+# SoilProfileCollection (soil science)
+spc = response.to_soilprofilecollection()
+
+# GeoDataFrame (spatial analysis, requires GeoPandas)
+gdf = response.to_geodataframe()
+```
+
+---
+
+## Error Handling
+
+```python
+from soildb import SDAConnectionError, SDAQueryError
+
+try:
+    response = get_mapunit_by_point(-93.6, 42.0)
+except SDAConnectionError:
+    print("Can't reach SDA service")
+except SDAQueryError as e:
+    print(f"Query error: {e}")
+```
+
+See [Error Handling](error-handling.qmd) for exception types and recovery strategies.
+
+---
+
+## Next Steps
+
+1. **See [Workflows](workflows.qmd)** for detailed examples with explanations
+2. **Clone/run examples** from [docs/examples/](examples/)
+3. **Check [Async Guide](async.qmd)** if building high-performance services
+4. **Read [API Reference](api.qmd)** for complete function documentation
+5. **Review [Troubleshooting](troubleshooting.qmd)** for common issues

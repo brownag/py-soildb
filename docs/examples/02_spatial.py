@@ -3,6 +3,10 @@ Spatial analysis examples using soildb.
 
 Demonstrates working with geographic soil data including spatial queries,
 area calculations, and mapping.
+
+See also:
+- Workflows: Spatial Queries → ../workflows.qmd#spatial-queries
+- Quick Start: Query by Location → ../quickstart.qmd#pattern-query-by-location
 """
 
 import asyncio
@@ -12,6 +16,7 @@ from soildb import spatial_query
 try:
     import geopandas as gpd
     import matplotlib.pyplot as plt
+    import pandas as pd
     from shapely.geometry import Point
 
     SPATIAL_LIBS = True
@@ -110,7 +115,7 @@ async def survey_area_boundaries():
                 all_gdfs.append(area_gdf)
 
     if all_gdfs:
-        gdf = gpd.pd.concat(all_gdfs, ignore_index=True)
+        gdf = pd.concat(all_gdfs, ignore_index=True)
 
     if response.data:
         gdf = response.to_geodataframe()

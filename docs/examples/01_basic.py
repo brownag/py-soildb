@@ -7,6 +7,11 @@ This example demonstrates the core functionality of soildb including:
 - Querying soil data by location
 - Getting map units for survey areas
 - Converting results to pandas DataFrame
+
+See also:
+- Workflows: Point Queries → ../workflows.qmd#point-queries
+- Workflows: Survey Area Queries → ../workflows.qmd#survey-area-queries
+- Quick Start → ../quickstart.qmd
 """
 
 import asyncio
@@ -85,10 +90,17 @@ async def main():
             total = result.data[0][0]
             print(f"Total components in {areasymbol}: {total}")
 
-        # Example 4: Get survey areas
+        # Example 4: List survey areas via query
         print("\n6. Listing Iowa survey areas...")
-        all_areas = await soildb.list_survey_areas(client)
-        iowa_areas = [area for area in all_areas if area.startswith("IA")]
+        query = (
+            soildb.Query()
+            .select("areasymbol", "areaname")
+            .from_("sacatalog")
+            .where("areasymbol LIKE 'IA%'")
+            .order_by("areasymbol")
+        )
+        result = await client.execute(query)
+        iowa_areas = [row[0] for row in result.data]
         print(f"Found {len(iowa_areas)} Iowa survey areas")
         print(f"   Examples: {', '.join(iowa_areas[:10])}")
 

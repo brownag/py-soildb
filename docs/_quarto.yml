@@ -8,17 +8,23 @@ website:
     left:
       - href: ./index.qmd
         text: Home
+      - text: "Getting Started"
+        menu:
+          - text: "Quick Start"
+            href: quickstart.qmd
+          - text: "Common Workflows"
+            href: workflows.qmd
+          - text: "Examples"
+            href: examples/README.md
+      - text: "Advanced"
+        menu:
+          - text: "Async Guide"
+            href: async.qmd
+          - text: "AWDB Integration"
+            href: awdb.qmd
       - href: src/soildb/index.qmd
-        text: "Reference"
-      - text: "Tutorial"
-        href: tutorial.qmd
-      - text: "Usage"
-        href: usage.qmd
-      - text: "Async Guide"
-        href: async.qmd
-      - text: "API Guide"
-        href: api.qmd
-      - text: "Guides"
+        text: "API Reference"
+      - text: "Help"
         menu:
           - text: "Error Handling"
             href: error-handling.qmd

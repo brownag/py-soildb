@@ -283,9 +283,3 @@ for i in range(0, len(mukeys), 1000):
     response = await soildb.fetch_by_keys(chunk, "mapunit")
     # Process chunk immediately
 ```
-
-## Next Steps
-
-- [API Reference](api.qmd) - Complete function documentation
-- [Tutorial](tutorial.qmd) - Step-by-step examples
-- [Usage Patterns](usage.qmd) - Common workflows
