@@ -7,7 +7,7 @@ soil database exports that are distributed as SQLite files.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import aiosqlite
 
@@ -93,7 +93,7 @@ class SQLiteBackend(BaseBackend):
                     # Get column names and data
                     if not cursor.description:
                         columns = []
-                        rows: List[Any] = []
+                        rows: list[Any] = []
                     else:
                         columns = [desc[0] for desc in cursor.description]
                         rows = list(await cursor.fetchall())
@@ -119,7 +119,7 @@ class SQLiteBackend(BaseBackend):
                 details=f"Database: {self.db_path}, Query: {sql[:100]}..., Error: {str(e)}",
             ) from e
 
-    async def get_tables(self) -> List[str]:
+    async def get_tables(self) -> list[str]:
         """Get list of available tables in SQLite database.
 
         Returns:
@@ -141,7 +141,7 @@ class SQLiteBackend(BaseBackend):
                 details=f"Database: {self.db_path}, Error: {str(e)}",
             ) from e
 
-    async def get_columns(self, table_name: str) -> Dict[str, str]:
+    async def get_columns(self, table_name: str) -> dict[str, str]:
         """Get schema for a specific table in SQLite database.
 
         Args:

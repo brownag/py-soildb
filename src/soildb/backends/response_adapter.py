@@ -6,7 +6,7 @@ into SDAResponse format, which all backends then return uniformly.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from soildb.response import SDAResponse
 from soildb.type_conversion import TypeMap, get_default_type_map
@@ -28,8 +28,8 @@ class ResponseAdapter:
 
     @staticmethod
     async def from_rows(
-        rows: List[tuple],
-        columns: List[str],
+        rows: list[tuple],
+        columns: list[str],
         type_map: Optional[TypeMap] = None,
     ) -> SDAResponse:
         """Convert database rows to SDAResponse.
@@ -70,8 +70,8 @@ class ResponseAdapter:
 
     @staticmethod
     async def from_dict_rows(
-        rows: List[Dict],
-        columns: List[str],
+        rows: list[dict],
+        columns: list[str],
         type_map: Optional[TypeMap] = None,
     ) -> SDAResponse:
         """Convert dict-based rows to SDAResponse.
@@ -100,7 +100,7 @@ class ResponseAdapter:
         return await ResponseAdapter.from_rows(tuple_rows, columns, type_map)
 
     @staticmethod
-    async def combine_responses(responses: List[SDAResponse]) -> SDAResponse:
+    async def combine_responses(responses: list[SDAResponse]) -> SDAResponse:
         """Merge multiple SDAResponse objects into one.
 
         Args:
@@ -143,7 +143,7 @@ class ResponseAdapter:
 
         # Reconstruct response with combined data
         # combined_columns and combined_metadata are verified not None above
-        table_data: List[Any] = [combined_columns, combined_metadata]
+        table_data: list[Any] = [combined_columns, combined_metadata]
 
         # Convert dict rows back to column-ordered tuples
         for row in combined_data:

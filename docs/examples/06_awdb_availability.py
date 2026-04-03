@@ -22,7 +22,7 @@ import asyncio
 import json
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from soildb.awdb.client import AWDBClient
 from soildb.awdb.models import StationInfo
@@ -37,10 +37,10 @@ VARIABLES = {
 async def get_days_with_data(
     client: AWDBClient,
     station_triplet: str,
-    elements: List[str],
+    elements: list[str],
     start_year: int,
     end_year: int,
-) -> Dict[str, Dict[int, int]]:
+) -> dict[str, dict[int, int]]:
     """
     Check data availability for a station across multiple years at daily resolution.
 
@@ -75,8 +75,8 @@ async def get_days_with_data(
 
 
 async def assess_station_data_availability(
-    station: StationInfo, variables: Dict[str, Dict], start_year: int, end_year: int
-) -> Dict[str, Any]:
+    station: StationInfo, variables: dict[str, dict], start_year: int, end_year: int
+) -> dict[str, Any]:
     """
     Assess data availability for a single station.
     """

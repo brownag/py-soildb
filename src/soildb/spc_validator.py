@@ -8,7 +8,7 @@ and provides helpful error messages for missing or invalid data.
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -22,8 +22,8 @@ class SPCValidationError(ValueError):
     def __init__(
         self,
         message: str,
-        missing_columns: Optional[List[str]] = None,
-        available_columns: Optional[List[str]] = None,
+        missing_columns: Optional[list[str]] = None,
+        available_columns: Optional[list[str]] = None,
         suggestion: Optional[str] = None,
     ):
         self.message = message
@@ -64,7 +64,7 @@ class SPCColumnValidator:
     @staticmethod
     def resolve_column(
         required_col: str,
-        available_columns: List[str],
+        available_columns: list[str],
         silent: bool = False,
     ) -> Optional[str]:
         """
@@ -96,10 +96,10 @@ class SPCColumnValidator:
 
     @staticmethod
     def validate_required_columns(
-        required_cols: List[str],
-        available_columns: List[str],
+        required_cols: list[str],
+        available_columns: list[str],
         preset_name: str = "custom",
-    ) -> Tuple[bool, Optional[SPCValidationError], dict]:
+    ) -> tuple[bool, Optional[SPCValidationError], dict]:
         """
         Validate that all required columns exist in data.
 
@@ -151,7 +151,7 @@ class SPCDepthValidator:
         top_col: str,
         bottom_col: str,
         depth_units: str = "inches",
-    ) -> Tuple[bool, Optional[str], int]:
+    ) -> tuple[bool, Optional[str], int]:
         """
         Validate horizon depth values.
 
@@ -287,7 +287,7 @@ class SPCWarnings:
         )
 
     @staticmethod
-    def warn_missing_optional_columns(missing: List[str]) -> None:
+    def warn_missing_optional_columns(missing: list[str]) -> None:
         """Warn about missing optional columns."""
         if missing:
             warnings.warn(
@@ -299,8 +299,8 @@ class SPCWarnings:
 
 def create_spc_validation_report(
     df: "pd.DataFrame",
-    required_cols: List[str],
-    available_cols: List[str],
+    required_cols: list[str],
+    available_cols: list[str],
     top_col: str,
     bottom_col: str,
 ) -> dict:

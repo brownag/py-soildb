@@ -5,7 +5,7 @@ must implement. Handles connection lifecycle, query execution, and schema intros
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from soildb.base_client import ClientConfig
 from soildb.response import SDAResponse
@@ -63,7 +63,7 @@ class BaseBackend(ABC):
         ...
 
     @abstractmethod
-    async def get_tables(self) -> List[str]:
+    async def get_tables(self) -> list[str]:
         """Get list of available tables in backend.
 
         Returns:
@@ -75,7 +75,7 @@ class BaseBackend(ABC):
         ...
 
     @abstractmethod
-    async def get_columns(self, table: str) -> Dict[str, str]:
+    async def get_columns(self, table: str) -> dict[str, str]:
         """Get column names and types for a table.
 
         Args:
@@ -89,7 +89,7 @@ class BaseBackend(ABC):
         """
         ...
 
-    async def execute_many(self, queries: List[str]) -> List[SDAResponse]:
+    async def execute_many(self, queries: list[str]) -> list[SDAResponse]:
         """Execute multiple queries concurrently.
 
         Args:

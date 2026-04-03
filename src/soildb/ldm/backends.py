@@ -10,7 +10,7 @@ Both backends return SDAResponse objects for consistency.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Union
+from typing import Any, Optional, Protocol, Union
 
 import aiosqlite
 
@@ -51,7 +51,7 @@ class LDMBackend(Protocol):
         """
         ...
 
-    async def get_available_tables(self) -> List[str]:
+    async def get_available_tables(self) -> list[str]:
         """Get list of available tables in the data source.
 
         Returns:
@@ -59,7 +59,7 @@ class LDMBackend(Protocol):
         """
         ...
 
-    async def get_table_schema(self, table_name: str) -> Dict[str, str]:
+    async def get_table_schema(self, table_name: str) -> dict[str, str]:
         """Get column names and types for a specific table.
 
         Args:
@@ -117,7 +117,7 @@ class SDABackend:
                 details=str(e),
             ) from e
 
-    async def get_available_tables(self) -> List[str]:
+    async def get_available_tables(self) -> list[str]:
         """Get available LDM tables from SDA.
 
         Returns:
@@ -129,7 +129,7 @@ class SDABackend:
 
         return ALL_TABLES
 
-    async def get_table_schema(self, table_name: str) -> Dict[str, str]:
+    async def get_table_schema(self, table_name: str) -> dict[str, str]:
         """Get schema for a specific LDM table from SDA.
 
         Args:
@@ -238,7 +238,7 @@ class SQLiteBackend:
                     # Get column names from cursor description
                     if not cursor.description:
                         columns = []
-                        rows: List[Any] = []
+                        rows: list[Any] = []
                     else:
                         columns = [desc[0] for desc in cursor.description]
                         rows = list(await cursor.fetchall())
@@ -258,7 +258,7 @@ class SQLiteBackend:
                 details=f"Database: {self.db_path}, Query: {sql[:100]}...",
             ) from e
 
-    async def get_available_tables(self) -> List[str]:
+    async def get_available_tables(self) -> list[str]:
         """Get list of available tables in SQLite database.
 
         Returns:
@@ -280,7 +280,7 @@ class SQLiteBackend:
                 details=f"Database: {self.db_path}",
             ) from e
 
-    async def get_table_schema(self, table_name: str) -> Dict[str, str]:
+    async def get_table_schema(self, table_name: str) -> dict[str, str]:
         """Get schema for a specific table in SQLite database.
 
         Args:
@@ -309,7 +309,7 @@ class SQLiteBackend:
             ) from e
 
     def _create_response(
-        self, columns: List[str], data: List[List[Any]]
+        self, columns: list[str], data: list[list[Any]]
     ) -> SDAResponse:
         """Convert SQLite results to SDAResponse format.
 

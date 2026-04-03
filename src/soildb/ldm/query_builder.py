@@ -6,7 +6,8 @@ filtering, and chunking support.
 """
 
 import logging
-from typing import List, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Optional, Union
 
 from .exceptions import (
     LDMParameterError,
@@ -59,7 +60,7 @@ class LDMQueryBuilder:
 
     def __init__(
         self,
-        tables: Optional[List[str]] = None,
+        tables: Optional[list[str]] = None,
         layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
         area_type: Optional[str] = DEFAULT_AREA_TYPE,
         prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
@@ -82,9 +83,9 @@ class LDMQueryBuilder:
             LDMParameterError: If invalid parameters provided
             LDMTableError: If invalid table names provided
         """
-        self.prep_codes: Optional[List[str]] = None
-        self.analyzed_size_fracs: Optional[List[str]] = None
-        self.layer_types: Optional[List[str]] = None
+        self.prep_codes: Optional[list[str]] = None
+        self.analyzed_size_fracs: Optional[list[str]] = None
+        self.layer_types: Optional[list[str]] = None
 
         # Validate and set tables
         self.tables = tables or DEFAULT_TABLES
@@ -152,7 +153,7 @@ class LDMQueryBuilder:
 
     def build_query(
         self,
-        keys: Optional[List[Union[str, int]]] = None,
+        keys: Optional[list[Union[str, int]]] = None,
         key_column: str = "pedon_key",
         custom_where: Optional[str] = None,
     ) -> str:
@@ -203,10 +204,10 @@ class LDMQueryBuilder:
 
     def build_chunked_queries(
         self,
-        keys: List[Union[str, int]],
+        keys: list[Union[str, int]],
         key_column: str = "pedon_key",
         chunk_size: int = 1000,
-    ) -> List[str]:
+    ) -> list[str]:
         """Build multiple queries for chunked key processing.
 
         Args:
@@ -285,7 +286,7 @@ class LDMQueryBuilder:
 
     def _build_where(
         self,
-        keys: Optional[List[Union[str, int]]] = None,
+        keys: Optional[list[Union[str, int]]] = None,
         key_column: str = "pedon_key",
         custom_where: Optional[str] = None,
     ) -> str:
@@ -387,9 +388,9 @@ def build_ldm_site_query(
 
 
 def build_ldm_query(
-    x: Optional[List[Union[str, int]]] = None,
+    x: Optional[list[Union[str, int]]] = None,
     what: str = "pedon_key",
-    tables: Optional[List[str]] = None,
+    tables: Optional[list[str]] = None,
     WHERE: Optional[str] = None,
     layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
     area_type: Optional[str] = DEFAULT_AREA_TYPE,

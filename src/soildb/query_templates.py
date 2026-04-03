@@ -18,7 +18,7 @@ Examples:
     query = query_pedons_intersecting_bbox(-94.0, 42.0, -93.0, 43.0)
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from .query import ColumnSets, Query
 from .sanitization import (
@@ -30,7 +30,7 @@ from .sanitization import (
 
 
 def query_mapunits_by_legend(
-    areasymbol: str, columns: Optional[List[str]] = None
+    areasymbol: str, columns: Optional[list[str]] = None
 ) -> Query:
     """Get map units for a survey area by legend/area symbol.
 
@@ -59,7 +59,7 @@ def query_mapunits_by_legend(
 
 
 def query_components_by_legend(
-    areasymbol: str, columns: Optional[List[str]] = None
+    areasymbol: str, columns: Optional[list[str]] = None
 ) -> Query:
     """Get components for a survey area.
 
@@ -93,7 +93,7 @@ def query_components_by_legend(
 
 
 def query_component_horizons_by_legend(
-    areasymbol: str, columns: Optional[List[str]] = None
+    areasymbol: str, columns: Optional[list[str]] = None
 ) -> Query:
     """Get component and horizon data for a survey area.
 
@@ -134,7 +134,7 @@ def query_component_horizons_by_legend(
 
 
 def query_components_at_point(
-    longitude: float, latitude: float, columns: Optional[List[str]] = None
+    longitude: float, latitude: float, columns: Optional[list[str]] = None
 ) -> Query:
     """Get soil component data at a specific point.
 
@@ -178,7 +178,7 @@ def query_mapunits_intersecting_bbox(
     min_y: float,
     max_x: float,
     max_y: float,
-    columns: Optional[List[str]] = None,
+    columns: Optional[list[str]] = None,
 ) -> Query:
     """Get map units that intersect with a bounding box.
 
@@ -213,7 +213,7 @@ def query_mapunits_intersecting_bbox(
 
 
 def query_spatial_by_legend(
-    areasymbol: str, columns: Optional[List[str]] = None
+    areasymbol: str, columns: Optional[list[str]] = None
 ) -> Query:
     """Get spatial data for map units on a legend/area symbol.
 
@@ -242,7 +242,7 @@ def query_spatial_by_legend(
 
 
 def query_available_survey_areas(
-    columns: Optional[List[str]] = None, table: str = "sacatalog"
+    columns: Optional[list[str]] = None, table: str = "sacatalog"
 ) -> Query:
     """Get list of available survey areas.
 
@@ -269,7 +269,7 @@ def query_available_survey_areas(
 
 
 def query_survey_area_boundaries(
-    columns: Optional[List[str]] = None, table: str = "sapolygon"
+    columns: Optional[list[str]] = None, table: str = "sapolygon"
 ) -> Query:
     """Get survey area boundary polygons.
 
@@ -311,9 +311,9 @@ def query_pedons_intersecting_bbox(
     min_y: float,
     max_x: float,
     max_y: float,
-    columns: Optional[List[str]] = None,
+    columns: Optional[list[str]] = None,
     base_table: str = "lab_combine_nasis_ncss",
-    related_tables: Optional[List[str]] = None,
+    related_tables: Optional[list[str]] = None,
     lon_column: str = "longitude_decimal_degrees",
     lat_column: str = "latitude_decimal_degrees",
 ) -> Query:
@@ -372,10 +372,10 @@ def query_pedons_intersecting_bbox(
 
 
 def query_pedon_horizons_by_pedon_keys(
-    pedon_keys: List[str],
-    columns: Optional[List[str]] = None,
+    pedon_keys: list[str],
+    columns: Optional[list[str]] = None,
     base_table: str = "lab_layer",
-    related_tables: Optional[List[str]] = None,
+    related_tables: Optional[list[str]] = None,
 ) -> Query:
     """Get horizon data for specified pedon keys with flexible table joining.
 
@@ -456,9 +456,9 @@ def query_pedon_horizons_by_pedon_keys(
 
 def query_pedon_by_pedon_key(
     pedon_key: str,
-    columns: Optional[List[str]] = None,
+    columns: Optional[list[str]] = None,
     base_table: str = "lab_combine_nasis_ncss",
-    related_tables: Optional[List[str]] = None,
+    related_tables: Optional[list[str]] = None,
 ) -> Query:
     """Get a single pedon by its pedon key with flexible table joining.
 

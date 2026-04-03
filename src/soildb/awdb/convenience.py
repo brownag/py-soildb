@@ -21,7 +21,7 @@ See convenience_api_migration() for usage examples and migration guide.
 """
 # mypy: disable-error-code="attr-defined"
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..utils import add_sync_version
 from .client import AWDBClient
@@ -187,10 +187,10 @@ async def discover_stations_nearby(
     latitude: float,
     longitude: float,
     max_distance_km: float = 50.0,
-    network_codes: Optional[List[str]] = None,
+    network_codes: Optional[list[str]] = None,
     limit: int = 10,
     include_sensor_metadata: bool = False,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Discover AWDB stations near a geographic location.
 
@@ -245,15 +245,15 @@ async def discover_stations_nearby(
 
 @add_sync_version
 async def discover_stations(
-    network_codes: Optional[List[str]] = None,
-    state_codes: Optional[List[str]] = None,
-    station_triplets: Optional[List[str]] = None,
-    station_names: Optional[List[str]] = None,
-    elements: Optional[List[str]] = None,
+    network_codes: Optional[list[str]] = None,
+    state_codes: Optional[list[str]] = None,
+    station_triplets: Optional[list[str]] = None,
+    station_names: Optional[list[str]] = None,
+    elements: Optional[list[str]] = None,
     active_only: bool = True,
     limit: Optional[int] = None,
     include_sensor_metadata: bool = False,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Discover stations using advanced filtering criteria with wildcard support.
 
@@ -325,7 +325,7 @@ async def discover_stations(
                 if station.station_elements:
                     try:
                         # Convert raw station elements to organized sensor metadata
-                        sensors_by_property: Dict[str, List[Dict[str, Any]]] = {}
+                        sensors_by_property: dict[str, list[dict[str, Any]]] = {}
                         for elem in station.station_elements:  # type: ignore
                             element_code = elem.get("elementCode", "")
                             property_name = None
@@ -383,7 +383,7 @@ def build_soil_element_string(
 
 
 @add_sync_version
-async def station_sensor_depths(station_triplet: str, property_name: str) -> List[Dict]:
+async def station_sensor_depths(station_triplet: str, property_name: str) -> list[dict]:
     """
     Get available sensor depths/heights for a specific station and property.
 
@@ -454,10 +454,10 @@ async def station_sensor_depths(station_triplet: str, property_name: str) -> Lis
 @add_sync_version
 async def get_soil_moisture_by_depth(
     station_triplet: str,
-    depths_inches: Optional[List[int]] = None,
+    depths_inches: Optional[list[int]] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-) -> Dict:
+) -> dict:
     """
     Get soil moisture data for multiple depths at a station.
 
@@ -520,7 +520,7 @@ async def get_soil_moisture_by_depth(
     async with AWDBClient() as client:
         from datetime import datetime
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "station_triplet": station_triplet,
             "depths": {},
             "metadata": {
@@ -578,9 +578,9 @@ async def get_property_data_near(
     end_date: str,
     max_distance_km: float = 50.0,
     height_depth_inches: Optional[int] = None,
-    network_codes: Optional[List[str]] = None,
+    network_codes: Optional[list[str]] = None,
     auto_select_sensor: bool = True,
-) -> Dict:
+) -> dict:
     """
     Get time-series data for a property from the nearest monitoring station.
 
@@ -799,7 +799,7 @@ async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> s
 
 
 @add_sync_version
-async def station_sensors(station_triplet: str) -> Dict[str, Any]:
+async def station_sensors(station_triplet: str) -> dict[str, Any]:
     """
     Get comprehensive sensor metadata for a station.
 
@@ -850,7 +850,7 @@ async def station_sensors(station_triplet: str) -> Dict[str, Any]:
             return {"station_triplet": station_triplet, "sensors": {}}
 
         station = stations[0]
-        sensors_by_property: Dict[str, List[Dict[str, Any]]] = {}
+        sensors_by_property: dict[str, list[dict[str, Any]]] = {}
 
         for elem in station.station_elements:  # type: ignore
             element_code = elem.get("elementCode", "")
@@ -891,7 +891,7 @@ async def station_sensors(station_triplet: str) -> Dict[str, Any]:
 
 
 @add_sync_version
-async def station_available_properties(station_triplet: str) -> List[Dict]:
+async def station_available_properties(station_triplet: str) -> list[dict]:
     """
     List available measured properties/variables for a specific station.
 

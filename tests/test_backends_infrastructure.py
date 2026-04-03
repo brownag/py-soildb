@@ -9,8 +9,6 @@ Tests cover:
 - BackendError exception hierarchy
 """
 
-from typing import Dict, List
-
 import pytest
 
 from soildb.backends import (
@@ -74,12 +72,12 @@ class MockBackend(BaseBackend):
         }
         return SDAResponse(response_dict)
 
-    async def get_tables(self) -> List[str]:
+    async def get_tables(self) -> list[str]:
         if self.should_fail and "get_tables" in self.fail_on:
             raise BackendSchemaError("Mock get_tables failed", details="test failure")
         return ["table1", "table2", "table3"]
 
-    async def get_columns(self, table_name: str) -> Dict[str, str]:
+    async def get_columns(self, table_name: str) -> dict[str, str]:
         if self.should_fail and "get_columns" in self.fail_on:
             raise BackendSchemaError(
                 f"Mock get_columns failed for {table_name}", details="test failure"

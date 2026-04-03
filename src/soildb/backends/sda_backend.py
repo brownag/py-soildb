@@ -6,7 +6,7 @@ error handling, and retry behavior.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from soildb.client import SDAClient
 from soildb.response import SDAResponse
@@ -84,7 +84,7 @@ class SDABackend(BaseBackend):
                 details=str(e),
             ) from e
 
-    async def get_tables(self) -> List[str]:
+    async def get_tables(self) -> list[str]:
         """Get available tables from SDA.
 
         Returns:
@@ -104,7 +104,7 @@ class SDABackend(BaseBackend):
                 details=str(e),
             ) from e
 
-    async def get_columns(self, table_name: str) -> Dict[str, str]:
+    async def get_columns(self, table_name: str) -> dict[str, str]:
         """Get schema for a specific table from SDA.
 
         Args:

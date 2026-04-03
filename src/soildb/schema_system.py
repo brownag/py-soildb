@@ -33,8 +33,9 @@ USAGE:
 For detailed schema design documentation, see: docs/SCHEMA_SYSTEM.md
 """
 
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field, make_dataclass
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     try:
@@ -139,8 +140,8 @@ def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
 
 
 def create_dynamic_dataclass(
-    schema: TableSchema, name: str, base_class: Optional[Type] = None
-) -> Type[Any]:
+    schema: TableSchema, name: str, base_class: Optional[type] = None
+) -> type[Any]:
     """Create a dataclass dynamically from a schema.
 
     Args:
@@ -163,14 +164,14 @@ def create_dynamic_dataclass(
     """
     from dataclasses import Field
 
-    fields: List[tuple[str, Any, Any]] = []
+    fields: list[tuple[str, Any, Any]] = []
 
     # Add base fields
     for fname, default_value in schema.base_fields.items():
         if fname == "extra_fields":
-            fields.append((fname, Dict[str, Any], field(default_factory=dict)))
+            fields.append((fname, dict[str, Any], field(default_factory=dict)))
         elif isinstance(default_value, list):
-            fields.append((fname, List[Any], field(default_factory=list)))
+            fields.append((fname, list[Any], field(default_factory=list)))
         else:
             fields.append((fname, type(default_value), default_value))
 
@@ -202,11 +203,11 @@ def create_dynamic_dataclass(
         """Check if an extra field exists."""
         return key in self.extra_fields
 
-    def list_extra_fields(self: Any) -> List[str]:
+    def list_extra_fields(self: Any) -> list[str]:
         """List all extra field keys."""
         return list(self.extra_fields.keys())
 
-    def to_dict(self: Any) -> Dict[str, Any]:
+    def to_dict(self: Any) -> dict[str, Any]:
         """Convert to dictionary."""
         return asdict(self)
 
@@ -259,11 +260,11 @@ class PedonData:
     # Classification
     taxclname: Optional[str] = None  # Full taxonomic class name
     # Horizons
-    horizons: List[Any] = field(default_factory=list)
+    horizons: list[Any] = field(default_factory=list)
     # Dictionary for arbitrary user-defined properties.
-    extra_fields: Dict[str, Any] = field(default_factory=dict)
+    extra_fields: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converts the pedon to a dictionary."""
         d = asdict(self)
         d["horizons"] = [h.to_dict() for h in self.horizons]
@@ -297,7 +298,7 @@ class PedonData:
         """Check if an extra field exists."""
         return key in self.extra_fields
 
-    def list_extra_fields(self) -> List[str]:
+    def list_extra_fields(self) -> list[str]:
         """List all extra field keys."""
         return list(self.extra_fields.keys())
 

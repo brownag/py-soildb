@@ -5,13 +5,13 @@ Loads schemas on-demand rather than all at startup.
 Provides schema versioning and tracking.
 """
 
-from typing import Callable, Dict, Optional
+from typing import Callable, Optional
 
 from ._base import TableSchema
 
 # Lazy-loading registry
-_SCHEMAS_CACHE: Dict[str, TableSchema] = {}
-_SCHEMA_LOADERS: Dict[
+_SCHEMAS_CACHE: dict[str, TableSchema] = {}
+_SCHEMA_LOADERS: dict[
     str, Callable[[], TableSchema]
 ] = {}  # Will be populated with lazy loaders
 

@@ -9,7 +9,7 @@ import asyncio
 import logging
 import zipfile
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import httpx
 
@@ -236,7 +236,7 @@ def build_statsgo_url(areasymbol: str, saverest: Union[str, Any]) -> str:
 
 @add_sync_version
 async def download_wss(
-    areasymbols: Optional[List[str]] = None,
+    areasymbols: Optional[list[str]] = None,
     where_clause: Optional[str] = None,
     dest_dir: Union[str, Path] = "./ssurgo_data",
     extract: bool = True,
@@ -246,7 +246,7 @@ async def download_wss(
     client: Optional[SDAClient] = None,
     progress_callback: Optional[Callable[[float, int, int], None]] = None,
     max_concurrent: int = 3,
-) -> List[Path]:
+) -> list[Path]:
     """
     Download SSURGO or STATSGO ZIP files for specified survey areas from Web Soil Survey.
 
@@ -359,7 +359,7 @@ async def download_wss(
     )
 
     # Handle exceptions and collect successful downloads
-    successful_paths: List[Path] = []
+    successful_paths: list[Path] = []
     for i, result in enumerate(downloaded_paths):
         if isinstance(result, Exception):
             areasymbol = download_tasks[i][2]

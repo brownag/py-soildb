@@ -4,9 +4,9 @@ Internal utility functions for soildb.
 
 import asyncio
 import inspect
+from collections.abc import Awaitable
 from typing import (
     Any,
-    Awaitable,
     Callable,
     Optional,
     TypeVar,

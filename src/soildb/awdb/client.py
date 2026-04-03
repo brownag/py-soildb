@@ -5,7 +5,7 @@ AWDB (Air and Water Database) client for soildb.
 import json
 from datetime import datetime, timedelta, timezone
 from math import atan2, cos, radians, sin, sqrt
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import httpx
 
@@ -132,7 +132,7 @@ class AWDBClient(BaseDataAccessClient):
             raise AWDBConnectionError(f"Connection test failed: {e}") from e
 
     async def _make_request(  # type: ignore[override]
-        self, endpoint: str, params: Optional[Dict[str, str]] = None
+        self, endpoint: str, params: Optional[dict[str, str]] = None
     ) -> Any:
         """Make an async request to the AWDB API with error handling.
 
@@ -184,21 +184,21 @@ class AWDBClient(BaseDataAccessClient):
 
     async def get_stations(
         self,
-        network_codes: Optional[List[str]] = None,
-        state_codes: Optional[List[str]] = None,
-        station_triplets: Optional[List[str]] = None,
-        station_names: Optional[List[str]] = None,
-        dco_codes: Optional[List[str]] = None,
-        county_names: Optional[List[str]] = None,
-        elements: Optional[List[str]] = None,
-        durations: Optional[List[str]] = None,
-        hucs: Optional[List[str]] = None,
+        network_codes: Optional[list[str]] = None,
+        state_codes: Optional[list[str]] = None,
+        station_triplets: Optional[list[str]] = None,
+        station_names: Optional[list[str]] = None,
+        dco_codes: Optional[list[str]] = None,
+        county_names: Optional[list[str]] = None,
+        elements: Optional[list[str]] = None,
+        durations: Optional[list[str]] = None,
+        hucs: Optional[list[str]] = None,
         return_forecast_point_metadata: bool = False,
         return_reservoir_metadata: bool = False,
         return_station_elements: bool = False,
         active_only: bool = True,
         limit: Optional[int] = None,
-    ) -> List[StationInfo]:
+    ) -> list[StationInfo]:
         """
         Get list of available stations with comprehensive filtering options.
 
@@ -327,9 +327,9 @@ class AWDBClient(BaseDataAccessClient):
         latitude: float,
         longitude: float,
         max_distance_km: float = 50.0,
-        network_codes: Optional[List[str]] = None,
+        network_codes: Optional[list[str]] = None,
         limit: int = 10,
-    ) -> List[Tuple[StationInfo, float]]:
+    ) -> list[tuple[StationInfo, float]]:
         """
         Find stations near a given location.
 
@@ -386,7 +386,7 @@ class AWDBClient(BaseDataAccessClient):
         return_original_values: bool = False,
         return_suspect_data: bool = False,
         insert_or_update_begin_date: Optional[str] = None,
-    ) -> List[TimeSeriesDataPoint]:
+    ) -> list[TimeSeriesDataPoint]:
         """
         Get time series data for a specific station and element with enhanced options.
 
@@ -446,7 +446,7 @@ class AWDBClient(BaseDataAccessClient):
             data = await self._make_request("data", params)
 
             # Process the response data - handle nested structure properly
-            processed_data: List[TimeSeriesDataPoint] = []
+            processed_data: list[TimeSeriesDataPoint] = []
             if not data:
                 return processed_data
 
@@ -552,7 +552,7 @@ class AWDBClient(BaseDataAccessClient):
         end_date: str,
         duration: str = "MONTHLY",
         ordinal: int = 1,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Check data availability for a station by querying coarser time granularity.
 
@@ -616,13 +616,13 @@ class AWDBClient(BaseDataAccessClient):
 
     async def get_forecasts(
         self,
-        station_triplets: List[str],
-        element_codes: Optional[List[str]] = None,
+        station_triplets: list[str],
+        element_codes: Optional[list[str]] = None,
         start_publication_date: Optional[str] = None,
         end_publication_date: Optional[str] = None,
-        exceedence_probabilities: Optional[List[int]] = None,
-        forecast_periods: Optional[List[str]] = None,
-    ) -> List[ForecastData]:
+        exceedence_probabilities: Optional[list[int]] = None,
+        forecast_periods: Optional[list[str]] = None,
+    ) -> list[ForecastData]:
         """
         Get forecast data for one or more stations.
 
@@ -678,7 +678,7 @@ class AWDBClient(BaseDataAccessClient):
 
     async def get_reference_data(
         self,
-        reference_lists: Optional[List[str]] = None,
+        reference_lists: Optional[list[str]] = None,
     ) -> ReferenceData:
         """
         Get reference data from AWDB.

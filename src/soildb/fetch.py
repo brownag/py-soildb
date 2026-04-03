@@ -76,8 +76,9 @@ RECOMMENDED USAGE PATTERNS:
 import asyncio
 import logging
 import math
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from .client import SDAClient
 from .exceptions import SoilDBError
@@ -175,7 +176,7 @@ class QueryPresets:
             self,
             table: str,
             key_column: str,
-            columns: Optional[List[str]] = None,
+            columns: Optional[list[str]] = None,
             chunk_size: int = 1000,
             include_geometry: bool = False,
             description: str = "",
@@ -187,7 +188,7 @@ class QueryPresets:
             self.include_geometry = include_geometry
             self.description = description
 
-        def as_kwargs(self) -> Dict[str, Any]:
+        def as_kwargs(self) -> dict[str, Any]:
             """Return preset as kwargs dict for fetch_by_keys()."""
             return {
                 "table": self.table,
@@ -309,7 +310,7 @@ class QueryPresets:
     )
 
     @classmethod
-    def list_presets(cls) -> Dict[str, str]:
+    def list_presets(cls) -> dict[str, str]:
         """
         Get all available presets with descriptions.
 
@@ -334,7 +335,7 @@ async def fetch_by_keys(
     keys: Union[Sequence[Union[str, int]], str, int],
     table: str,
     key_column: Optional[str] = None,
-    columns: Optional[Union[str, List[str]]] = None,
+    columns: Optional[Union[str, list[str]]] = None,
     chunk_size: int = 1000,
     include_geometry: bool = False,
     client: Optional[SDAClient] = None,
@@ -468,9 +469,9 @@ async def fetch_by_keys(
         get_mukey_by_areasymbol() - Discover keys before fetching
     """
     if isinstance(keys, (str, int)):
-        keys = cast(List[Union[str, int]], [keys])
+        keys = cast(list[Union[str, int]], [keys])
 
-    keys_list = cast(List[Union[str, int]], keys)
+    keys_list = cast(list[Union[str, int]], keys)
 
     if not keys_list:
         raise FetchError("The 'keys' parameter cannot be an empty list.")
@@ -538,7 +539,7 @@ async def fetch_by_keys(
 
 
 async def _fetch_chunk(
-    key_strings: List[str],
+    key_strings: list[str],
     table: str,
     key_column: str,
     select_columns: str,
@@ -561,7 +562,7 @@ async def _fetch_chunk(
 
 
 def _combine_responses(
-    responses: List[SDAResponse], deduplicate: bool = False
+    responses: list[SDAResponse], deduplicate: bool = False
 ) -> SDAResponse:
     """
     Combine multiple SDAResponse objects into a single unified response.
@@ -719,7 +720,7 @@ def _combine_responses(
 
     # Collect data from all responses with deduplication if requested
     combined_data = []
-    seen_keys: Dict[Any, bool] = {}  # Track seen keys for deduplication
+    seen_keys: dict[Any, bool] = {}  # Track seen keys for deduplication
     deduped_count = 0
 
     first_response = responses[0]
@@ -752,7 +753,7 @@ def _combine_responses(
         logger.warning(f"Row integrity warning (continuing anyway): {e}")
 
     # Build the combined table in SDA format
-    combined_table: List[Any] = []
+    combined_table: list[Any] = []
 
     # Add the header row (column names)
     combined_table.append(first_response.columns)
@@ -764,7 +765,7 @@ def _combine_responses(
     combined_table.extend(combined_data)
 
     # Create new raw data structure
-    combined_raw_data: Dict[str, Any] = {"Table": combined_table}
+    combined_raw_data: dict[str, Any] = {"Table": combined_table}
 
     # Create new SDAResponse
     combined_response = SDAResponse(combined_raw_data)
@@ -794,7 +795,7 @@ def _combine_responses(
     return combined_response
 
 
-def _validate_schema_consistency(responses: List[SDAResponse]) -> None:
+def _validate_schema_consistency(responses: list[SDAResponse]) -> None:
     """
     Validate that all responses have consistent schemas.
 
@@ -828,7 +829,7 @@ def _validate_schema_consistency(responses: List[SDAResponse]) -> None:
             )
 
 
-def _validate_row_integrity(rows: List[Any], expected_columns: List[str]) -> None:
+def _validate_row_integrity(rows: list[Any], expected_columns: list[str]) -> None:
     """
     Validate that all rows have consistent structure.
 
@@ -866,7 +867,7 @@ def _validate_row_integrity(rows: List[Any], expected_columns: List[str]) -> Non
 
 
 def _merge_validation_state(
-    combined_response: SDAResponse, input_responses: List[SDAResponse]
+    combined_response: SDAResponse, input_responses: list[SDAResponse]
 ) -> None:
     """
     Merge validation state from all input responses into combined response.
@@ -959,12 +960,12 @@ def _get_geometry_column_for_table(table: str) -> Optional[str]:
 
 @add_sync_version
 async def fetch_pedons_by_bbox(
-    bbox: Tuple[float, float, float, float],
-    columns: Optional[List[str]] = None,
+    bbox: tuple[float, float, float, float],
+    columns: Optional[list[str]] = None,
     chunk_size: int = 1000,
     return_type: Literal["sitedata", "combined", "soilprofilecollection"] = "sitedata",
     client: Optional[SDAClient] = None,
-) -> Union[SDAResponse, Dict[str, Any], Any]:
+) -> Union[SDAResponse, dict[str, Any], Any]:
     """
     Fetch pedon site data within a geographic bounding box with flexible return types.
 
@@ -1106,7 +1107,7 @@ async def fetch_pedons_by_bbox(
 
 @add_sync_version
 async def fetch_pedon_horizons(
-    pedon_keys: Union[List[str], str],
+    pedon_keys: Union[list[str], str],
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
     """
@@ -1133,10 +1134,10 @@ async def fetch_pedon_horizons(
 
 @add_sync_version
 async def fetch_ldm(
-    x: Optional[Union[List[Union[str, int]], str, int]] = None,
+    x: Optional[Union[list[Union[str, int]], str, int]] = None,
     what: str = "pedlabsampnum",
     bycol: str = "pedon_key",
-    tables: Optional[List[str]] = None,
+    tables: Optional[list[str]] = None,
     WHERE: Optional[str] = None,
     chunk_size: int = 1000,
     max_retries: int = 3,
@@ -1353,8 +1354,8 @@ async def fetch_ldm(
 
 @add_sync_version
 async def get_mukey_by_areasymbol(
-    areasymbols: List[str], client: Optional[SDAClient] = None
-) -> List[int]:
+    areasymbols: list[str], client: Optional[SDAClient] = None
+) -> list[int]:
     """
     Get all mukeys for given area symbols (TIER 4 - Helper).
 
@@ -1411,10 +1412,10 @@ async def get_mukey_by_areasymbol(
 
 @add_sync_version
 async def get_cokey_by_mukey(
-    mukeys: Union[List[Union[str, int]], Union[str, int]],
+    mukeys: Union[list[Union[str, int]], Union[str, int]],
     major_components_only: bool = True,
     client: Optional[SDAClient] = None,
-) -> List[str]:
+) -> list[str]:
     """
     Get all cokeys for given mukeys (TIER 4 - Helper).
 
@@ -1458,7 +1459,7 @@ async def get_cokey_by_mukey(
         mukeys = [mukeys]
 
     # At this point mukeys is guaranteed to be a list
-    mukeys_list: List[Union[str, int]] = mukeys
+    mukeys_list: list[Union[str, int]] = mukeys
 
     sanitized_keys = [sanitize_sql_numeric(k) for k in mukeys_list]
     where_clause = f"mukey IN ({', '.join(sanitized_keys)})"
@@ -1484,7 +1485,7 @@ async def get_cokey_by_mukey(
 
 @add_sync_version
 async def fetch_mapunit_polygon(
-    mukeys: List[Union[str, int]],
+    mukeys: list[Union[str, int]],
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
     """[DEPRECATED] Query mapunit polygons by mapunit keys.
@@ -1521,7 +1522,7 @@ async def fetch_mapunit_polygon(
 
 @add_sync_version
 async def fetch_component_by_mukey(
-    mukeys: List[Union[str, int]],
+    mukeys: list[Union[str, int]],
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
     """[DEPRECATED] Query soil components by mapunit keys.
@@ -1558,7 +1559,7 @@ async def fetch_component_by_mukey(
 
 @add_sync_version
 async def fetch_chorizon_by_cokey(
-    cokeys: List[Union[str, int]],
+    cokeys: list[Union[str, int]],
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
     """[DEPRECATED] Query soil component horizons by component keys.
@@ -1595,7 +1596,7 @@ async def fetch_chorizon_by_cokey(
 
 @add_sync_version
 async def fetch_survey_area_polygon(
-    areasymbols: List[str],
+    areasymbols: list[str],
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
     """[DEPRECATED] Query survey area polygons by area symbols.

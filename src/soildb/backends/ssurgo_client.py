@@ -11,7 +11,7 @@ All backends return SDAResponse for consistency.
 """
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from soildb.response import SDAResponse
 
@@ -52,9 +52,9 @@ class SSURGOClient:
 
     async def fetch_mapunit(
         self,
-        mukey: Optional[Union[List[int], int]] = None,
-        musym: Optional[Union[List[str], str]] = None,
-        muname: Optional[Union[List[str], str]] = None,
+        mukey: Optional[Union[list[int], int]] = None,
+        musym: Optional[Union[list[str], str]] = None,
+        muname: Optional[Union[list[str], str]] = None,
         WHERE: Optional[str] = None,
     ) -> SDAResponse:
         """Query SSURGO mapunit table.
@@ -78,9 +78,9 @@ class SSURGOClient:
 
     async def fetch_component(
         self,
-        cokey: Optional[Union[List[int], int]] = None,
-        mukey: Optional[Union[List[int], int]] = None,
-        compname: Optional[Union[List[str], str]] = None,
+        cokey: Optional[Union[list[int], int]] = None,
+        mukey: Optional[Union[list[int], int]] = None,
+        compname: Optional[Union[list[str], str]] = None,
         WHERE: Optional[str] = None,
     ) -> SDAResponse:
         """Query SSURGO component table.
@@ -110,9 +110,9 @@ class SSURGOClient:
 
     async def fetch_chorizon(
         self,
-        chkey: Optional[Union[List[int], int]] = None,
-        cokey: Optional[Union[List[int], int]] = None,
-        hzname: Optional[Union[List[str], str]] = None,
+        chkey: Optional[Union[list[int], int]] = None,
+        cokey: Optional[Union[list[int], int]] = None,
+        hzname: Optional[Union[list[str], str]] = None,
         WHERE: Optional[str] = None,
     ) -> SDAResponse:
         """Query SSURGO chorizon (component horizon) table.
@@ -138,8 +138,8 @@ class SSURGOClient:
 
     async def fetch_legend(
         self,
-        lkey: Optional[Union[List[int], int]] = None,
-        areasymbol: Optional[Union[List[str], str]] = None,
+        lkey: Optional[Union[list[int], int]] = None,
+        areasymbol: Optional[Union[list[str], str]] = None,
         WHERE: Optional[str] = None,
     ) -> SDAResponse:
         """Query SSURGO legend (soil survey area) table.
@@ -168,9 +168,9 @@ class SSURGOClient:
     def _build_query(
         self,
         table: str,
-        primary_key: Optional[Union[List[int], List[str], int, str]] = None,
-        secondary_key: Optional[Union[List[int], List[str], int, str]] = None,
-        tertiary_key: Optional[Union[List[str], str]] = None,
+        primary_key: Optional[Union[list[int], list[str], int, str]] = None,
+        secondary_key: Optional[Union[list[int], list[str], int, str]] = None,
+        tertiary_key: Optional[Union[list[str], str]] = None,
         where_clause: Optional[str] = None,
         primary_field: Optional[str] = None,
         secondary_field: Optional[str] = None,
@@ -229,7 +229,7 @@ class SSURGOClient:
         return f"SELECT * FROM {table} WHERE {where_part}"
 
     @staticmethod
-    def _build_in_condition(field: str, values: Union[List, int, str]) -> str:
+    def _build_in_condition(field: str, values: Union[list, int, str]) -> str:
         """Build SQL IN condition.
 
         Args:
@@ -259,7 +259,7 @@ class SSURGOClient:
             else:
                 return f"{field} = '{values}'"
 
-    async def get_available_tables(self) -> List[str]:
+    async def get_available_tables(self) -> list[str]:
         """Get list of available SSURGO tables from backend.
 
         Returns:
@@ -271,7 +271,7 @@ class SSURGOClient:
             logger.warning(f"Failed to get available tables: {e}")
             return []
 
-    async def get_table_schema(self, table: str) -> Dict[str, str]:
+    async def get_table_schema(self, table: str) -> dict[str, str]:
         """Get schema for a SSURGO table.
 
         Args:
