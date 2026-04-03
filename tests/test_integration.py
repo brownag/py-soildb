@@ -75,9 +75,7 @@ async def test_flexible_query_parameters():
     # Test pedon_by_pedon_key with related tables (if we have data)
     if not response.is_empty():
         sample_pedon_key = str(response.to_dict()[0]["pedon_key"])
-        print(
-            f" Testing pedon_by_pedon_key for key: {sample_pedon_key}"
-        )
+        print(f" Testing pedon_by_pedon_key for key: {sample_pedon_key}")
         query = soildb.query_pedon_by_pedon_key(sample_pedon_key)
         response = await client.execute(query)
         assert response is not None

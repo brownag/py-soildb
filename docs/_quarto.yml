@@ -82,8 +82,9 @@ quartodoc:
       desc: "Functions for accessing NRCS monitoring data."
       contents:
         - awdb.client.AWDBClient
-        - awdb.convenience.get_monitoring_station_data
-        - awdb.convenience.find_stations_by_criteria
+        - awdb.convenience.discover_stations
+        - awdb.convenience.discover_stations_nearby
+        - awdb.convenience.get_property_data_near
     - title: "Metadata"
       desc: "Classes and functions for parsing survey area metadata."
       contents:

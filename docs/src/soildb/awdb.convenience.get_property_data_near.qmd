@@ -1,0 +1,66 @@
+# awdb.convenience.get_property_data_near { #soildb.awdb.convenience.get_property_data_near }
+
+```python
+awdb.convenience.get_property_data_near(
+    latitude,
+    longitude,
+    property_name,
+    start_date,
+    end_date,
+    max_distance_km=50.0,
+    height_depth_inches=None,
+    network_codes=None,
+    auto_select_sensor=True,
+)
+```
+
+Get time-series data for a property from the nearest monitoring station.
+
+This is the primary function for retrieving measurement data near a geographic location.
+It discovers nearby stations and automatically selects an appropriate sensor for the
+requested property.
+
+For properties that support height/depth specification (e.g., soil_moisture, soil_temp,
+air_temp), you can optionally specify the exact depth/height:
+- Negative values for depth below surface (soil properties)
+- Positive values for height above surface (atmospheric properties)
+
+Args:
+    latitude: Target latitude (WGS84)
+    longitude: Target longitude (WGS84)
+    property_name: Property/variable name (e.g., 'soil_moisture', 'air_temp', 'precipitation')
+                  See PROPERTY_ELEMENT_MAP keys for complete list
+    start_date: Start date in YYYY-MM-DD format
+    end_date: End date in YYYY-MM-DD format
+    max_distance_km: Maximum distance to search for stations (default: 50 km)
+    height_depth_inches: Optional height/depth specification for compatible properties.
+                        Leave None to auto-select the primary sensor.
+    network_codes: Network codes to filter by (e.g., ['SCAN', 'SNTL'])
+    auto_select_sensor: Automatically select best available sensor (recommended: True)
+
+Returns:
+    Dictionary with time-series data, including:
+    - data_points: List of measurements with timestamps (timezone-aware)
+    - metadata: Station info, distance, element string, etc.
+    - unit: Measurement unit for the property
+
+Raises:
+    AWDBError: If property is invalid, no stations found, or data unavailable
+
+Examples:
+    >>> # Get hourly air temperature from nearest station
+    >>> data = await get_property_data_near(
+    ...     42.0, -93.6, 'air_temp', '2024-01-01', '2024-12-31'
+    ... )
+    >>>
+    >>> # Get soil moisture at specific depth
+    >>> data = await get_property_data_near(
+    ...     42.0, -93.6, 'soil_moisture', '2024-01-01', '2024-12-31',
+    ...     height_depth_inches=-20
+    ... )
+    >>>
+    >>> # Find data from SNOTEL stations only
+    >>> data = await get_property_data_near(
+    ...     42.0, -93.6, 'snow_water_equivalent', '2024-10-01', '2024-12-31',
+    ...     network_codes=['SNTL']
+    ... )
