@@ -1,0 +1,31 @@
+# awdb.convenience.discover_stations_nearby { #soildb.awdb.convenience.discover_stations_nearby }
+
+```python
+awdb.convenience.discover_stations_nearby(
+    latitude,
+    longitude,
+    max_distance_km=50.0,
+    network_codes=None,
+    limit=10,
+    include_sensor_metadata=False,
+)
+```
+
+Discover AWDB stations near a geographic location.
+
+Args:
+    latitude: Target latitude (WGS84)
+    longitude: Target longitude (WGS84)
+    max_distance_km: Maximum search distance in kilometers
+    network_codes: Network codes to include (e.g., 'SCAN', 'SNTL')
+    limit: Maximum number of stations to return
+    include_sensor_metadata: Include detailed sensor information for each station
+
+Returns:
+    List of station dictionaries with distance information and optional sensor metadata
+
+Examples:
+    >>> stations = await discover_stations_nearby(42.0, -93.6, max_distance_km=25)
+    >>> nearby_snotel = await discover_stations_nearby(
+    ...     42.0, -93.6, network_codes=['SNTL'], limit=5, include_sensor_metadata=True
+    ... )

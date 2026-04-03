@@ -39,10 +39,6 @@ Represents a response from the Soil Data Access web service.
 | [to_soilprofilecollection](#soildb.response.SDAResponse.to_soilprofilecollection) | Converts the response data to a soilprofilecollection.SoilProfileCollection object. |
 | [validate](#soildb.response.SDAResponse.validate) | Validate the response based on its type. |
 | [validate_for_soilprofilecollection](#soildb.response.SDAResponse.validate_for_soilprofilecollection) | Validate data suitability for SoilProfileCollection conversion without converting. |
-| [validate_mapunit_response](#soildb.response.SDAResponse.validate_mapunit_response) | Validate a mapunit response for required fields and data integrity. |
-| [validate_pedon_response](#soildb.response.SDAResponse.validate_pedon_response) | Validate a pedon response for required fields and data integrity. |
-| [validate_response](#soildb.response.SDAResponse.validate_response) | Validate the response for common issues and return detailed results. |
-| [validate_transformed_data](#soildb.response.SDAResponse.validate_transformed_data) | Validate transformed data dictionaries for consistency and data quality. |
 
 ### find_fallback_columns { #soildb.response.SDAResponse.find_fallback_columns }
 
@@ -365,75 +361,3 @@ Example:
     ...     spc = response.to_soilprofilecollection()
     ... else:
     ...     print("Validation errors:", report["errors"])
-
-### validate_mapunit_response { #soildb.response.SDAResponse.validate_mapunit_response }
-
-```python
-response.SDAResponse.validate_mapunit_response(response_data)
-```
-
-Validate a mapunit response for required fields and data integrity.
-
-DEPRECATED: Use response.validate("mapunit") instead.
-This static method is maintained for backward compatibility.
-
-Args:
-    response_data: SDAResponse object or dict with response data
-
-Returns:
-    ValidationResult with mapunit-specific validation details
-
-Examples:
-    >>> result = SDAResponse.validate_mapunit_response(response)  # Deprecated
-    >>> result = response.validate("mapunit")  # Preferred
-
-### validate_pedon_response { #soildb.response.SDAResponse.validate_pedon_response }
-
-```python
-response.SDAResponse.validate_pedon_response(response_data)
-```
-
-Validate a pedon response for required fields and data integrity.
-
-DEPRECATED: Use response.validate("pedon") instead.
-This static method is maintained for backward compatibility.
-
-Args:
-    response_data: SDAResponse object or dict with response data
-
-Returns:
-    ValidationResult with pedon-specific validation details
-
-Examples:
-    >>> result = SDAResponse.validate_pedon_response(response)  # Deprecated
-    >>> result = response.validate("pedon")  # Preferred
-
-### validate_response { #soildb.response.SDAResponse.validate_response }
-
-```python
-response.SDAResponse.validate_response()
-```
-
-Validate the response for common issues and return detailed results.
-
-DEPRECATED: Use validate() instead for better API.
-This method is maintained for backward compatibility.
-
-Examples:
-    >>> response = SDAResponse(data)
-    >>> result = response.validate_response()  # Deprecated
-    >>> result = response.validate()  # Preferred
-
-### validate_transformed_data { #soildb.response.SDAResponse.validate_transformed_data }
-
-```python
-response.SDAResponse.validate_transformed_data(data_dicts)
-```
-
-Validate transformed data dictionaries for consistency and data quality.
-
-Args:
-    data_dicts: List of dictionaries from to_dict() conversion
-
-Returns:
-    ValidationResult with data quality assessment
