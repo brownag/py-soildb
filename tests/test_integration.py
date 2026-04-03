@@ -16,7 +16,7 @@ async def test_sda_connection():
     print("Testing soildb SDA connection...")
 
     # basic query building
-    query = soildb.QueryBuilder.available_survey_areas()
+    query = soildb.query_available_survey_areas()
     assert query is not None
     print(f" Query built: {query.to_sql()[:60]}...")
 
@@ -59,16 +59,13 @@ async def test_flexible_query_parameters():
 
     client = soildb.SDAClient(timeout=10.0)
 
-    # Test pedons_intersecting_bbox with custom column names
-    print(" Testing pedons_intersecting_bbox with custom columns...")
-    query = soildb.QueryBuilder.pedons_intersecting_bbox(
-        -94.0,
-        42.0,
-        -93.0,
-        43.0,
-        columns=["pedon_key", "upedonid"],
-        lon_column="longitude_decimal_degrees",
-        lat_column="latitude_decimal_degrees",
+    # Test pedons_intersecting_bbox
+    print(" Testing pedons_intersecting_bbox...")
+    query = soildb.query_pedons_intersecting_bbox(
+        min_x=-94.0,
+        min_y=42.0,
+        max_x=-93.0,
+        max_y=43.0,
     )
     assert query is not None
     response = await client.execute(query)
@@ -77,13 +74,11 @@ async def test_flexible_query_parameters():
 
     # Test pedon_by_pedon_key with related tables (if we have data)
     if not response.is_empty():
-        sample_pedon_key = response.to_dict()[0]["pedon_key"]
+        sample_pedon_key = str(response.to_dict()[0]["pedon_key"])
         print(
-            f" Testing pedon_by_pedon_key with related tables for key: {sample_pedon_key}"
+            f" Testing pedon_by_pedon_key for key: {sample_pedon_key}"
         )
-        query = soildb.QueryBuilder.pedon_by_pedon_key(
-            sample_pedon_key, related_tables=["lab_physical_properties"]
-        )
+        query = soildb.query_pedon_by_pedon_key(sample_pedon_key)
         response = await client.execute(query)
         assert response is not None
         print(f"  Related tables query: {len(response)} results")
