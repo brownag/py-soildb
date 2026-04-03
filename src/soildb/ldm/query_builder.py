@@ -14,11 +14,11 @@ from .exceptions import (
     LDMTableError,
 )
 from .tables import (
-    DEFAULT_TABLES,
     DEFAULT_ANALYZED_SIZE_FRACTIONS,
     DEFAULT_AREA_TYPE,
     DEFAULT_LAYER_TYPES,
     DEFAULT_PREP_CODES,
+    DEFAULT_TABLES,
     LAB_LAYER_TABLE,
     PEDON_TABLE,
     SITE_TABLE,
@@ -63,7 +63,9 @@ class LDMQueryBuilder:
         layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
         area_type: Optional[str] = DEFAULT_AREA_TYPE,
         prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
-        analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
+        analyzed_size_frac: Union[
+            str, Sequence[str], None
+        ] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
     ):
         """Initialize query builder with filtering options.
 
@@ -141,7 +143,11 @@ class LDMQueryBuilder:
                 f"Invalid area_type: '{area_type}'",
             )
 
-        self.layer_type = self.layer_types[0] if self.layer_types and len(self.layer_types) == 1 else None
+        self.layer_type = (
+            self.layer_types[0]
+            if self.layer_types and len(self.layer_types) == 1
+            else None
+        )
         self.area_type = area_type
 
     def build_query(
@@ -182,7 +188,9 @@ class LDMQueryBuilder:
             if where_clause:
                 query += f"\n{where_clause}"
 
-            query += f"\nORDER BY {LAB_LAYER_TABLE}.pedon_key, {LAB_LAYER_TABLE}.layer_key"
+            query += (
+                f"\nORDER BY {LAB_LAYER_TABLE}.pedon_key, {LAB_LAYER_TABLE}.layer_key"
+            )
 
             return query
 
@@ -386,7 +394,9 @@ def build_ldm_query(
     layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
     area_type: Optional[str] = DEFAULT_AREA_TYPE,
     prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
-    analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
+    analyzed_size_frac: Union[
+        str, Sequence[str], None
+    ] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
 ) -> str:
     """Convenience function to build a single LDM query.
 

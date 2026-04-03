@@ -136,7 +136,9 @@ class LDMClient(BaseDataAccessClient):
         layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
         area_type: Optional[str] = DEFAULT_AREA_TYPE,
         prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
-        analyzed_size_frac: Union[str, Sequence[str], None] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
+        analyzed_size_frac: Union[
+            str, Sequence[str], None
+        ] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
     ) -> SDAResponse:
         """Execute LDM query with automatic chunking and retry logic.
 

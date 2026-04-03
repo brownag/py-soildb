@@ -1140,7 +1140,11 @@ async def fetch_ldm(
     WHERE: Optional[str] = None,
     chunk_size: int = 1000,
     max_retries: int = 3,
-    layer_type: Union[str, Sequence[str], None] = ("horizon", "layer", "reporting layer"),
+    layer_type: Union[str, Sequence[str], None] = (
+        "horizon",
+        "layer",
+        "reporting layer",
+    ),
     area_type: Optional[str] = "ssa",
     prep_code: Union[str, Sequence[str], None] = ("S", ""),
     analyzed_size_frac: Union[str, Sequence[str], None] = ("<2 mm", ""),
