@@ -272,10 +272,6 @@ __all__ = [
     "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
     "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
     "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
-    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
-    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
-    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
-    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
     # Lab Data Mart (LDM) client
     "LDMClient",
     # Modules
