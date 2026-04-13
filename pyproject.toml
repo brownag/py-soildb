@@ -56,7 +56,7 @@ test = [
     "pytest-timeout>=2.1.0",
 ]
 docs = [
-    "quartodoc>=0.7.0",
+    "quartodoc>=0.9.0",
     "quarto>=0.1.0",
 ]
 security = [
