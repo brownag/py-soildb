@@ -147,6 +147,7 @@ from soildb.backends.response_adapter import ResponseAdapter
 from soildb.backends.schema import ColumnInfo, SchemaIntrospector, TableSchema
 from soildb.backends.sda_backend import SDABackend
 from soildb.backends.sqlite_backend import SQLiteBackend
+from soildb.backends.ssurgo_client import SSURGOClient
 from soildb.backends.type_mapper import DatabaseTypeMapper, TypeMapperFactory
 
 __all__ = [
@@ -156,6 +157,7 @@ __all__ = [
     "SDABackend",
     "SQLiteBackend",
     "GeoPackageBackend",
+    "SSURGOClient",
     # Response conversion
     "ResponseAdapter",
     # Schema introspection
