@@ -196,13 +196,16 @@ class LDMClient(BaseDataAccessClient):
         elif WHERE:
             site_where = WHERE
 
+        # Get backend once - needed for both site query and dialect detection
+        backend = await self._get_backend()
+        dialect = "sqlite" if isinstance(backend, SQLiteBackend) else "sql_server"
+
         # Stage 1: Get pedon_keys from lab_combine_nasis_ncss
         pedon_keys = None
         if site_where:
             try:
                 site_query = build_ldm_site_query(WHERE=site_where)
                 logger.debug(f"Site query: {site_query}")
-                backend = await self._get_backend()
                 site_response = await backend.execute_query(site_query)
 
                 if not site_response.is_empty():
@@ -224,12 +227,14 @@ class LDMClient(BaseDataAccessClient):
 
         # Stage 2: Query layer data
         try:
+
             query_builder = LDMQueryBuilder(
                 tables=tables,
                 layer_type=layer_type,
                 area_type=area_type,
                 prep_code=prep_code,
                 analyzed_size_frac=analyzed_size_frac,
+                dialect=dialect,
             )
         except Exception as e:
             raise LDMParameterError(f"Invalid query parameters: {str(e)}") from e

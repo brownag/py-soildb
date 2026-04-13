@@ -67,6 +67,7 @@ class LDMQueryBuilder:
         analyzed_size_frac: Union[
             str, Sequence[str], None
         ] = DEFAULT_ANALYZED_SIZE_FRACTIONS,
+        dialect: str = "sql_server",
     ):
         """Initialize query builder with filtering options.
 
@@ -78,11 +79,14 @@ class LDMQueryBuilder:
                       Pass None for no filter. Defaults to ('S', '').
             analyzed_size_frac: Analyzed size fraction(s). String or list.
                                Pass None for no filter. Defaults to ('<2 mm', '').
+            dialect: SQL dialect ('sql_server' or 'sqlite'). Defaults to
+                    'sql_server' for SDA compatibility.
 
         Raises:
             LDMParameterError: If invalid parameters provided
             LDMTableError: If invalid table names provided
         """
+        self.dialect = dialect
         self.prep_codes: Optional[list[str]] = None
         self.analyzed_size_fracs: Optional[list[str]] = None
         self.layer_types: Optional[list[str]] = None
@@ -150,6 +154,21 @@ class LDMQueryBuilder:
             else None
         )
         self.area_type = area_type
+
+    def _coalesce(self, column: str, default: str) -> str:
+        """Generate SQL coalesce function for the current dialect.
+
+        Args:
+            column: Column name
+            default: Default value if column is NULL
+
+        Returns:
+            Dialect-appropriate coalesce expression
+        """
+        if self.dialect == "sqlite":
+            return f"IFNULL({column}, {default})"
+        else:  # sql_server
+            return f"ISNULL({column}, {default})"
 
     def build_query(
         self,
@@ -340,9 +359,8 @@ class LDMQueryBuilder:
             prep_code_list = ", ".join(f"'{code}'" for code in self.prep_codes)
             for table in self.tables:
                 if table in PREP_FILTER_TABLES:
-                    prep_conditions.append(
-                        f"ISNULL({table}.prep_code, '') IN ({prep_code_list})"
-                    )
+                    coalesce = self._coalesce(f"{table}.prep_code", "''")
+                    prep_conditions.append(f"{coalesce} IN ({prep_code_list})")
             if prep_conditions:
                 conditions.append(f"({' AND '.join(prep_conditions)})")
 
@@ -353,9 +371,8 @@ class LDMQueryBuilder:
             frac_list = ", ".join(f"'{frac}'" for frac in self.analyzed_size_fracs)
             for table in self.tables:
                 if table in FRACTION_FILTER_TABLES:
-                    frac_conditions.append(
-                        f"ISNULL({table}.analyzed_size_frac, '') IN ({frac_list})"
-                    )
+                    coalesce = self._coalesce(f"{table}.analyzed_size_frac", "''")
+                    frac_conditions.append(f"{coalesce} IN ({frac_list})")
             if frac_conditions:
                 conditions.append(f"({' AND '.join(frac_conditions)})")
 

@@ -26,7 +26,8 @@ def _apply_station_timezone(
 
     Args:
         timestamp: Naive datetime from AWDB API (assumed to be in local station time)
-        timezone_offset_hours: Station timezone offset from UTC (e.g., -8 for PST, -5 for EST)
+        timezone_offset_hours: Station timezone offset from UTC (e.g., -8 for PST,
+            -5 for EST)
 
     Returns:
         Timezone-aware datetime in the station's local timezone (not UTC)
@@ -66,7 +67,7 @@ class AWDBClient(BaseDataAccessClient):
         """
         Initialize AWDB client.
 
-        Can be initialized either with a timeout parameter or with a ClientConfig object.
+        Can be initialized with a timeout parameter or ClientConfig object.
         If config is provided, it takes precedence over the timeout parameter.
 
         Args:
@@ -202,27 +203,37 @@ class AWDBClient(BaseDataAccessClient):
         """
         Get list of available stations with comprehensive filtering options.
 
-        This method leverages the full AWDB API filtering capabilities, including wildcard support
-        for station triplets, names, counties, and HUCs. All filtering is performed server-side
-        for optimal performance.
+        This method leverages full AWDB API filtering capabilities, including
+        wildcard support for station triplets, names, counties, and HUCs. All
+        filtering is performed server-side for optimal performance.
 
         Args:
-            network_codes: Filter by network codes (e.g., ['SCAN', 'SNTL']). Supports wildcards like ['*:OR:*'].
+            network_codes: Filter by network codes (e.g., ['SCAN', 'SNTL']).
+                Supports wildcards like ['*:OR:*'].
             state_codes: Filter by state codes (e.g., ['OR', 'WA'])
-            station_triplets: Filter by station triplets with wildcards (e.g., ['*:OR:SNTL', '302:*:*'])
-            station_names: Filter by station names with wildcards (e.g., ['*Lake*', 'Alab*'])
+            station_triplets: Filter by triplets with wildcards
+                (e.g., ['*:OR:SNTL', '302:*:*'])
+            station_names: Filter by names with wildcards
+                (e.g., ['*Lake*', 'Alab*'])
             dco_codes: Filter by DCO codes
-            county_names: Filter by county names with wildcards (e.g., ['*County', 'Wall*'])
-            elements: Filter stations with specific elements (format: elementCode:heightDepth:ordinal, supports wildcards)
-            durations: Filter stations by data durations (HOURLY, DAILY, SEMIMONTHLY, MONTHLY, CALENDAR_YEAR, WATER_YEAR, SEASONAL)
-            hucs: Filter by HUC codes with wildcards (e.g., ['170601*', '*050101'])
-            return_forecast_point_metadata: Include forecast point metadata for applicable stations
-            return_reservoir_metadata: Include reservoir metadata for applicable stations
-            return_station_elements: Include detailed station elements information
+            county_names: Filter by county names with wildcards
+                (e.g., ['*County', 'Wall*'])
+            elements: Filter by elements (format: elementCode:heightDepth:ordinal,
+                supports wildcards)
+            durations: Filter by durations (HOURLY, DAILY, SEMIMONTHLY, MONTHLY,
+                CALENDAR_YEAR, WATER_YEAR, SEASONAL)
+            hucs: Filter by HUC codes with wildcards
+                (e.g., ['170601*', '*050101'])
+            return_forecast_point_metadata: Include forecast point metadata
+                for applicable stations
+            return_reservoir_metadata: Include reservoir metadata for
+                applicable stations
+            return_station_elements: Include detailed station elements
             active_only: Return only active stations (default: True)
 
         Returns:
-            List of StationInfo objects with enhanced metadata based on request parameters
+            List of StationInfo objects with enhanced metadata based on
+            request parameters
 
         Raises:
             AWDBQueryError: If the request parameters are invalid
@@ -250,7 +261,8 @@ class AWDBClient(BaseDataAccessClient):
                 for state in state_codes:
                     triplet_patterns.append(f"*:{state}:{network}")
         elif network_codes:
-            # Network-only patterns - use wildcard triplets since API doesn't have networkCodes param
+            # Network-only patterns - use wildcard triplets since API doesn't
+            # have networkCodes param
             for network in network_codes:
                 triplet_patterns.append(f"*:*:{network}")
         elif state_codes:
@@ -341,7 +353,7 @@ class AWDBClient(BaseDataAccessClient):
             latitude: Target latitude (-90 to 90)
             longitude: Target longitude (-180 to 180)
             max_distance_km: Maximum search distance in kilometers
-            network_codes: Optional network codes to filter by before distance calculation
+            network_codes: Optional network codes to filter by before distance
             limit: Maximum number of nearest stations to return
 
         Returns:
@@ -401,14 +413,16 @@ class AWDBClient(BaseDataAccessClient):
             duration: Data duration ('DAILY', 'HOURLY', 'MONTHLY', etc.)
             ordinal: Sensor ordinal (1, 2, 3, etc. for multiple sensors)
             period_ref: Timestamp reference ('START' or 'END' of period)
-            central_tendency_type: Include averages/medians ('NONE', 'ALL', 'MEDIAN', 'AVERAGE')
+            central_tendency_type: Include averages/medians ('NONE', 'ALL',
+                'MEDIAN', 'AVERAGE')
             return_flags: Include quality control and assurance flags
             return_original_values: Include original values before processing
             return_suspect_data: Include data marked as suspect (normally filtered)
             insert_or_update_begin_date: For incremental updates (YYYY-MM-DD format)
 
         Returns:
-            List of TimeSeriesDataPoint objects with comprehensive data and quality information
+            List of TimeSeriesDataPoint objects with comprehensive data and
+            quality information
 
         Raises:
             AWDBQueryError: If station/element not found or invalid parameters
@@ -487,7 +501,8 @@ class AWDBClient(BaseDataAccessClient):
                                 date_str = date_str.replace("Z", "+00:00")
                                 timestamp = datetime.fromisoformat(date_str)
                             elif " " in date_str:
-                                # Handle space-separated datetime format (e.g., "2024-12-01 00:00" for HOURLY)
+                                # Handle space-separated datetime format
+                                # (e.g., "2024-12-01 00:00" for HOURLY)
                                 timestamp = datetime.strptime(
                                     date_str, "%Y-%m-%d %H:%M"
                                 )
@@ -516,7 +531,8 @@ class AWDBClient(BaseDataAccessClient):
                                 timestamp=timestamp,
                                 value=value_item.get("value"),
                                 flags=flags,
-                                element_code=element_code,  # Track which element this data came from
+                                # Track which element this data came from
+                                element_code=element_code,
                                 qc_flag=value_item.get("qcFlag"),
                                 qa_flag=value_item.get("qaFlag"),
                                 orig_value=value_item.get("origValue"),
@@ -629,10 +645,13 @@ class AWDBClient(BaseDataAccessClient):
         Args:
             station_triplets: List of station triplets (e.g., ['302:OR:SNTL'])
             element_codes: List of element codes (e.g., ['RESC', 'SRVO'])
-            start_publication_date: Start date for publication period (YYYY-MM-DD)
+            start_publication_date: Start date for publication period
+                (YYYY-MM-DD)
             end_publication_date: End date for publication period (YYYY-MM-DD)
-            exceedence_probabilities: List of exceedence probabilities (e.g., [10, 30, 50])
-            forecast_periods: List of forecast periods (e.g., ['03-01', '07-31'])
+            exceedence_probabilities: List of exceedence probabilities
+                (e.g., [10, 30, 50])
+            forecast_periods: List of forecast periods (e.g., ['03-01',
+                '07-31'])
 
         Returns:
             List of ForecastData objects
@@ -687,10 +706,10 @@ class AWDBClient(BaseDataAccessClient):
         including elements, networks, units, states, and other metadata.
 
         Args:
-            reference_lists: List of reference data types to retrieve. Available options:
-                            'dcos', 'durations', 'elements', 'forecastPeriods', 'functions',
-                            'instruments', 'networks', 'physicalElements', 'states', 'units'.
-                            If None, returns all reference data.
+            reference_lists: List of reference data types to retrieve. Available
+                options: 'dcos', 'durations', 'elements', 'forecastPeriods',
+                'functions', 'instruments', 'networks', 'physicalElements',
+                'states', 'units'. If None, returns all reference data.
 
         Returns:
             ReferenceData object containing requested reference information
