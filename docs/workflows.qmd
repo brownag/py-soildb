@@ -402,6 +402,71 @@ gdf = response.to_geodataframe()
 spc = response.to_soilprofilecollection()
 ```
 
+### GeoPandas: Geometry Column and CRS
+
+When converting spatial data to GeoDataFrame with `to_geopandas()`, the method automatically detects geometry columns and their coordinate reference systems (CRS):
+
+**Common use case: Fetch map units with geometry**
+
+```python
+from soildb import fetch_by_keys
+
+# Fetch map unit polygons with geometry
+mukeys = [481608, 481600]
+response = fetch_by_keys.sync(mukeys, "mupolygon", include_geometry=True)
+
+# Auto-detection: mupolygongeo -> EPSG:4326 (WGS 84, geographic)
+gdf = response.to_geopandas()
+print(gdf.crs)  # EPSG:4326
+gdf.plot(column="muname", legend=True)
+```
+
+**Spatial queries: Get features in a region**
+
+```python
+from soildb import spatial_query
+
+# Query map units within a bounding box
+bbox = {"xmin": -93.7, "ymin": 42.0, "xmax": -93.6, "ymax": 42.1}
+response = spatial_query.sync(bbox, "mupolygon", return_type="spatial")
+
+# Auto-detection: mupolygongeo -> EPSG:4326
+gdf = response.to_geopandas()
+print(f"Found {len(gdf)} map units in region")
+```
+
+**Supported SDA spatial tables:**
+
+- **Map unit polygons**: `mupolygon` (uses `mupolygongeo` / `mupolygonproj`)
+- **Map unit points**: `mupoint` (uses `mupointgeo` / `mupointproj`)
+- **Map unit lines**: `muline` (uses `mulinegeo` / `mulineproj`)
+- **Survey area boundaries**: `sapolygon` (uses `sapolygongeo` / `sapolygonproj`)
+- **Feature points**: `featpoint` (uses `featpointgeo` / `featpointproj`)
+- **Feature lines**: `featline` (uses `featlinegeo` / `featlineproj`)
+
+**Column detection priority:**
+
+1. Geographic ``*geo`` columns (preferred): EPSG:4326 (WGS 84)
+2. Standard ``geometry`` column: EPSG:4326
+3. Projected ``*proj`` columns (fallback only if no geographic columns): EPSG:3857 (Web Mercator)
+
+The projected columns are only used as a fallback if no geographic or standard columns
+are found. Custom geometry column names (e.g., `geom`, `shape`, `wkt`) must be specified
+explicitly via the `geometry_col` parameter.
+
+**Override auto-detection:** If your query returns custom geometry or uses a non-standard CRS, specify parameters explicitly:
+
+```python
+# Custom geometry column name
+gdf = response.to_geopandas(geometry_col="my_wkt_column")
+
+# Override CRS (e.g., query returns EPSG:5070 coordinates)
+gdf = response.to_geopandas(crs="EPSG:5070")
+
+# Both
+gdf = response.to_geopandas(geometry_col="custom_geom", crs="EPSG:5070")
+```
+
 ---
 
 ## Error Handling

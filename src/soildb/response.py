@@ -943,13 +943,22 @@ class SDAResponse:
 
         Example
         -------
+        **Using fetch_by_keys (preferred for bulk fetching):**
+
         >>> from soildb import fetch_by_keys
         >>> mukeys = [481608, 481600]
-        >>> response = fetch_by_keys.sync(mukeys, \"mupolygon\", \"mukey\")
+        >>> response = fetch_by_keys.sync(mukeys, \"mupolygon\", include_geometry=True)
         >>> gdf = response.to_geopandas()
         >>> gdf.plot(column=\"mukey\", legend=True)
         >>> import matplotlib.pyplot as plt
         >>> plt.show()
+
+        **Using spatial_query (for spatial operations):**
+
+        >>> from soildb import spatial_query
+        >>> bbox = {\"xmin\": -94.7, \"ymin\": 42.0, \"xmax\": -94.6, \"ymax\": 42.1}
+        >>> response = spatial_query.sync(bbox, \"mupolygon\", return_type=\"spatial\")
+        >>> gdf = response.to_geopandas()
 
         Parameters
         ----------
