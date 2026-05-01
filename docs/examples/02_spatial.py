@@ -15,15 +15,21 @@ from soildb import spatial_query
 
 try:
     import geopandas as gpd
-    import matplotlib.pyplot as plt
     import pandas as pd
     from shapely.geometry import Point
-
     SPATIAL_LIBS = True
 except ImportError:
     print("GeoPandas/Shapely not available. Install with:")
     print("pip install soildb[spatial]")
     SPATIAL_LIBS = False
+
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    print("Matplotlib not available for visualization. Install with:")
+    print("pip install matplotlib")
+    HAS_MATPLOTLIB = False
 
 
 async def point_buffer_analysis():
@@ -57,6 +63,9 @@ async def point_buffer_analysis():
         print(
             f"Total area: {gdf.geometry.to_crs('EPSG:5070').area.sum():.6f} square meters"
         )
+
+        if not HAS_MATPLOTLIB:
+            return gdf
 
         # Plot results
         fig, ax = plt.subplots(figsize=(12, 10))
@@ -117,40 +126,38 @@ async def survey_area_boundaries():
     if all_gdfs:
         gdf = pd.concat(all_gdfs, ignore_index=True)
 
-    if response.data:
-        gdf = response.to_geodataframe()
-
         print(f"Found {len(gdf)} survey area polygons")
 
-        # Plot survey areas
-        fig, ax = plt.subplots(figsize=(12, 10))
-        gdf.plot(
-            ax=ax,
-            column="areasymbol",
-            alpha=0.7,
-            legend=True,
-            edgecolor="black",
-            linewidth=1,
-        )
-
-        # Add labels
-        for _idx, row in gdf.iterrows():
-            centroid = row.geometry.centroid
-            ax.text(
-                centroid.x,
-                centroid.y,
-                row["areasymbol"],
-                ha="center",
-                va="center",
-                fontsize=12,
-                fontweight="bold",
+        if HAS_MATPLOTLIB:
+            # Plot survey areas
+            fig, ax = plt.subplots(figsize=(12, 10))
+            gdf.plot(
+                ax=ax,
+                column="areasymbol",
+                alpha=0.7,
+                legend=True,
+                edgecolor="black",
+                linewidth=1,
             )
 
-        ax.set_title("Iowa County Survey Areas")
-        ax.set_xlabel("Longitude")
-        ax.set_ylabel("Latitude")
-        plt.tight_layout()
-        plt.show()
+            # Add labels
+            for _idx, row in gdf.iterrows():
+                centroid = row.geometry.centroid
+                ax.text(
+                    centroid.x,
+                    centroid.y,
+                    row["areasymbol"],
+                    ha="center",
+                    va="center",
+                    fontsize=12,
+                    fontweight="bold",
+                )
+
+            ax.set_title("Iowa County Survey Areas")
+            ax.set_xlabel("Longitude")
+            ax.set_ylabel("Latitude")
+            plt.tight_layout()
+            plt.show()
 
         return gdf
     else:
@@ -226,7 +233,7 @@ async def watershed_analysis():
         for musym, count in mu_counts.head().items():
             print(f"  {musym}: {count} polygons")
 
-        if SPATIAL_LIBS:
+        if SPATIAL_LIBS and HAS_MATPLOTLIB:
             gdf = response.to_geodataframe()
 
             # Simple visualization

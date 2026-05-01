@@ -227,7 +227,6 @@ class LDMClient(BaseDataAccessClient):
 
         # Stage 2: Query layer data
         try:
-
             query_builder = LDMQueryBuilder(
                 tables=tables,
                 layer_type=layer_type,

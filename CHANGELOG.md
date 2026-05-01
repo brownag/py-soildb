@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.3] - 2026-05-01
+
+* Added `.to_geopandas()` method to _SDAResponse_  (for #11)
+* Improved `fetch_by_keys()` examples for spatial tables (for #11)
+* Harmonized methods for conversion of SDA response to various data frame types (`.to_dataframe()` and friends: `.to_geodataframe()`, `.to_pandas()`, `.to_polars()`, `.to_geopandas()`)
+
+## [0.7.2] - 2026-04-12
+
+Patch release focused on LDM query and SSURGO client backends.
+
+### Changed
+
+* Added a `dialect` parameter to the `LDMQueryBuilder` class and its initialization, allowing queries to be generated for either SQL Server or SQLite backends. The dialect is now determined dynamically in the LDM client based on the backend type.
+* Implemented a `_coalesce` helper method in `LDMQueryBuilder` to use the appropriate SQL function (`ISNULL` for SQL Server, `IFNULL` for SQLite) for null handling in generated queries. Updated query construction logic to use this method for `prep_code` and `analyzed_size_frac` filters
+* Removed duplicate deprecated function exports from `src/soildb/__init__.py`
+* Added `SSURGOClient` to backend module exports in `src/soildb/backends/__init__.py`
+* Improved and wrapped docstrings and comments for clarity in `src/soildb/awdb/client.py`
+
 ## [0.7.1] - 2026-03-30
 
 Patch release focused on LDM query parity, typing fixes, and cleanup.
