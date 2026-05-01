@@ -835,11 +835,42 @@ class SDAResponse:
 
         return dtype_mapping
 
-    def to_dataframe(self, library: str = "pandas", convert_types: bool = True) -> Any:
-        """Convert to pandas or polars DataFrame with proper type conversion."""
+    def to_dataframe(
+        self,
+        library: str = "pandas",
+        convert_types: bool = True,
+        geometry_col: Optional[str] = None,
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Convert to pandas, polars, or geopandas DataFrame with proper type conversion.
+
+        Parameters
+        ----------
+        library : str
+            Output library: "pandas", "polars", "geopandas", or "geodataframe".
+            Defaults to "pandas".
+        convert_types : bool
+            Whether to apply type conversion. Defaults to True.
+        geometry_col : str, optional
+            Geometry column name for geopandas/geodataframe. Only used when
+            library is "geopandas" or "geodataframe".
+        crs : str, optional
+            Coordinate Reference System for geopandas/geodataframe. Only used when
+            library is "geopandas" or "geodataframe".
+        """
+        lib_lower = library.lower()
+
+        # Handle geopandas/geodataframe options
+        if lib_lower in ("geopandas", "geodataframe"):
+            return self.to_geopandas(
+                convert_types=convert_types,
+                geometry_col=geometry_col,
+                crs=crs,
+            )
+
         data_dict = self.to_dict()
 
-        if library.lower() == "pandas":
+        if lib_lower == "pandas":
             try:
                 import pandas as pd
 
@@ -878,7 +909,7 @@ class SDAResponse:
                     "pandas is required for DataFrame conversion. Install with: pip install pandas"
                 ) from None
 
-        elif library.lower() == "polars":
+        elif lib_lower == "polars":
             try:
                 import polars as pl
 
@@ -913,7 +944,7 @@ class SDAResponse:
 
         else:
             raise ValueError(
-                f"Unsupported library: {library}. Choose 'pandas' or 'polars'."
+                f"Unsupported library: {library}. Choose 'pandas', 'polars', 'geopandas', or 'geodataframe'."
             )
 
     def to_pandas(self, convert_types: bool = True) -> Any:
@@ -1060,6 +1091,17 @@ class SDAResponse:
         gdf = gdf[gdf.geometry.notna() & gdf.geometry.is_valid]
 
         return gdf
+
+    def to_geodataframe(
+        self,
+        convert_types: bool = True,
+        geometry_col: Optional[str] = None,
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Alias for to_geopandas() for compatibility."""
+        return self.to_geopandas(
+            convert_types=convert_types, geometry_col=geometry_col, crs=crs
+        )
 
     @staticmethod
     def _detect_geometry_column(df: Any) -> tuple[str, str]:

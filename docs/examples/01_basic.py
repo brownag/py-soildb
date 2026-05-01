@@ -104,7 +104,9 @@ async def main():
 
             # Example 5: Bounding box query
             print("\n6. Getting map units in bounding box around Ames...")
-            bbox_data = await soildb.get_mapunit_by_bbox(-93.7, 42.0, -93.6, 42.1, client)
+            bbox_data = await soildb.get_mapunit_by_bbox(
+                -93.7, 42.0, -93.6, 42.1, client
+            )
             print(f"Found {len(bbox_data)} map units in bounding box")
 
         except soildb.SDAMaintenanceError:
