@@ -844,19 +844,11 @@ class SDAResponse:
     ) -> Any:
         """Convert to pandas, polars, or geopandas DataFrame with proper type conversion.
 
-        Parameters
-        ----------
-        library : str
-            Output library: "pandas", "polars", "geopandas", or "geodataframe".
-            Defaults to "pandas".
-        convert_types : bool
-            Whether to apply type conversion. Defaults to True.
-        geometry_col : str, optional
-            Geometry column name for geopandas/geodataframe. Only used when
-            library is "geopandas" or "geodataframe".
-        crs : str, optional
-            Coordinate Reference System for geopandas/geodataframe. Only used when
-            library is "geopandas" or "geodataframe".
+        Args:
+            library: Output library - "pandas", "polars", "geopandas", or "geodataframe".
+            convert_types: Whether to apply type conversion. Defaults to True.
+            geometry_col: Geometry column name (geopandas/geodataframe only).
+            crs: Coordinate Reference System (geopandas/geodataframe only).
         """
         lib_lower = library.lower()
 

@@ -30,9 +30,10 @@ Represents a response from the Soil Data Access web service.
 | [handle_missing_fields](#soildb.response.SDAResponse.handle_missing_fields) | Handle missing required fields with fallbacks or defaults. |
 | [is_empty](#soildb.response.SDAResponse.is_empty) | Check if the response contains any data rows. |
 | [recover_partial_data](#soildb.response.SDAResponse.recover_partial_data) | Attempt to recover partial data by skipping malformed records. |
-| [to_dataframe](#soildb.response.SDAResponse.to_dataframe) | Convert to pandas or polars DataFrame with proper type conversion. |
+| [to_dataframe](#soildb.response.SDAResponse.to_dataframe) | Convert to pandas, polars, or geopandas DataFrame with proper type conversion. |
 | [to_dict](#soildb.response.SDAResponse.to_dict) | Convert to list of dictionaries with basic type conversion and error recovery. |
-| [to_geodataframe](#soildb.response.SDAResponse.to_geodataframe) | Convert to GeoPandas GeoDataFrame if geometry column exists. |
+| [to_geodataframe](#soildb.response.SDAResponse.to_geodataframe) | Alias for to_geopandas() for compatibility. |
+| [to_geopandas](#soildb.response.SDAResponse.to_geopandas) | Convert to GeoPandas GeoDataFrame if geometry column exists. |
 | [to_pandas](#soildb.response.SDAResponse.to_pandas) | Convert to pandas DataFrame with proper type conversion. |
 | [to_polars](#soildb.response.SDAResponse.to_polars) | Convert to polars DataFrame with proper type conversion. |
 | [to_records](#soildb.response.SDAResponse.to_records) | Alias for to_dict() for compatibility. |
@@ -137,10 +138,21 @@ Returns:
 ### to_dataframe { #soildb.response.SDAResponse.to_dataframe }
 
 ```python
-response.SDAResponse.to_dataframe(library='pandas', convert_types=True)
+response.SDAResponse.to_dataframe(
+    library='pandas',
+    convert_types=True,
+    geometry_col=None,
+    crs=None,
+)
 ```
 
-Convert to pandas or polars DataFrame with proper type conversion.
+Convert to pandas, polars, or geopandas DataFrame with proper type conversion.
+
+Args:
+    library: Output library - "pandas", "polars", "geopandas", or "geodataframe".
+    convert_types: Whether to apply type conversion. Defaults to True.
+    geometry_col: Geometry column name (geopandas/geodataframe only).
+    crs: Coordinate Reference System (geopandas/geodataframe only).
 
 ### to_dict { #soildb.response.SDAResponse.to_dict }
 
@@ -157,10 +169,75 @@ Returns:
 ### to_geodataframe { #soildb.response.SDAResponse.to_geodataframe }
 
 ```python
-response.SDAResponse.to_geodataframe(convert_types=True)
+response.SDAResponse.to_geodataframe(
+    convert_types=True,
+    geometry_col=None,
+    crs=None,
+)
+```
+
+Alias for to_geopandas() for compatibility.
+
+### to_geopandas { #soildb.response.SDAResponse.to_geopandas }
+
+```python
+response.SDAResponse.to_geopandas(
+    convert_types=True,
+    geometry_col=None,
+    crs=None,
+)
 ```
 
 Convert to GeoPandas GeoDataFrame if geometry column exists.
+
+This method provides a convenient ergonomic way to transform spatial
+SDA responses into a :class:`geopandas.GeoDataFrame`. It automatically
+detects a geometry column containing WKT (Well-Known Text) representations,
+converts them to Shapely geometries, and creates a GeoDataFrame with the
+appropriate CRS.
+
+The resulting GeoDataFrame can be plotted directly with Matplotlib or
+used with all standard GeoPandas operations.
+
+#### Example {.doc-section .doc-section-example}
+
+**Using fetch_by_keys (preferred for bulk fetching):**
+
+>>> from soildb import fetch_by_keys
+>>> mukeys = [481608, 481600]
+>>> response = fetch_by_keys.sync(mukeys, "mupolygon", include_geometry=True)
+>>> gdf = response.to_geopandas()
+>>> gdf.plot(column="mukey", legend=True)
+>>> import matplotlib.pyplot as plt
+>>> plt.show()
+
+**Using spatial_query (for spatial operations):**
+
+>>> from soildb import spatial_query
+>>> bbox = {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
+>>> response = spatial_query.sync(bbox, "mupolygon", return_type="spatial")
+>>> gdf = response.to_geopandas()
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name          | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Default   |
+|---------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| convert_types | bool   | Whether to apply type conversion during DataFrame creation. Defaults to ``True``.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `True`    |
+| geometry_col  | str    | Name of the geometry column in the response. If ``None``, auto-detects using standard SDA geometry column naming patterns:  1. Geographic columns (``*geo``, preferred): ``mupolygongeo``,    ``mupointgeo``, ``mulinegeo``, ``sapolygongeo``, ``featpointgeo``,    ``featlinegeo`` 2. Standard ``geometry`` column (fallback) 3. Projected columns (``*proj``, final fallback): ``mupolygonproj``,    ``mupointproj``, etc.  Comparisons are case-insensitive. Specify this parameter explicitly for custom geometry column names (e.g., ``geom``, ``shape``, ``wkt``) | `None`    |
+| crs           | str    | Coordinate Reference System (EPSG code or any format supported by geopandas). If ``None``, the CRS is inferred from the geometry column name:  - Geographic ``*geo`` columns infer "EPSG:4326" (WGS 84) - ``geometry`` column infers "EPSG:4326" - Projected ``*proj`` columns infer "EPSG:3857" (Web Mercator)  Always pass ``crs`` explicitly if your WKT coordinates use a non-standard CRS. For example, if a custom query returns WKT with EPSG:5070 coordinates, pass ``crs="EPSG:5070"`` to override the default inference.                                      | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                   | Description                                                  |
+|--------|------------------------|--------------------------------------------------------------|
+|        | geopandas.GeoDataFrame | A GeoDataFrame containing the response data with geometries. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type        | Description                                          |
+|--------|-------------|------------------------------------------------------|
+|        | ImportError | If ``geopandas`` or ``shapely`` are not installed.   |
+|        | ValueError  | If no geometry column is found in the response data. |
 
 ### to_pandas { #soildb.response.SDAResponse.to_pandas }
 
