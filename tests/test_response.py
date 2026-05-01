@@ -228,7 +228,12 @@ class TestDataFrameIntegration:
             # we just check that the DataFrame is created.
             # All columns in sample_sda_response_json are strings, so they should be object/string.
             assert len(df) == 2
-            assert all(pd.api.types.is_object_dtype(dtype) for dtype in df.dtypes)
+            # Check for string-like dtypes (object or StringDtype)
+            assert all(
+                pd.api.types.is_object_dtype(dtype)
+                or pd.api.types.is_string_dtype(dtype)
+                for dtype in df.dtypes
+            )
 
         except ImportError:
             pytest.skip("pandas not available")
