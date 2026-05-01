@@ -958,26 +958,25 @@ class SDAResponse:
             Defaults to ``True``.
         geometry_col : str, optional
             Name of the geometry column in the response. If ``None``, auto-detects
-            using standard SDA geometry column naming patterns. Preference:
+            using standard SDA geometry column naming patterns:
 
             1. Geographic columns (``*geo``, preferred): ``mupolygongeo``,
                ``mupointgeo``, ``mulinegeo``, ``sapolygongeo``, ``featpointgeo``,
                ``featlinegeo``
-            2. Generic names: ``geometry``, ``geom``, ``shape``, ``wkt``
-            3. Projected columns (``*proj``, fallback only): ``mupolygonproj``,
+            2. Standard ``geometry`` column (fallback)
+            3. Projected columns (``*proj``, final fallback): ``mupolygonproj``,
                ``mupointproj``, etc.
 
-            All comparisons are case-insensitive. Specify this parameter if your
-            query uses a custom geometry column or retrieves the same geometry in
-            multiple columns.
+            Comparisons are case-insensitive. Specify this parameter explicitly
+            for custom geometry column names (e.g., ``geom``, ``shape``, ``wkt``)
         crs : str, optional
             Coordinate Reference System (EPSG code or any format supported by
             geopandas). If ``None``, the CRS is inferred from the geometry column
             name:
 
             - Geographic ``*geo`` columns infer "EPSG:4326" (WGS 84)
+            - ``geometry`` column infers "EPSG:4326"
             - Projected ``*proj`` columns infer "EPSG:3857" (Web Mercator)
-            - Generic names infer "EPSG:4326"
 
             Always pass ``crs`` explicitly if your WKT coordinates use a non-standard
             CRS. For example, if a custom query returns WKT with EPSG:5070 coordinates,
@@ -1069,10 +1068,9 @@ class SDAResponse:
            - ``featpointgeo`` (feature points)
            - ``featlinegeo`` (feature lines)
 
-        2. Generic names (``geometry``, ``geom``, ``shape``, ``wkt``) which
-           default to EPSG:4326
+        2. The ``geometry`` column (EPSG:4326) as a fallback for custom queries
 
-        3. Projected SDA columns (``*proj``, EPSG:3857) as fallback only if
+        3. Projected SDA columns (``*proj``, EPSG:3857) as a final fallback only if
            no geographic columns are present:
 
            - ``mupolygonproj``
@@ -1082,7 +1080,9 @@ class SDAResponse:
            - ``featpointproj``
            - ``featlineproj``
 
-        All column name comparisons are case-insensitive.
+        All column name comparisons are case-insensitive. Custom geometry column
+        names (other than ``geometry``) must be specified explicitly via the
+        ``geometry_col`` parameter.
 
         Parameters
         ----------
@@ -1111,13 +1111,12 @@ class SDAResponse:
             if sda_col in columns_lower:
                 return columns_lower[sda_col], "EPSG:4326"
 
-        # Priority 2: Generic geometry column names (default to EPSG:4326)
-        for name in ["geometry", "geom", "shape", "wkt"]:
-            if name in columns_lower:
-                return columns_lower[name], "EPSG:4326"
+        # Priority 2: Generic 'geometry' column (standard geopandas convention)
+        if "geometry" in columns_lower:
+            return columns_lower["geometry"], "EPSG:4326"
 
         # Priority 3 (fallback): Projected SDA columns (Web Mercator / EPSG:3857)
-        # Only used if no geographic or generic columns are present
+        # Only used if no geographic or 'geometry' columns are present
         proj_columns = [
             "mupolygonproj",
             "mupointproj",
