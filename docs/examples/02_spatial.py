@@ -117,9 +117,6 @@ async def survey_area_boundaries():
     if all_gdfs:
         gdf = pd.concat(all_gdfs, ignore_index=True)
 
-    if response.data:
-        gdf = response.to_geodataframe()
-
         print(f"Found {len(gdf)} survey area polygons")
 
         # Plot survey areas

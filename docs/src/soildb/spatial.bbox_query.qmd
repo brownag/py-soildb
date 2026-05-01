@@ -19,6 +19,7 @@ Convenience wrapper for bounding box coordinates. Use this instead of
 spatial_query() when you have a rectangular area.
 
 **WHEN TO USE THIS:**
+
 - You have a bounding box (xmin, ymin, xmax, ymax)
 - You want faster queries than complex polygons
 - You want tabular or spatial results

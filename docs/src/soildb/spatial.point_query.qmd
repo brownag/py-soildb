@@ -17,6 +17,7 @@ Convenience wrapper for point locations. Use this instead of spatial_query()
 when you have latitude/longitude coordinates.
 
 **WHEN TO USE THIS:**
+
 - You have a single (lat, lon) coordinate
 - You want tabular or spatial results
 - You want simpler syntax than spatial_query()

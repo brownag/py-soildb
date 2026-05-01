@@ -16,13 +16,15 @@ Choose your pattern based on your use case, then see [Workflows](workflows.qmd) 
 ```python
 from soildb import get_mapunit_by_point
 
-# Direct call - client created automatically
+# Synchronous wrapper - all soildb functions support .sync() method
+# This handles async client creation and event loop management automatically
 response = get_mapunit_by_point(-93.6, 42.0)
 df = response.to_pandas()
 print(df)
 ```
 
 See also:
+
 - [01_basic.py](examples/01_basic.py) — Full working example
 - [Workflows: Point Queries](workflows.qmd#point-queries) — Detailed walkthrough
 
@@ -48,6 +50,7 @@ df = asyncio.run(fetch_data())
 ```
 
 See also:
+
 - [Async Guide](async.qmd) — Concurrency, error handling, patterns
 - [Workflows: Async Examples](workflows.qmd#async-patterns) — Detailed async patterns
 
@@ -77,6 +80,7 @@ response = spatial_query(
 ```
 
 See also:
+
 - [02_spatial.py](examples/02_spatial.py) — Full spatial examples
 - [Workflows: Spatial Queries](workflows.qmd#spatial-queries) — Detailed patterns
 
@@ -95,6 +99,7 @@ df = response.to_pandas()
 ```
 
 See also:
+
 - [Workflows: Survey Area Queries](workflows.qmd#survey-area-queries) — Details
 
 ---
@@ -120,6 +125,7 @@ df = response.to_pandas()
 ```
 
 See also:
+
 - [08_fetch.py](examples/08_fetch.py) — Full bulk fetching examples
 - [Workflows: Bulk Data Fetching](workflows.qmd#bulk-data-fetching) — Advanced patterns
 
@@ -149,6 +155,7 @@ response = SDAClient.execute.sync(query)
 ```
 
 See also:
+
 - [Workflows: Custom Queries](workflows.qmd#custom-queries) — Query builder details
 - [API Reference](api.qmd) — Full Query API
 
@@ -186,6 +193,7 @@ asyncio.run(main())
 **Note:** AWDB is a free public resource. Space out requests and avoid hammering it with concurrent queries. If you encounter errors, reduce request frequency and retry with backoff.
 
 See also:
+
 - [05_awdb.py](examples/05_awdb.py) — Full AWDB examples
 - [AWDB Integration](awdb.qmd) — Detailed guide
 
@@ -210,6 +218,7 @@ print(f"Deepest profile: {spc.depth.max()} cm")
 ```
 
 See also:
+
 - [SoilProfileCollection examples](examples/soilprofilecollection/) — Detailed strategies
 - [Workflows: SoilProfileCollection](workflows.qmd#soilprofilecollection) — Integration patterns
 

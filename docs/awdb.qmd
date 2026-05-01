@@ -37,18 +37,21 @@ The most common workflow is finding monitoring data for specific environmental p
 ```{python}
 #| eval: true
 from soildb.awdb.convenience import get_property_data_near
+from soildb.exceptions import AWDBConnectionError, AWDBQueryError
 
 async def quick_start():
-    """Find and retrieve data for a property near a location."""
+    """Find and retrieve soil moisture data near Denver, CO.
+    """
 
     try:
         # Get soil moisture data near Denver, CO
+        # Date range chosen for peak sensor activity (summer months)
         result = await get_property_data_near(
             latitude=39.74,
             longitude=-104.99,
             property_name='soil_moisture',
-            start_date='2024-12-01',
-            end_date='2024-12-02',  # 1-day range
+            start_date='2024-07-15',
+            end_date='2024-07-22', 
             auto_select_sensor=True
         )
 
@@ -60,9 +63,12 @@ async def quick_start():
             first = result['data_points'][0]
             print(f"Sample: {first['timestamp'][:10]} = {first['value']}%")
 
-    except Exception as e:
-        print(f"Could not fetch live data (AWDB may be unavailable): {type(e).__name__}")
-        print("\nThis API is rate-limited. If you see errors, try again later or reduce request frequency.")
+    except AWDBConnectionError as e:
+        print(f"Connection error: {e}")
+        print("The AWDB service is unreachable. Check your internet connection or try again later.")
+    except AWDBQueryError as e:
+        print(f"Query error: {e}")
+        print("Invalid parameters or the requested property is not available at this location.")
 
 try:
     loop = asyncio.get_running_loop()
@@ -80,6 +86,7 @@ except RuntimeError:
 ```{python}
 #| eval: true
 from soildb.awdb.convenience import discover_stations
+from soildb.exceptions import AWDBConnectionError, AWDBQueryError
 
 async def find_stations():
     """Find SCAN stations in a specific state."""
@@ -95,9 +102,14 @@ async def find_stations():
         print(f"Found {len(stations)} SCAN stations in Colorado")
         for station in stations:
             print(f"  - {station['name']} ({station['station_triplet']})")
+        
+        if not stations:
+            print("No stations found with these criteria. Try different filters.")
 
-    except Exception as e:
-        print(f"Could not fetch stations: {type(e).__name__}")
+    except AWDBConnectionError as e:
+        print(f"Connection error: {e}")
+    except AWDBQueryError as e:
+        print(f"Query error: {e}")
 
 try:
     loop = asyncio.get_running_loop()
@@ -113,9 +125,14 @@ except RuntimeError:
 ```{python}
 #| eval: true
 from soildb.awdb.convenience import discover_stations_nearby
+from soildb.exceptions import AWDBConnectionError, AWDBQueryError
 
 async def nearby_stations():
-    """Find stations near a point."""
+    """Find stations near a point.
+    
+    Tip: Use max_distance_km to control search radius.
+    Smaller radius = fewer but closer stations.
+    """
 
     try:
         stations = await discover_stations_nearby(
@@ -128,11 +145,15 @@ async def nearby_stations():
 
         print(f"Found {len(stations)} SCAN stations within 50 km")
         if stations:
-            st = stations[0]
-            print(f"  {st['name']}: {st['distance_km']:.1f} km away")
+            for st in stations:
+                print(f"  - {st['name']}: {st['distance_km']:.1f} km away")
+        else:
+            print("No stations found in this radius.")
 
-    except Exception as e:
-        print(f"Could not fetch nearby stations: {type(e).__name__}")
+    except AWDBConnectionError as e:
+        print(f"Connection error: {e}")
+    except AWDBQueryError as e:
+        print(f"Query error: {e}")
 
 try:
     loop = asyncio.get_running_loop()
@@ -150,25 +171,34 @@ except RuntimeError:
 ```{python}
 #| eval: true
 from soildb.awdb.convenience import get_soil_moisture_by_depth
+from soildb.exceptions import AWDBConnectionError, AWDBQueryError
 
 async def get_moisture():
-    """Retrieve soil moisture at a specific depth."""
+    """Retrieve soil moisture at multiple depths.
+    
+    This station (2197:CO:SCAN) typically has sensors at 2", 4", 8", and 20" depths.
+    Using July dates ensures active sensor readings (winter data is sparse).
+    """
 
     try:
         data = await get_soil_moisture_by_depth(
             '2197:CO:SCAN',
-            depths_inches=[-4],  # Single depth
-            start_date='2024-12-01',
-            end_date='2024-12-02'  # 1-day range
+            depths_inches=[-2, -4, -8, -20],  # Standard depths for this station
+            start_date='2024-07-15',  # Summer = most reliable sensor activity
+            end_date='2024-07-22'     # 1-week range
         )
 
-        if data.get('depths', {}).get('-4', {}).get('n_data_points', 0) > 0:
-            print(f"Retrieved {data['depths']['-4']['n_data_points']} soil moisture readings")
-        else:
-            print("No data available for this station/date range")
+        print("Soil Moisture Data Retrieved")
+        print(f"\nAvailable depths: {list(data.get('depths', {}).keys())}")
+        
+        for depth, info in data.get('depths', {}).items():
+            n_points = info.get('n_data_points', 0)
+            print(f"  Depth {depth}\": {n_points} readings")
 
-    except Exception as e:
-        print(f"Could not fetch moisture data: {type(e).__name__}")
+    except AWDBConnectionError as e:
+        print(f"Connection error: {e}")
+    except AWDBQueryError as e:
+        print(f"Query error: {e}")
 
 try:
     loop = asyncio.get_running_loop()
@@ -186,20 +216,32 @@ Get available properties at a station:
 ```{python}
 #| eval: true
 from soildb.awdb.convenience import station_available_properties
+from soildb.exceptions import AWDBConnectionError, AWDBQueryError
 
 async def list_properties():
-    """List properties available at a station."""
+    """List all properties available at a SCAN station.
+    
+    Properties can include soil moisture, air temperature, precipitation,
+    snow depth, solar radiation, wind speed, and more.
+    """
 
     try:
         properties = await station_available_properties('2197:CO:SCAN')
         print(f"Station has {len(properties)} available properties")
 
-        # Show first 3
-        for prop in properties[:3]:
-            print(f"  - {prop['property_name']}")
+        # Show first 5 with details
+        print("\nProperties (showing first 5):")
+        for prop in properties[:5]:
+            name = prop.get('property_name', 'Unknown')
+            desc = prop.get('description', '')
+            print(f"  - {name}")
+            if desc:
+                print(f"    ({desc[:50]}...)" if len(desc) > 50 else f"    ({desc})")
 
-    except Exception as e:
-        print(f"Could not fetch properties: {type(e).__name__}")
+    except AWDBConnectionError as e:
+        print(f"Connection error: {e}")
+    except AWDBQueryError as e:
+        print(f"Query error: {e}")
 
 try:
     loop = asyncio.get_running_loop()
@@ -215,10 +257,12 @@ except RuntimeError:
 ### Key Functions
 
 **Discovery:**
+
 - `discover_stations()` — Find stations by network, state, elements, or other criteria
 - `discover_stations_nearby()` — Find stations within a distance of a point
 
 **Data Retrieval:**
+
 - `get_property_data_near()` — Get data for a property at the nearest station to a point
 - `get_soil_moisture_by_depth()` — Get multi-depth soil moisture time series
 - `station_available_properties()` — List properties available at a station
@@ -226,11 +270,13 @@ except RuntimeError:
 - `station_sensor_depths()` — Get available depths for a property at a station
 
 **Client:**
+
 - `AWDBClient` — Lower-level async client for direct API access
 
 ### Important Notes
 
 **Rate Limiting:** AWDB is a free public resource. Space out requests and avoid concurrent hammering of the API. If you receive errors:
+
 - Wait before retrying
 - Reduce the number of concurrent queries
 - Use smaller date ranges
@@ -239,6 +285,113 @@ except RuntimeError:
 **Availability:** The AWDB API experiences occasional downtime. Examples may fail intermittently. If you see errors, try again later.
 
 **Date Ranges:** Use short date ranges (1-3 days) for testing. Longer ranges may timeout or hit rate limits.
+
+## Error Handling
+
+AWDB errors fall into two main categories. Handle them specifically instead of catching generic exceptions:
+
+### Connection Errors (Network Issues)
+
+Raised when the API is unreachable or times out.
+
+```python
+from soildb.exceptions import AWDBConnectionError
+
+try:
+    stations = await discover_stations(network_codes=['SCAN'])
+except AWDBConnectionError as e:
+    print("API unreachable. Possible causes:")
+    print("  - Internet connection down")
+    print("  - AWDB service temporarily unavailable")
+    print("  - Request timed out (large result set)")
+    print("Solution: Wait 30 seconds and retry")
+```
+
+**Common causes:**
+- Network connectivity issues
+- API server down or slow
+- Request timeout (too many stations, large date range)
+
+### Query Errors (Invalid Parameters)
+
+Raised when parameters are invalid or data doesn't exist.
+
+```python
+from soildb.exceptions import AWDBQueryError
+
+try:
+    data = await get_soil_moisture_by_depth(
+        '9999:XX:FAKE',  # Non-existent station
+        start_date='2024-07-01',
+        end_date='2024-07-31'
+    )
+except AWDBQueryError as e:
+    print("Query failed. Possible causes:")
+    print("  - Station triplet doesn't exist")
+    print("  - Property not available at this station")
+    print("  - Date range outside station's operational period")
+    print("Solution: Check station triplet and available properties")
+```
+
+**Common causes:**
+- Station triplet format incorrect (should be `stationid:state:network`)
+- Station doesn't support requested property
+- Date range predates station's operational start
+
+### Empty Results (Not an Error)
+
+If a query returns zero data points, this is normal and not an error:
+
+```python
+# Winter soil moisture queries often return empty
+# (sensors less active in cold months)
+result = await get_soil_moisture_by_depth(
+    '2197:CO:SCAN',
+    start_date='2024-12-01',  # Winter = sparse data
+    end_date='2024-12-02'
+)
+
+if not result['data_points']:
+    print("No data for this date range (normal for off-season)")
+    # Try summer dates instead: 2024-07-01 to 2024-07-31
+```
+
+**Why it happens:**
+- Seasonal: Soil sensors inactive in winter; snow/precipitation sparse in summer
+- Sensor downtime: Station undergoing maintenance or has failed sensor
+- Data gaps: Historical data may have gaps
+
+**Solution:** Try a different season or verify station is operational
+
+## Station Data Availability Guide
+
+Not all stations have all properties available, and data varies by season. Use this guide to choose reliable station + property + date combinations:
+
+### Recommended Combinations
+
+| Station | Network | Properties | Best Seasons | Example Dates | Notes |
+|---------|---------|------------|--------------|---------------|-------|
+| `2197:CO:SCAN` | SCAN | Soil moisture, air temp, precipitation | May-Sept | 2024-07-01 to 2024-07-31 | Denver area; reliable soil data |
+| `2197:CO:SCAN` | SCAN | Temperature, precipitation | Year-round | 2024-11-01 to 2024-11-30 | Air sensors active all year |
+| `2197:CO:SCAN` | SCAN | Snow depth | Dec-March | 2024-02-01 to 2024-02-15 | Winter peak; sparse summer |
+
+### Property Availability by Season
+
+| Property | Best Season | Typical Readings/Day | Notes |
+|----------|------------|---------------------|-------|
+| **Soil Moisture** | May-Sept | 3-6 (multi-depth) | Dormant or sparse Oct-April |
+| **Air Temperature** | Year-round | 24 (hourly) | Most reliable property; slight gaps possible |
+| **Precipitation** | Year-round | 1-2 daily | Generally reliable; occasional gaps |
+| **Snow Depth** | Dec-March | 1-2 daily | Zero/sparse outside winter |
+| **Solar Radiation** | May-Sept | Hourly | Not available at all stations |
+
+### Tips for Reliable Queries
+
+1. **Check station first**: Use `discover_stations()` to verify station exists
+2. **Confirm property**: Use `station_available_properties()` before querying
+3. **Choose season wisely**: Soil data sparse in winter; snow sparse in summer
+4. **Use week-long ranges**: Single-day ranges may miss data points
+5. **Handle empty gracefully**: Empty result = normal for off-season, not an error
 
 ## Working with Results
 
