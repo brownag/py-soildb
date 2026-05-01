@@ -924,8 +924,77 @@ class SDAResponse:
         """Convert to polars DataFrame with proper type conversion."""
         return self.to_dataframe("polars", convert_types=convert_types)
 
-    def to_geodataframe(self, convert_types: bool = True) -> Any:
-        """Convert to GeoPandas GeoDataFrame if geometry column exists."""
+    def to_geopandas(
+        self,
+        convert_types: bool = True,
+        geometry_col: Optional[str] = None,
+        crs: Optional[str] = None,
+    ) -> Any:
+        """Convert to GeoPandas GeoDataFrame if geometry column exists.
+
+        This method provides a convenient ergonomic way to transform spatial
+        SDA responses into a :class:`geopandas.GeoDataFrame`. It automatically
+        detects a geometry column containing WKT (Well-Known Text) representations,
+        converts them to Shapely geometries, and creates a GeoDataFrame with the
+        appropriate CRS.
+
+        The resulting GeoDataFrame can be plotted directly with Matplotlib or
+        used with all standard GeoPandas operations.
+
+        Example
+        -------
+        >>> from soildb import fetch_by_keys
+        >>> mukeys = [481608, 481600]
+        >>> response = fetch_by_keys.sync(mukeys, \"mupolygon\", \"mukey\")
+        >>> gdf = response.to_geopandas()
+        >>> gdf.plot(column=\"mukey\", legend=True)
+        >>> import matplotlib.pyplot as plt
+        >>> plt.show()
+
+        Parameters
+        ----------
+        convert_types : bool, optional
+            Whether to apply type conversion during DataFrame creation.
+            Defaults to ``True``.
+        geometry_col : str, optional
+            Name of the geometry column in the response. If ``None``, auto-detects
+            using standard SDA geometry column naming patterns. Preference:
+
+            1. Geographic columns (``*geo``, preferred): ``mupolygongeo``,
+               ``mupointgeo``, ``mulinegeo``, ``sapolygongeo``, ``featpointgeo``,
+               ``featlinegeo``
+            2. Generic names: ``geometry``, ``geom``, ``shape``, ``wkt``
+            3. Projected columns (``*proj``, fallback only): ``mupolygonproj``,
+               ``mupointproj``, etc.
+
+            All comparisons are case-insensitive. Specify this parameter if your
+            query uses a custom geometry column or retrieves the same geometry in
+            multiple columns.
+        crs : str, optional
+            Coordinate Reference System (EPSG code or any format supported by
+            geopandas). If ``None``, the CRS is inferred from the geometry column
+            name:
+
+            - Geographic ``*geo`` columns infer "EPSG:4326" (WGS 84)
+            - Projected ``*proj`` columns infer "EPSG:3857" (Web Mercator)
+            - Generic names infer "EPSG:4326"
+
+            Always pass ``crs`` explicitly if your WKT coordinates use a non-standard
+            CRS. For example, if a custom query returns WKT with EPSG:5070 coordinates,
+            pass ``crs="EPSG:5070"`` to override the default inference.
+
+        Returns
+        -------
+        geopandas.GeoDataFrame
+            A GeoDataFrame containing the response data with geometries.
+
+        Raises
+        ------
+        ImportError
+            If ``geopandas`` or ``shapely`` are not installed.
+        ValueError
+            If no geometry column is found in the response data.
+        """
         try:
             import geopandas as gpd
             from shapely import wkt
@@ -937,20 +1006,33 @@ class SDAResponse:
         df = self.to_pandas(convert_types=convert_types)
 
         if df.empty:
-            # Return empty GeoDataFrame with appropriate schema
-            return gpd.GeoDataFrame([], geometry=[], crs="EPSG:4326")
+            target_crs = crs or "EPSG:4326"
+            return gpd.GeoDataFrame([], geometry=[], crs=target_crs)
 
-        # Look for geometry column (case-insensitive)
-        geometry_col = None
-        for col in df.columns:
-            if col.lower() in ["geometry", "geom", "shape", "wkt"]:
-                geometry_col = col
-                break
+        # Resolve geometry column name and CRS
+        if geometry_col is not None:
+            # Use the explicitly provided column name (case-sensitive match)
+            if geometry_col not in df.columns:
+                raise ValueError(
+                    f"Geometry column '{geometry_col}' not found. "
+                    f"Available columns: {list(df.columns)}"
+                )
+            # Use explicit CRS if given, otherwise default to EPSG:4326
+            target_crs = crs or "EPSG:4326"
+        else:
+            # Auto-detect: try SDA-specific names first, then generic names
+            geometry_col, detected_crs = SDAResponse._detect_geometry_column(df)
 
-        if geometry_col is None:
+        if geometry_col == "":
             raise ValueError(
-                "No geometry column found. Expected column name containing 'geometry', 'geom', 'shape', or 'wkt'"
+                "No geometry column found. SDA responses typically use 'mupolygongeo' "
+                "or 'mupolygonproj'. You can also specify the column explicitly: "
+                "response.to_geopandas(geometry_col='mupolygongeo')"
             )
+
+        # Use detected CRS if not explicitly provided
+        if crs is None:
+            target_crs = detected_crs
 
         # Convert WKT strings to shapely geometries
         def wkt_to_geom(wkt_str: Any) -> Any:
@@ -964,12 +1046,92 @@ class SDAResponse:
         df["geometry"] = df[geometry_col].apply(wkt_to_geom)
 
         # Create GeoDataFrame
-        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=target_crs)
 
         # Remove invalid geometries
         gdf = gdf[gdf.geometry.notna() & gdf.geometry.is_valid]
 
         return gdf
+
+    @staticmethod
+    def _detect_geometry_column(df: Any) -> tuple[str, str]:
+        """Auto-detect a geometry column and infer its CRS.
+
+        Searches for geometry columns in strict priority order:
+
+        1. Geographic SDA columns (``*geo``, EPSG:4326) in priority order by
+           geometry type:
+
+           - ``mupolygongeo`` (map unit polygons)
+           - ``mupointgeo`` (map unit points)
+           - ``mulinegeo`` (map unit lines)
+           - ``sapolygongeo`` (survey area polygons)
+           - ``featpointgeo`` (feature points)
+           - ``featlinegeo`` (feature lines)
+
+        2. Generic names (``geometry``, ``geom``, ``shape``, ``wkt``) which
+           default to EPSG:4326
+
+        3. Projected SDA columns (``*proj``, EPSG:3857) as fallback only if
+           no geographic columns are present:
+
+           - ``mupolygonproj``
+           - ``mupointproj``
+           - ``mulineproj``
+           - ``sapolygonproj``
+           - ``featpointproj``
+           - ``featlineproj``
+
+        All column name comparisons are case-insensitive.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            The DataFrame to search.
+
+        Returns
+        -------
+        tuple[str, str]
+            A tuple of (detected geometry column name, inferred CRS).
+            Returns empty string for column name if no geometry column found.
+        """
+        columns_lower = {col.lower(): col for col in df.columns}
+
+        # Priority 1: Geographic SDA columns (WGS 84 / EPSG:4326)
+        geo_columns = [
+            "mupolygongeo",
+            "mupointgeo",
+            "mulinegeo",
+            "sapolygongeo",
+            "featpointgeo",
+            "featlinegeo",
+        ]
+
+        for sda_col in geo_columns:
+            if sda_col in columns_lower:
+                return columns_lower[sda_col], "EPSG:4326"
+
+        # Priority 2: Generic geometry column names (default to EPSG:4326)
+        for name in ["geometry", "geom", "shape", "wkt"]:
+            if name in columns_lower:
+                return columns_lower[name], "EPSG:4326"
+
+        # Priority 3 (fallback): Projected SDA columns (Web Mercator / EPSG:3857)
+        # Only used if no geographic or generic columns are present
+        proj_columns = [
+            "mupolygonproj",
+            "mupointproj",
+            "mulineproj",
+            "sapolygonproj",
+            "featpointproj",
+            "featlineproj",
+        ]
+
+        for sda_col in proj_columns:
+            if sda_col in columns_lower:
+                return columns_lower[sda_col], "EPSG:3857"
+
+        return "", "EPSG:4326"
 
     def to_soilprofilecollection(
         self,
