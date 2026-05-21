@@ -2,7 +2,8 @@
 Utility functions that add value beyond basic query building.
 """
 
-from typing import Optional
+import json
+from typing import Any, Optional, Union
 
 from . import query_templates
 from .client import SDAClient
@@ -212,3 +213,60 @@ async def get_lab_pedon_by_id(
     )
 
     return await client.execute(query)
+
+
+@add_sync_version
+async def query_unlimited(
+    query: Union[Query, str],
+    client: Optional[SDAClient] = None,
+) -> list[dict[str, Any]]:
+    """
+    Execute a query without SDA's 100,000 record limit using FOR JSON AUTO.
+
+    SDA truncates results at 100,000 rows. This function wraps the query in a
+    subquery with ``FOR JSON AUTO``, which causes SQL Server to return results
+    as concatenated JSON string fragments rather than individual tabular rows.
+    SDA's row-count limit applies to tabular rows, so the JSON output bypasses
+    it entirely.
+
+    Note: ORDER BY in the inner query is not supported — SQL Server disallows
+    ORDER BY inside a subquery unless TOP or OFFSET-FETCH is also present.
+
+    Args:
+        query: Query object or raw SQL string to execute.
+        client: Optional SDA client instance. If not provided, a temporary
+                client is created and closed automatically.
+
+    Returns:
+        List of records as dicts, one dict per row.
+
+    Examples:
+        # Async
+        records = await query_unlimited(
+            Query().select("mukey", "muname").from_("mapunit")
+        )
+
+        # Sync
+        records = query_unlimited.sync(
+            Query().select("mukey", "muname").from_("mapunit")
+        )
+    """
+    if client is None:
+        client = SDAClient()
+
+    base_sql = query if isinstance(query, str) else query.to_sql()
+
+    # Wrap in FOR JSON AUTO to bypass the 100k row limit.
+    # SQL Server streams the JSON output as many short string fragments
+    # (~2033 chars each), so SDA returns them as multiple short rows rather
+    # than hitting its row-count ceiling.
+    json_sql = f"SELECT * FROM ({base_sql}) AS _q FOR JSON AUTO"
+
+    response = await client.execute_sql(json_sql)
+
+    if response.is_empty():
+        return []
+
+    # Concatenate all JSON string fragments and parse into a list of dicts.
+    fragments = [row[0] for row in response.data if row and row[0] is not None]
+    return json.loads("".join(fragments))
