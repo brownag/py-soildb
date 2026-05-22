@@ -216,7 +216,6 @@ async def get_lab_pedon_by_id(
 
 
 @add_sync_version
-# access using 'from soildb.convenience import _query_unlimited'
 async def _query_unlimited(
     query: Union[Query, str],
     client: Optional[SDAClient] = None,
