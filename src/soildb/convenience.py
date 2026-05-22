@@ -262,17 +262,10 @@ df = pd.DataFrame(records)
 
     base_sql = query if isinstance(query, str) else query.to_sql()
 
-    # Wrap in FOR JSON AUTO to bypass the 100k row limit.
-    # SQL Server streams the JSON output as many short string fragments
-    # (~2033 chars each), so SDA returns them as multiple short rows rather
-    # than hitting its row-count ceiling.
-    json_sql = f"SELECT * FROM ({base_sql}) AS _q FOR JSON AUTO"
-
+    json_sql = f"~DeclareVarchar(@json,max)~;WITH src (n) AS ({base_sql} FOR JSON AUTO) SELECT @json = src.n FROM src SELECT @json, LEN(@json);"
     response = await client.execute_sql(json_sql)
 
     if response.is_empty():
         return []
 
-    # Concatenate all JSON string fragments and parse into a list of dicts.
-    fragments = [row[0] for row in response.data if row and row[0] is not None]
-    return json.loads("".join(fragments))
+    return json.loads(response.data[0][0])
