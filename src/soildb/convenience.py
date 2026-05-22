@@ -216,7 +216,8 @@ async def get_lab_pedon_by_id(
 
 
 @add_sync_version
-async def query_unlimited(
+# access using 'from soildb.convenience import _query_unlimited'
+async def _query_unlimited(
     query: Union[Query, str],
     client: Optional[SDAClient] = None,
 ) -> list[dict[str, Any]]:
@@ -241,14 +242,19 @@ async def query_unlimited(
         List of records as dicts, one dict per row.
 
     Examples:
-        # Async
-        records = await query_unlimited(
-            Query().select("mukey", "muname").from_("mapunit")
+        query = (
+            Query()
+            .select("mukey", "muname", "musym")
+            .from_("mapunit")
+            .inner_join("legend", "mapunit.lkey = legend.lkey")
+            .where("areasymbol = 'IA109'")
         )
 
-        # Sync
-        records = query_unlimited.sync(
-            Query().select("mukey", "muname").from_("mapunit")
+# Sync call
+records = await _query_unlimited(query)
+
+# Convert to DataFrame
+df = pd.DataFrame(records)
         )
     """
     if client is None:
