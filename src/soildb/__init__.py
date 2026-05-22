@@ -40,7 +40,6 @@ from .convenience import (
     get_mapunit_by_bbox,
     get_mapunit_by_point,
     get_sacatalog,
-    query_unlimited,
 )
 from .exceptions import (
     SDAConnectionError,
@@ -241,7 +240,6 @@ __all__ = [
     "get_lab_pedons_by_bbox",
     "get_lab_pedon_by_id",
     "get_sacatalog",
-    "query_unlimited",
     # Web Soil Survey download functions
     "WSSClient",
     "download_wss",
