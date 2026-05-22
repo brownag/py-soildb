@@ -7,7 +7,7 @@ import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from .exceptions import SDAResponseError
 from .type_conversion import get_default_type_map
@@ -22,6 +22,11 @@ if TYPE_CHECKING:
         import polars as pl
     except ImportError:
         pl = None  # type: ignore
+
+    try:
+        from soilprofilecollection import SoilProfileCollection
+    except ImportError:
+        SoilProfileCollection = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 

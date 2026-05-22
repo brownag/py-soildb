@@ -2,7 +2,6 @@
 Tests for SDA response handling with type conversion.
 """
 
-import json
 from datetime import datetime
 
 import pandas as pd
@@ -330,4 +329,3 @@ class TestToSoilProfileCollection:
         from soilprofilecollection import SoilProfileCollection
 
         assert isinstance(spc, SoilProfileCollection)
-

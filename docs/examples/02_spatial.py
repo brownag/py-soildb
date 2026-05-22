@@ -17,6 +17,7 @@ try:
     import geopandas as gpd
     import pandas as pd
     from shapely.geometry import Point
+
     SPATIAL_LIBS = True
 except ImportError:
     print("GeoPandas/Shapely not available. Install with:")
@@ -25,6 +26,7 @@ except ImportError:
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MATPLOTLIB = True
 except ImportError:
     print("Matplotlib not available for visualization. Install with:")
