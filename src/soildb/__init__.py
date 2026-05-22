@@ -117,23 +117,6 @@ from .spatial import (
     sapolygon_in_bbox,
     spatial_query,
 )
-from .spc_presets import (
-    ColumnConfig,
-    CustomColumnConfig,
-    LabPedonHorizonColumns,
-    MapunitComponentHorizonColumns,
-    PedonSiteHorizonColumns,
-    StandardSDAHorizonColumns,
-    get_preset,
-    list_presets,
-)
-from .spc_validator import (
-    SPCColumnValidator,
-    SPCDepthValidator,
-    SPCValidationError,
-    SPCWarnings,
-    create_spc_validation_report,
-)
 from .type_conversion import (
     TypeMap,
     TypeProcessor,
@@ -161,20 +144,6 @@ __all__ = [
     "TypeProcessor",
     "get_default_type_map",
     "convert_value",
-    # SoilProfileCollection integration (NEW)
-    "ColumnConfig",
-    "StandardSDAHorizonColumns",
-    "LabPedonHorizonColumns",
-    "PedonSiteHorizonColumns",
-    "MapunitComponentHorizonColumns",
-    "CustomColumnConfig",
-    "get_preset",
-    "list_presets",
-    "SPCValidationError",
-    "SPCColumnValidator",
-    "SPCDepthValidator",
-    "SPCWarnings",
-    "create_spc_validation_report",
     # Query template functions
     "query_mapunits_by_legend",
     "query_components_by_legend",

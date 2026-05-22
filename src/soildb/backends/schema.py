@@ -124,14 +124,14 @@ class SchemaIntrospector:
     @staticmethod
     async def introspect_database(
         backend: Any,  # BaseBackend instance
-    ) -> dict[str, TableSchema]:
+    ) -> dict[str, DatabaseTableSchema]:
         """Get schema for all tables in database.
 
         Args:
             backend: Backend instance with get_tables() method
 
         Returns:
-            Dict of table_name -> TableSchema
+            Dict of table_name -> DatabaseTableSchema
         """
         tables = await backend.get_tables()
 
