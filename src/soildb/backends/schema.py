@@ -42,7 +42,7 @@ class ColumnInfo:
 
 
 @dataclass
-class TableSchema:
+class DatabaseTableSchema:
     """Complete schema information for a table.
 
     Attributes:
@@ -87,7 +87,7 @@ class SchemaIntrospector:
     async def introspect_table(
         backend: Any,  # BaseBackend instance
         table_name: str,
-    ) -> TableSchema:
+    ) -> DatabaseTableSchema:
         """Get complete schema for a table.
 
         Args:
@@ -115,7 +115,7 @@ class SchemaIntrospector:
             if col_info.is_geometry:
                 geometry_col = col_name
 
-        return TableSchema(
+        return DatabaseTableSchema(
             name=table_name,
             columns=columns,
             geometry_column=geometry_col,
@@ -124,14 +124,14 @@ class SchemaIntrospector:
     @staticmethod
     async def introspect_database(
         backend: Any,  # BaseBackend instance
-    ) -> dict[str, TableSchema]:
+    ) -> dict[str, DatabaseTableSchema]:
         """Get schema for all tables in database.
 
         Args:
             backend: Backend instance with get_tables() method
 
         Returns:
-            Dict of table_name -> TableSchema
+            Dict of table_name -> DatabaseTableSchema
         """
         tables = await backend.get_tables()
 

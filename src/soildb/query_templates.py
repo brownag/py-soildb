@@ -81,15 +81,18 @@ def query_components_by_legend(
             "l.areasymbol",
         ]
 
-    return (
+    query = (
         Query()
         .select(*columns)
         .from_("component c")
         .inner_join("mapunit m", "c.mukey = m.mukey")
         .inner_join("legend l", "m.lkey = l.lkey")
         .where(f"l.areasymbol = {sanitize_sql_string(areasymbol)}")
-        .order_by("m.musym, c.comppct_r DESC")
     )
+    # Order by musym (ASC default), then by comppct_r (DESC)
+    # Note: Query.order_by() only supports single column, so we modify SQL directly
+    query._order_by_clause = "m.musym, c.comppct_r DESC"
+    return query
 
 
 def query_component_horizons_by_legend(

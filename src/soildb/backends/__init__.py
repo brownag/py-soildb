@@ -144,7 +144,7 @@ from soildb.backends.exceptions import (
 )
 from soildb.backends.geopackage_backend import GeoPackageBackend
 from soildb.backends.response_adapter import ResponseAdapter
-from soildb.backends.schema import ColumnInfo, SchemaIntrospector, TableSchema
+from soildb.backends.schema import ColumnInfo, DatabaseTableSchema, SchemaIntrospector
 from soildb.backends.sda_backend import SDABackend
 from soildb.backends.sqlite_backend import SQLiteBackend
 from soildb.backends.ssurgo_client import SSURGOClient
@@ -162,7 +162,7 @@ __all__ = [
     "ResponseAdapter",
     # Schema introspection
     "SchemaIntrospector",
-    "TableSchema",
+    "DatabaseTableSchema",
     "ColumnInfo",
     # Type mapping
     "TypeMapperFactory",

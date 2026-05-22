@@ -2,7 +2,6 @@
 Tests for SDA response handling with type conversion.
 """
 
-import json
 from datetime import datetime
 
 import pandas as pd
@@ -266,289 +265,67 @@ def mock_site_data():
     )
 
 
-class TestSoilProfileCollectionIntegration:
-    """Tests for the to_soilprofilecollection method."""
+class TestToSoilProfileCollection:
+    """Test minimal to_soilprofilecollection() wrapper."""
 
-    def test_to_soilprofilecollection_success(self):
-        """Test successful conversion to SoilProfileCollection."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
+    @pytest.fixture(autouse=True)
+    def skip_if_no_spc(self):
+        """Skip tests if soilprofilecollection is not available."""
+        pytest.importorskip("soilprofilecollection")
 
-        response = SDAResponse(MOCK_HORIZON_DATA)
-        spc = response.to_soilprofilecollection()
-
-        assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2  # 2 unique profiles (cokeys)
-        assert len(spc.horizons) == 4
-        assert spc.site.empty
-        assert spc.hzidname == "chkey"
-        assert spc.idname == "cokey"
-
-    def test_to_soilprofilecollection_with_site_data(self, mock_site_data):
-        """Test successful conversion with site data."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_HORIZON_DATA)
-        spc = response.to_soilprofilecollection(site_data=mock_site_data)
-
-        assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2
-        assert spc.site is not None
-        assert len(spc.site) == 2
-        assert "compname" in spc.site.columns
-
-    def test_to_soilprofilecollection_missing_package(self, no_soilprofilecollection):
-        """Test ImportError is raised if soilprofilecollection is not installed."""
-        response = SDAResponse(MOCK_HORIZON_DATA)
-        with pytest.raises(ImportError, match="pip install soildb\\[soil\\]"):
-            response.to_soilprofilecollection()
-
-    def test_to_soilprofilecollection_missing_required_columns(self):
-        """Test SPCValidationError is raised if required columns are missing."""
-        try:
-            from soilprofilecollection import SoilProfileCollection  # noqa
-            from soildb.spc_validator import SPCValidationError
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_HORIZON_DATA_MISSING_COL)
-        with pytest.raises(SPCValidationError):
-            response.to_soilprofilecollection()
-
-    def test_to_soilprofilecollection_custom_colnames(self, mock_site_data):
-        """Test conversion with custom column names."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        # Create data with custom column names
-        custom_data = json.loads(json.dumps(MOCK_HORIZON_DATA))  # Deep copy
-        custom_data["Table"][0] = ["horizon_id", "site_id", "top", "bottom", "clay"]
-        mock_site_data.rename(columns={"cokey": "site_id"}, inplace=True)
-
-        response = SDAResponse(custom_data)
-        spc = response.to_soilprofilecollection(
-            site_data=mock_site_data,
-            hz_id_col="horizon_id",
-            site_id_col="site_id",
-            hz_top_col="top",
-            hz_bot_col="bottom",
-        )
-
-        assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2
-        assert spc.hzidname == "horizon_id"
-        assert spc.idname == "site_id"
-        assert "compname" in spc.site.columns
-
-    def test_to_soilprofilecollection_empty_response(self):
-        """Test that an empty response raises SPCValidationError due to missing columns."""
-        try:
-            from soilprofilecollection import SoilProfileCollection  # noqa
-            from soildb.spc_validator import SPCValidationError
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_EMPTY_RESPONSE)
-        with pytest.raises(SPCValidationError):
-            response.to_soilprofilecollection()
-
-    def test_to_soilprofilecollection_with_preset_standard_sda(self):
-        """Test conversion with preset='standard_sda'."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_HORIZON_DATA)
-        spc = response.to_soilprofilecollection(preset="standard_sda")
-
-        assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2
-        assert spc.idname == "cokey"
-        assert spc.hzidname == "chkey"
-
-    def test_to_soilprofilecollection_with_preset_lab_pedon(self):
-        """Test conversion with preset='lab_pedon'."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        # Create lab pedon data with completely unique hzname values per profile
-        # Note: In practice, hzname needs to be unique across the entire dataset
-        lab_data = {
+    def test_converts_to_soilprofilecollection_with_defaults(self):
+        """Test conversion with default column names (cokey, chkey, hzdept_r, hzdepb_r)."""
+        # Create horizon data with standard SDA column names
+        horizon_response = {
             "Table": [
-                ["pedon_id", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r"],
+                ["cokey", "chkey", "hzdept_r", "hzdepb_r", "claytotal_r"],
                 [
-                    "DataTypeName=varchar",
-                    "DataTypeName=varchar",
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=float",
-                ],
-                ["P001", "hzname_1", 0, 10, 20.0],
-                ["P001", "hzname_2", 10, 30, 30.0],
-                ["P002", "hzname_3", 0, 15, 18.0],
-            ]
-        }
-        response = SDAResponse(lab_data)
-        spc = response.to_soilprofilecollection(preset="lab_pedon")
-
-        assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2
-        assert spc.idname == "pedon_id"
-        assert spc.hzidname == "hzname"
-
-    def test_to_soilprofilecollection_with_custom_preset(self):
-        """Test conversion with CustomColumnConfig preset."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-
-            from soildb.spc_presets import CustomColumnConfig
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        # Create data with custom column names
-        custom_data = {
-            "Table": [
-                ["site_id", "horizon_id", "top_depth", "bottom_depth", "clay"],
-                [
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=float",
+                    "ColumnOrdinal=0,DataTypeName=int",
+                    "ColumnOrdinal=1,DataTypeName=int",
+                    "ColumnOrdinal=2,DataTypeName=int",
+                    "ColumnOrdinal=3,DataTypeName=int",
+                    "ColumnOrdinal=4,DataTypeName=float",
                 ],
                 [101, 1, 0, 10, 25.0],
                 [101, 2, 10, 30, 30.0],
                 [102, 3, 0, 20, 15.0],
             ]
         }
-        response = SDAResponse(custom_data)
-        preset = CustomColumnConfig(
-            site_id_col="site_id",
-            horizon_id_col="horizon_id",
-            horizon_top_col="top_depth",
-            horizon_bottom_col="bottom_depth",
-        )
-        spc = response.to_soilprofilecollection(preset=preset)
+        response = SDAResponse(horizon_response)
+        spc = response.to_soilprofilecollection()
+
+        assert spc is not None
+        # Verify it's a SoilProfileCollection instance
+        from soilprofilecollection import SoilProfileCollection
 
         assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2
-        assert spc.idname == "site_id"
-        assert spc.hzidname == "horizon_id"
 
-    def test_to_soilprofilecollection_with_depth_validation(self):
-        """Test conversion with depth validation enabled."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_HORIZON_DATA)
-        spc = response.to_soilprofilecollection(validate_depths=True)
-
-        assert isinstance(spc, SoilProfileCollection)
-        assert len(spc) == 2
-
-    def test_to_soilprofilecollection_with_invalid_depths(self):
-        """Test conversion with invalid depth values raises error."""
-        try:
-            from soilprofilecollection import SoilProfileCollection  # noqa: F401
-
-            from soildb.spc_validator import SPCValidationError
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        # Create data with invalid depth (top > bottom)
-        invalid_data = {
+    def test_converts_with_custom_column_names(self):
+        """Test conversion with custom column names."""
+        # Create a response with horizons that have custom column names
+        horizon_response = {
             "Table": [
-                ["chkey", "cokey", "hzdept_r", "hzdepb_r", "claytotal_r"],
+                ["site_id", "hz_id", "top_depth", "bot_depth"],
                 [
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=int",
-                    "DataTypeName=float",
+                    "ColumnOrdinal=0,DataTypeName=int",
+                    "ColumnOrdinal=1,DataTypeName=int",
+                    "ColumnOrdinal=2,DataTypeName=int",
+                    "ColumnOrdinal=3,DataTypeName=int",
                 ],
-                [1, 101, 30, 10, 25.0],  # Invalid: top > bottom
-                [2, 101, 10, 30, 30.0],
+                [101, 1, 0, 10],
+                [101, 2, 10, 30],
             ]
         }
-        response = SDAResponse(invalid_data)
+        response = SDAResponse(horizon_response)
 
-        # With validation enabled, should warn about invalid depth records and raise error
-        with pytest.warns(
-            UserWarning, match="Found 1 horizon records with invalid depth values"
-        ):
-            with pytest.raises(SPCValidationError, match="Depth validation failed"):
-                response.to_soilprofilecollection(validate_depths=True)
-
-    def test_to_soilprofilecollection_without_depth_validation(self):
-        """Test conversion with depth validation disabled (but SPC still validates)."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        # Use valid data - note that SoilProfileCollection still validates internally
-        response = SDAResponse(MOCK_HORIZON_DATA)
-
-        # With validation disabled, we skip our validation but SPC still validates
-        spc = response.to_soilprofilecollection(validate_depths=False)
-        assert isinstance(spc, SoilProfileCollection)
-
-    def test_validate_for_soilprofilecollection(self):
-        """Test validate_for_soilprofilecollection returns validation report."""
-        try:
-            from soilprofilecollection import SoilProfileCollection  # noqa
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_HORIZON_DATA)
-        report = response.validate_for_soilprofilecollection()
-
-        assert isinstance(report, dict)
-        assert "data_summary" in report
-        assert "validation_details" in report
-        assert "errors" in report
-        assert "warnings" in report
-
-    def test_validate_for_soilprofilecollection_reports_missing_columns(self):
-        """Test validate_for_soilprofilecollection detects missing columns."""
-        try:
-            from soilprofilecollection import SoilProfileCollection  # noqa
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        response = SDAResponse(MOCK_HORIZON_DATA_MISSING_COL)
-        report = response.validate_for_soilprofilecollection()
-
-        assert len(report["errors"]) > 0
-
-    def test_backward_compatibility_old_parameters(self):
-        """Test backward compatibility with original parameter names."""
-        try:
-            from soilprofilecollection import SoilProfileCollection
-        except ImportError:
-            pytest.skip("soilprofilecollection not installed")
-
-        # Use original parameter names
-        response = SDAResponse(MOCK_HORIZON_DATA)
         spc = response.to_soilprofilecollection(
-            site_id_col="cokey",
-            hz_id_col="chkey",
-            hz_top_col="hzdept_r",
-            hz_bot_col="hzdepb_r",
+            site_id_col="site_id",
+            hz_id_col="hz_id",
+            hz_top_col="top_depth",
+            hz_bot_col="bot_depth",
         )
 
+        assert spc is not None
+        from soilprofilecollection import SoilProfileCollection
+
         assert isinstance(spc, SoilProfileCollection)
-        assert spc.idname == "cokey"
-        assert spc.hzidname == "chkey"

@@ -1006,19 +1006,15 @@ async def fetch_pedons_by_bbox(
         >>> site_df = result["site"].to_pandas()
         >>> horizons_df = result["horizons"].to_pandas()
 
-        # Fetch complete pedon profiles as SoilProfileCollection
-        >>> spc = await fetch_pedons_by_bbox(bbox, return_type="soilprofilecollection")
-        >>> # spc is now a soilprofilecollection.SoilProfileCollection object
-
         # Get horizon data for returned pedons (manual approach)
         >>> site_response = await fetch_pedons_by_bbox(bbox)
         >>> pedon_keys = site_response.to_pandas()["pedon_key"].unique().tolist()
         >>> horizons = await fetch_pedon_horizons(pedon_keys, client=client)
     """
-    if return_type not in ["sitedata", "combined", "soilprofilecollection"]:
+    if return_type not in ["sitedata", "combined"]:
         raise ValueError(
             f"Invalid return_type: {return_type!r}. Must be one of: "
-            "'sitedata', 'combined', 'soilprofilecollection'"
+            "'sitedata', 'combined'"
         )
 
     min_lon, min_lat, max_lon, max_lat = bbox
@@ -1083,26 +1079,8 @@ async def fetch_pedons_by_bbox(
         # Empty horizons response
         horizons_response = SDAResponse({})
 
-    if return_type == "combined":
-        return {"site": site_response, "horizons": horizons_response}
-
-    elif return_type == "soilprofilecollection":
-        # Convert to SoilProfileCollection
-        if horizons_response.is_empty():
-            raise ValueError(
-                "No horizon data found. Cannot create SoilProfileCollection without horizons."
-            )
-
-        return horizons_response.to_soilprofilecollection(
-            site_data=site_df,
-            site_id_col="pedon_key",
-            hz_id_col="layer_key",
-            hz_top_col="hzn_top",
-            hz_bot_col="hzn_bot",
-        )
-
-    # Fallback (shouldn't reach here due to validation above)
-    return site_response
+    # return_type == "combined"
+    return {"site": site_response, "horizons": horizons_response}
 
 
 @add_sync_version
@@ -1274,7 +1252,6 @@ async def fetch_ldm(
             >>> response = await fetch_ldm(x=['85P0234'], what='pedlabsampnum')
             >>> df = response.to_pandas()  # pandas DataFrame
             >>> gdf = response.to_geodataframe()  # geopandas GeoDataFrame
-            >>> spc = response.to_soilprofilecollection()  # SoilProfileCollection
 
     See Also:
         - LDMClient: Lower-level client for advanced use cases

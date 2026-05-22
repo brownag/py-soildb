@@ -1,8 +1,31 @@
 # Changelog
 
+## [0.7.4] - 2026-05-21
+
+Patch release with _SoilProfileCollection_ integration and schema cleanup.
+
+### Added
+
+* Leaner `.to_soilprofilecollection()` method for `SDAResponse` to convert horizon data to _SoilProfileCollection_ object 
+
+### Changed
+
+* Renamed `DatabaseTableSchema` class in backends module for clarity (previously `TableSchema`)
+
+### Removed
+
+* Deleted no-longer-used validation system (`spc_presets.py`, `spc_validator.py`; functionality was previously moved upstream to soilprofilecollection package)
+
 ## [0.7.3] - 2026-05-01
 
+Patch release focused on _SDAResponse_ conversion methods and `fetch_by_keys()`
+
+### Added
+
 * Added `.to_geopandas()` method to _SDAResponse_  (for #11)
+
+### Changed
+
 * Improved `fetch_by_keys()` examples for spatial tables (for #11)
 * Harmonized methods for conversion of SDA response to various data frame types (`.to_dataframe()` and friends: `.to_geodataframe()`, `.to_pandas()`, `.to_polars()`, `.to_geopandas()`)
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "soildb"
-version = "0.7.3"
+version = "0.7.4"
 readme = "README.md"
 authors = [
     {name = "Andrew Brown", email = "brown.andrewg@gmail.com"},
@@ -71,14 +71,16 @@ spatial = [
     "geopandas>=0.13.0",
     "shapely>=2.0.0",
 ]
-soil = ["soilprofilecollection>=0.2.0"]
 jupyter = [
     "jupyter>=1.0.0",
     "ipython>=8.0.0",
     "nest-asyncio>=1.5.0",
 ]
+soil = [
+    "soilprofilecollection>=0.2.0",
+]
 all = [
-    "soildb[dev,dataframes,spatial,soil,jupyter,docs,security]"
+    "soildb[dev,dataframes,spatial,jupyter,docs,security,soil]"
 ]
 
 [project.urls]

@@ -7,17 +7,9 @@ import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from .exceptions import SDAResponseError
-from .spc_presets import ColumnConfig
-from .spc_validator import (
-    SPCColumnValidator,
-    SPCDepthValidator,
-    SPCValidationError,
-    SPCWarnings,
-    create_spc_validation_report,
-)
 from .type_conversion import get_default_type_map
 
 if TYPE_CHECKING:
@@ -25,12 +17,16 @@ if TYPE_CHECKING:
         import pandas as pd
     except ImportError:
         pd = None  # type: ignore
-    from soilprofilecollection import SoilProfileCollection
 
     try:
         import polars as pl
     except ImportError:
         pl = None  # type: ignore
+
+    try:
+        from soilprofilecollection import SoilProfileCollection
+    except ImportError:
+        SoilProfileCollection = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -1177,257 +1173,36 @@ class SDAResponse:
 
     def to_soilprofilecollection(
         self,
+        site_id_col: str = "cokey",
+        hz_id_col: str = "chkey",
+        hz_top_col: str = "hzdept_r",
+        hz_bot_col: str = "hzdepb_r",
         site_data: "pd.DataFrame | None" = None,
-        site_id_col: Optional[str] = None,
-        hz_id_col: Optional[str] = None,
-        hz_top_col: Optional[str] = None,
-        hz_bot_col: Optional[str] = None,
-        preset: Union[str, ColumnConfig, None] = None,
-        validate_depths: bool = True,
-        warn_on_defaults: bool = True,
     ) -> "SoilProfileCollection":
-        """
-        Converts the response data to a soilprofilecollection.SoilProfileCollection object.
+        """Convert to SoilProfileCollection.
 
-        This method is intended for horizon-level data, which can be joined with
-        site-level data (e.g., from the component or pedon table) to form a complete
-        soil profile collection.
-
-        **Decision Tree: When to use to_soilprofilecollection()**
-
-        1. Do you have horizon-level data with depths?
-           - Yes → Continue
-           - No → Use `to_pandas()` or `to_polars()` instead
-
-        2. What type of data do you have?
-           - Standard SDA chorizon → Use `preset="standard_sda"`
-           - Lab pedon data → Use `preset="lab_pedon"`
-           - Map unit + component → Use `preset="mapunit_component"`
-           - Custom columns → Use `preset=CustomColumnConfig(...)`
-           - Explicit column names → Provide site_id_col, hz_id_col, etc.
-
-        3. Do you have site-level data?
-           - Yes → Provide as `site_data` parameter
-           - No → Leave as None (SPC will only have horizon data)
+        Requires the soilprofilecollection package: pip install soildb[soil]
 
         Args:
-            site_data: Optional pandas DataFrame containing site-level data.
-                This will be joined with the horizon data using site_id_col.
-
-            site_id_col: Column name for site/component identifier.
-                If not provided and preset is None, defaults to "cokey".
-                Can be: "cokey" (component), "pedon_id" (lab), "mukey" (mapunit)
-
-            hz_id_col: Column name for unique horizon identifier.
-                If not provided and preset is None, defaults to "chkey".
-                Can be: "chkey" (SDA), "pedon_key_horizon" (lab), "hzname" (other)
-
-            hz_top_col: Column name for horizon top depth.
-                If not provided and preset is None, defaults to "hzdept_r".
-                Must be in inches for standard SDA data.
-
-            hz_bot_col: Column name for horizon bottom depth.
-                If not provided and preset is None, defaults to "hzdepb_r".
-                Must be in inches for standard SDA data.
-
-            preset: Preset configuration. Can be:
-                - String name: "standard_sda", "lab_pedon", "pedon_site", "mapunit_component"
-                - ColumnConfig object: e.g., StandardSDAHorizonColumns()
-                - None: Use explicit column parameters (defaults to standard SDA)
-
-            validate_depths: Whether to validate depth values before conversion.
-                If True and invalid depths found, issues warning but continues.
-                Default: True
-
-            warn_on_defaults: Whether to warn when using default column names.
-                Set to False if you prefer silent defaults.
-                Default: True
-
-        Returns:
-            A SoilProfileCollection object configured with the provided columns.
-
-        Raises:
-            ImportError: If the 'soilprofilecollection' package is not installed.
-            SPCValidationError: If required columns are missing and cannot be resolved.
-
-        Examples:
-            >>> from soildb.spc_presets import StandardSDAHorizonColumns
-            >>> from soildb import SDAClient, Query
-            >>>
-            >>> # Using preset
-            >>> async with SDAClient() as client:
-            ...     query = Query().select(
-            ...         "cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r",
-            ...         "claytotal_r", "sandtotal_r", "silttotal_r", "awc_r", "ksat_r"
-            ...     ).from_("chorizon")
-            ...     response = await client.execute(query)
-            ...     spc = response.to_soilprofilecollection(preset="standard_sda")
-
-            >>> # Using explicit columns
-            >>> spc = response.to_soilprofilecollection(
-            ...     site_id_col="cokey",
-            ...     hz_id_col="chkey",
-            ...     hz_top_col="hzdept_r",
-            ...     hz_bot_col="hzdepb_r"
-            ... )
-
-            >>> # With site data
-            >>> import pandas as pd
-            >>> site_data = pd.DataFrame({
-            ...     "cokey": [1, 2, 3],
-            ...     "compname": ["Ames", "Benton", "Clarion"]
-            ... })
-            >>> spc = response.to_soilprofilecollection(
-            ...     site_data=site_data,
-            ...     preset="standard_sda"
-            ... )
-
-        See Also:
-            spc_presets: Column configuration presets for common query types
-            spc_validator: Validation utilities used internally
+            site_id_col: Profile/site identifier column. Default "cokey" (SDA component key).
+            hz_id_col:   Horizon identifier column. Default "chkey" (SDA horizon key).
+            hz_top_col:  Horizon top depth column. Default "hzdept_r".
+            hz_bot_col:  Horizon bottom depth column. Default "hzdepb_r".
+            site_data:   Optional DataFrame with site-level data, joined on site_id_col.
         """
         try:
             from soilprofilecollection import SoilProfileCollection
         except ImportError:
             raise ImportError(
-                "The 'soilprofilecollection' package is required to use "
-                "to_soilprofilecollection(). Please install it with: "
-                "pip install soildb[soil]"
+                "soilprofilecollection is required: pip install soildb[soil]"
             ) from None
-
-        # Step 1: Resolve column configuration
-        if preset is not None:
-            if isinstance(preset, str):
-                from .spc_presets import get_preset
-
-                config = get_preset(preset)
-            elif isinstance(preset, ColumnConfig):
-                config = preset
-            else:
-                raise TypeError(
-                    f"preset must be string, ColumnConfig, or None; got {type(preset)}"
-                )
-
-            site_id_col = site_id_col or config.site_id_col
-            hz_id_col = hz_id_col or config.horizon_id_col
-            hz_top_col = hz_top_col or config.horizon_top_col
-            hz_bot_col = hz_bot_col or config.horizon_bottom_col
-        else:
-            # Use provided columns or defaults
-            site_id_col = site_id_col or "cokey"
-            hz_id_col = hz_id_col or "chkey"
-            hz_top_col = hz_top_col or "hzdept_r"
-            hz_bot_col = hz_bot_col or "hzdepb_r"
-
-            if warn_on_defaults:
-                SPCWarnings.warn_default_columns()
-
-        # Step 2: Get horizon data
-        horizons_df = self.to_pandas()
-        required_cols = [hz_id_col, site_id_col, hz_top_col, hz_bot_col]
-        available_cols = list(horizons_df.columns)
-
-        # Step 3: Validate required columns
-        valid, error, resolved = SPCColumnValidator.validate_required_columns(
-            required_cols,
-            available_cols,
-            preset_name=preset if isinstance(preset, str) else "custom",
+        return SoilProfileCollection(
+            horizons=self.to_pandas(),
+            site=site_data,
+            idname=site_id_col,
+            hzidname=hz_id_col,
+            depthcols=(hz_top_col, hz_bot_col),
         )
-
-        if not valid:
-            if error:
-                raise error
-            else:
-                raise SPCValidationError("Column validation failed")
-
-        # Apply resolved column names
-        if resolved:
-            horizons_df = horizons_df.rename(columns=resolved)
-            logger.info(f"Resolved columns: {resolved}")
-
-        # Step 4: Validate depth values
-        if validate_depths:
-            depth_valid, depth_error, invalid_count = SPCDepthValidator.validate_depths(
-                horizons_df, hz_top_col, hz_bot_col
-            )
-            if not depth_valid:
-                SPCWarnings.warn_invalid_depths(invalid_count)
-
-        # Step 5: Warn about missing site data
-        if site_data is None:
-            SPCWarnings.warn_missing_site_data()
-
-        # Step 6: Create and return SoilProfileCollection
-        try:
-            spc = SoilProfileCollection(
-                horizons=horizons_df,
-                site=site_data,
-                idname=site_id_col,
-                hzidname=hz_id_col,
-                depthcols=(hz_top_col, hz_bot_col),
-            )
-            logger.info(
-                f"Successfully created SoilProfileCollection with {len(horizons_df)} horizons"
-            )
-            return spc
-        except Exception as e:
-            raise SPCValidationError(
-                f"Failed to create SoilProfileCollection: {str(e)}",
-                suggestion="Verify that all column values are valid and properly formatted.",
-            ) from e
-
-    def validate_for_soilprofilecollection(
-        self,
-        site_id_col: str = "cokey",
-        hz_id_col: str = "chkey",
-        hz_top_col: str = "hzdept_r",
-        hz_bot_col: str = "hzdepb_r",
-    ) -> dict:
-        """
-        Validate data suitability for SoilProfileCollection conversion without converting.
-
-        This is useful for checking data quality before committing to a conversion.
-
-        Args:
-            site_id_col: Column name for site identifier
-            hz_id_col: Column name for horizon identifier
-            hz_top_col: Column name for horizon top depth
-            hz_bot_col: Column name for horizon bottom depth
-
-        Returns:
-            Validation report dictionary with:
-            - is_valid: Whether data can be converted
-            - errors: List of validation errors
-            - warnings: List of warnings
-            - data_summary: Summary of data
-            - validation_details: Detailed validation results
-
-        Example:
-            >>> response = await client.execute(query)
-            >>> report = response.validate_for_soilprofilecollection()
-            >>> if report["is_valid"]:
-            ...     spc = response.to_soilprofilecollection()
-            ... else:
-            ...     print("Validation errors:", report["errors"])
-        """
-        try:
-            import pandas  # noqa: F401
-        except ImportError:
-            raise ImportError("pandas is required for validation") from None
-
-        df = self.to_pandas()
-        available_cols = list(df.columns)
-        required_cols = [site_id_col, hz_id_col, hz_top_col, hz_bot_col]
-
-        report = create_spc_validation_report(
-            df,
-            required_cols,
-            available_cols,
-            hz_top_col,
-            hz_bot_col,
-        )
-
-        return report
 
     def get_column_types(self) -> dict[str, str]:
         """Extract column data types from metadata."""

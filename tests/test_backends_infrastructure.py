@@ -18,10 +18,10 @@ from soildb.backends import (
     BackendSchemaError,
     BaseBackend,
     ColumnInfo,
+    DatabaseTableSchema,
     DatabaseTypeMapper,
     ResponseAdapter,
     SchemaIntrospector,
-    TableSchema,
     TypeMapperFactory,
 )
 from soildb.response import SDAResponse
@@ -361,7 +361,7 @@ class TestSchemaIntrospector:
 
         schema = await SchemaIntrospector.introspect_table(backend, "table1")
 
-        assert isinstance(schema, TableSchema)
+        assert isinstance(schema, DatabaseTableSchema)
         assert schema.name == "table1"
         assert "id" in schema.columns
         assert "name" in schema.columns
@@ -406,7 +406,7 @@ class TestSchemaIntrospector:
         assert isinstance(schemas, dict)
         assert len(schemas) >= 3  # At least the 3 mock tables
         for schema in schemas.values():
-            assert isinstance(schema, TableSchema)
+            assert isinstance(schema, DatabaseTableSchema)
 
     @pytest.mark.asyncio
     async def test_introspect_database_skip_errors(self):
@@ -489,28 +489,28 @@ class TestColumnInfo:
         assert wkb_col.is_geometry is True
 
 
-class TestTableSchema:
-    """Tests for TableSchema dataclass."""
+class TestDatabaseTableSchema:
+    """Tests for DatabaseTableSchema dataclass."""
 
     def test_table_schema_basic(self):
-        """TableSchema should store table metadata."""
+        """DatabaseTableSchema should store table metadata."""
         columns = {
             "id": ColumnInfo(name="id", type="int"),
             "name": ColumnInfo(name="name", type="varchar"),
         }
-        schema = TableSchema(name="users", columns=columns)
+        schema = DatabaseTableSchema(name="users", columns=columns)
 
         assert schema.name == "users"
         assert len(schema.columns) == 2
         assert schema.is_spatial is False
 
     def test_table_schema_with_geometry(self):
-        """TableSchema should detect spatial tables."""
+        """DatabaseTableSchema should detect spatial tables."""
         columns = {
             "id": ColumnInfo(name="id", type="int"),
             "geom": ColumnInfo(name="geom", type="geometry", spatial=True),
         }
-        schema = TableSchema(
+        schema = DatabaseTableSchema(
             name="features",
             columns=columns,
             geometry_column="geom",
@@ -525,7 +525,7 @@ class TestTableSchema:
             "id": ColumnInfo(name="id", type="int"),
             "name": ColumnInfo(name="name", type="varchar"),
         }
-        schema = TableSchema(name="users", columns=columns)
+        schema = DatabaseTableSchema(name="users", columns=columns)
 
         names = schema.column_names
         assert set(names) == {"id", "name"}
@@ -536,7 +536,7 @@ class TestTableSchema:
             "id": ColumnInfo(name="id", type="int"),
             "name": ColumnInfo(name="name", type="varchar"),
         }
-        schema = TableSchema(name="users", columns=columns)
+        schema = DatabaseTableSchema(name="users", columns=columns)
 
         types = schema.column_types
         assert types == {"id": "int", "name": "varchar"}
@@ -745,7 +745,7 @@ class TestBackendIntegration:
         async with backend:
             # Get schema
             schema = await SchemaIntrospector.introspect_table(backend, "test_table")
-            assert isinstance(schema, TableSchema)
+            assert isinstance(schema, DatabaseTableSchema)
 
             # Execute query
             response = await backend.execute("SELECT * FROM test_table")
