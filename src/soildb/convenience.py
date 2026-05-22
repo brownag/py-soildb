@@ -3,7 +3,7 @@ Utility functions that add value beyond basic query building.
 """
 
 import json
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 from . import query_templates
 from .client import SDAClient
@@ -216,7 +216,7 @@ async def get_lab_pedon_by_id(
 
 
 @add_sync_version
-async def _query_unlimited(
+async def _query_json_auto(
     query: Union[Query, str],
     client: Optional[SDAClient] = None,
 ) -> list[dict[str, Any]]:
@@ -229,9 +229,6 @@ async def _query_unlimited(
     SDA's row-count limit applies to tabular rows, so the JSON output bypasses
     it entirely.
 
-    Note: ORDER BY in the inner query is not supported — SQL Server disallows
-    ORDER BY inside a subquery unless TOP or OFFSET-FETCH is also present.
-
     Args:
         query: Query object or raw SQL string to execute.
         client: Optional SDA client instance. If not provided, a temporary
@@ -241,20 +238,8 @@ async def _query_unlimited(
         List of records as dicts, one dict per row.
 
     Examples:
-        query = (
-            Query()
-            .select("mukey", "muname", "musym")
-            .from_("mapunit")
-            .inner_join("legend", "mapunit.lkey = legend.lkey")
-            .where("areasymbol = 'IA109'")
-        )
-
-# Sync call
-records = await _query_unlimited(query)
-
-# Convert to DataFrame
-df = pd.DataFrame(records)
-        )
+        records = _query_json_auto.sync(query)
+        df = pd.DataFrame(records)
     """
     if client is None:
         client = SDAClient()
@@ -267,4 +252,4 @@ df = pd.DataFrame(records)
     if response.is_empty():
         return []
 
-    return json.loads(response.data[0][0])
+    return cast(list[dict[str, Any]], json.loads(response.data[0][0]))
