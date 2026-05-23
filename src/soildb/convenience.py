@@ -2,7 +2,8 @@
 Utility functions that add value beyond basic query building.
 """
 
-from typing import Optional
+import json
+from typing import Any, Optional, Union, cast
 
 from . import query_templates
 from .client import SDAClient
@@ -212,3 +213,43 @@ async def get_lab_pedon_by_id(
     )
 
     return await client.execute(query)
+
+
+@add_sync_version
+async def _query_json_auto(
+    query: Union[Query, str],
+    client: Optional[SDAClient] = None,
+) -> list[dict[str, Any]]:
+    """
+    Execute a query without SDA's 100,000 record limit using FOR JSON AUTO.
+
+    SDA truncates results at 100,000 rows. This function wraps the query in a
+    subquery with ``FOR JSON AUTO``, which causes SQL Server to return results
+    as concatenated JSON string fragments rather than individual tabular rows.
+    SDA's row-count limit applies to tabular rows, so the JSON output bypasses
+    it entirely.
+
+    Args:
+        query: Query object or raw SQL string to execute.
+        client: Optional SDA client instance. If not provided, a temporary
+                client is created and closed automatically.
+
+    Returns:
+        List of records as dicts, one dict per row.
+
+    Examples:
+        records = _query_json_auto.sync(query)
+        df = pd.DataFrame(records)
+    """
+    if client is None:
+        client = SDAClient()
+
+    base_sql = query if isinstance(query, str) else query.to_sql()
+
+    json_sql = f"~DeclareVarchar(@json,max)~;WITH src (n) AS ({base_sql} FOR JSON AUTO) SELECT @json = src.n FROM src SELECT @json, LEN(@json);"
+    response = await client.execute_sql(json_sql)
+
+    if response.is_empty():
+        return []
+
+    return cast(list[dict[str, Any]], json.loads(response.data[0][0]))
