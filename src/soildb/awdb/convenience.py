@@ -17,7 +17,6 @@ This module provides a clean, intuitive API organized by function family:
    - station_sensor_depths(station_triplet, property) - available depths/heights
 
 Legacy function names are supported for backward compatibility but are deprecated.
-See convenience_api_migration() for usage examples and migration guide.
 """
 # mypy: disable-error-code="attr-defined"
 

@@ -10,13 +10,11 @@ from typing import Optional
 from ..type_processors import to_optional_float, to_str
 from ._base import ColumnSchema, TableSchema
 
-SCHEMA_VERSION = "1.0"
-LAST_UPDATED = "2025-10-27"
 
 # Horizon property schema
 HORIZON_PROPERTY_SCHEMA = TableSchema(
     name="horizon_property",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "extra_fields": {},
     },

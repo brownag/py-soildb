@@ -31,6 +31,17 @@ from .awdb import (
     station_sensor_depths,
     station_sensors,
 )
+from .henry import (
+    HenryAPIError,
+    HenryClient,
+    HenryDataError,
+    HenryError,
+    HenryNetworkError,
+    fetch_henry_data,
+    find_henry_stations,
+    get_henry_variables,
+    list_henry_projects,
+)
 from .base_client import BaseDataAccessClient, ClientConfig
 from .client import SDAClient
 from .convenience import (
@@ -53,23 +64,15 @@ from .exceptions import (
 from .fetch import (
     QueryPresets,
     fetch_by_keys,
-    fetch_chorizon_by_cokey,
-    fetch_component_by_mukey,
     fetch_ldm,
-    fetch_mapunit_polygon,
     fetch_pedon_horizons,
     fetch_pedons_by_bbox,
-    fetch_survey_area_polygon,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
 from .high_level import (
     fetch_labpedon_by_bbox,
     fetch_labpedon_by_id,
-    # Deprecated names (for backward compatibility)
-    fetch_mapunit_struct_by_point,
-    fetch_pedon_struct_by_bbox,
-    fetch_pedon_struct_by_id,
     fetch_ssurgo_mapunit_by_point,
 )
 from .ldm import (
@@ -110,11 +113,8 @@ from .query_templates import (
 )
 from .response import SDAResponse
 from .spatial import (
-    SpatialQueryBuilder,
     bbox_query,
-    mupolygon_in_bbox,
     point_query,
-    sapolygon_in_bbox,
     spatial_query,
 )
 from .type_conversion import (
@@ -175,6 +175,16 @@ __all__ = [
     "StationInfo",
     "TimeSeriesDataPoint",
     "StationTimeSeries",
+    # Henry (Mount Soil Climate Database)
+    "HenryClient",
+    "find_henry_stations",
+    "fetch_henry_data",
+    "get_henry_variables",
+    "list_henry_projects",
+    "HenryError",
+    "HenryAPIError",
+    "HenryNetworkError",
+    "HenryDataError",
     # Exceptions
     "SoilDBError",
     "SDANetworkError",
@@ -218,17 +228,10 @@ __all__ = [
     "fetch_ssurgo_mapunit_by_point",
     "fetch_labpedon_by_bbox",
     "fetch_labpedon_by_id",
-    # Deprecated names (for backward compatibility)
-    "fetch_mapunit_struct_by_point",
-    "fetch_pedon_struct_by_bbox",
-    "fetch_pedon_struct_by_id",
     # Spatial query functions
     "spatial_query",
     "point_query",
     "bbox_query",
-    "mupolygon_in_bbox",
-    "sapolygon_in_bbox",
-    "SpatialQueryBuilder",
     # Bulk/paginated fetching - FETCH FUNCTION HIERARCHY
     "fetch_by_keys",  # Universal key-based fetcher - RECOMMENDED
     "fetch_pedons_by_bbox",  # Lab pedons with flexible return types
@@ -237,10 +240,6 @@ __all__ = [
     "get_mukey_by_areasymbol",  # Discover mukeys from survey areas
     "get_cokey_by_mukey",  # Discover cokeys from map units
     "QueryPresets",  # Preset configurations for common queries
-    "fetch_chorizon_by_cokey",  # DEPRECATED - use fetch_by_keys()
-    "fetch_component_by_mukey",  # DEPRECATED - use fetch_by_keys()
-    "fetch_mapunit_polygon",  # DEPRECATED - use fetch_by_keys()
-    "fetch_survey_area_polygon",  # DEPRECATED - use fetch_by_keys()
     # Lab Data Mart (LDM) client
     "LDMClient",
     # Modules

@@ -10,13 +10,11 @@ from typing import Optional
 from ..type_processors import to_optional_float, to_optional_str, to_str
 from ._base import ColumnSchema, TableSchema
 
-SCHEMA_VERSION = "1.0"
-LAST_UPDATED = "2025-10-27"
 
 # Component schema - soil component table
 COMPONENT_SCHEMA = TableSchema(
     name="component",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "aggregate_horizons": [],
         "extra_fields": {},
@@ -101,7 +99,7 @@ COMPONENT_SCHEMA = TableSchema(
 # Map unit component schema - component variant with additional context
 MAP_UNIT_COMPONENT_SCHEMA = TableSchema(
     name="map_unit_component",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "aggregate_horizons": [],
         "extra_fields": {},

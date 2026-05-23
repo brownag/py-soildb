@@ -15,13 +15,11 @@ from ..type_processors import (
 )
 from ._base import ColumnSchema, TableSchema
 
-SCHEMA_VERSION = "1.0"
-LAST_UPDATED = "2025-10-27"
 
 # Pedon (site) schema
 PEDON_SCHEMA = TableSchema(
     name="pedon",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "horizons": [],
         "extra_fields": {},
@@ -83,7 +81,7 @@ PEDON_SCHEMA = TableSchema(
 # Pedon horizon (layer) schema
 PEDON_HORIZON_SCHEMA = TableSchema(
     name="pedon_horizon",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "extra_fields": {},
     },
