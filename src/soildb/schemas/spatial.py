@@ -10,7 +10,6 @@ from typing import Optional
 from ..type_processors import to_optional_int, to_optional_str
 from ._base import ColumnSchema, TableSchema
 
-
 # Map unit polygon schema
 MUPOLYGON_SCHEMA = TableSchema(
     name="mupolygon",

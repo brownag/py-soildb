@@ -655,5 +655,3 @@ async def fetch_labpedon_by_id(
         pedon.horizons = horizons
 
     return pedon
-
-

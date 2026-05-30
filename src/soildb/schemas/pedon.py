@@ -15,7 +15,6 @@ from ..type_processors import (
 )
 from ._base import ColumnSchema, TableSchema
 
-
 # Pedon (site) schema
 PEDON_SCHEMA = TableSchema(
     name="pedon",

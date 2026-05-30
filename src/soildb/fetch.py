@@ -1438,5 +1438,3 @@ async def get_cokey_by_mukey(
     df = response.to_pandas()
 
     return df["cokey"].tolist() if not df.empty else []
-
-

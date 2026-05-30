@@ -10,7 +10,6 @@ from typing import Optional
 from ..type_processors import to_optional_float, to_optional_str, to_str
 from ._base import ColumnSchema, TableSchema
 
-
 # Component schema - soil component table
 COMPONENT_SCHEMA = TableSchema(
     name="component",

@@ -10,7 +10,6 @@ from typing import Optional
 from ..type_processors import to_optional_float, to_str
 from ._base import ColumnSchema, TableSchema
 
-
 # Horizon property schema
 HORIZON_PROPERTY_SCHEMA = TableSchema(
     name="horizon_property",

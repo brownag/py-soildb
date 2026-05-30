@@ -569,5 +569,3 @@ async def bbox_query(
     return await spatial_query(
         bbox, table, return_type, spatial_relation, client=client
     )
-
-

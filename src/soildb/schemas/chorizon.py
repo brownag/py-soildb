@@ -10,7 +10,6 @@ from typing import Optional
 from ..type_processors import to_optional_float, to_str
 from ._base import ColumnSchema, TableSchema
 
-
 # Component horizon schema
 CHORIZON_SCHEMA = TableSchema(
     name="chorizon",

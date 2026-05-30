@@ -31,17 +31,6 @@ from .awdb import (
     station_sensor_depths,
     station_sensors,
 )
-from .henry import (
-    HenryAPIError,
-    HenryClient,
-    HenryDataError,
-    HenryError,
-    HenryNetworkError,
-    fetch_henry_data,
-    find_henry_stations,
-    get_henry_variables,
-    list_henry_projects,
-)
 from .base_client import BaseDataAccessClient, ClientConfig
 from .client import SDAClient
 from .convenience import (
@@ -69,6 +58,17 @@ from .fetch import (
     fetch_pedons_by_bbox,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
+)
+from .henry import (
+    HenryAPIError,
+    HenryClient,
+    HenryDataError,
+    HenryError,
+    HenryNetworkError,
+    fetch_henry_data,
+    find_henry_stations,
+    get_henry_variables,
+    list_henry_projects,
 )
 from .high_level import (
     fetch_labpedon_by_bbox,
