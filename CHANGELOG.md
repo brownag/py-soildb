@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0] - 2026-05-30
+
+Minor release with streamlined codebase and improved documentation.
+
+### Changed
+
+* Streamlined codebase with removal of deprecated APIs and internal consolidation
+* Improved code organization and maintainability
+
 ## [0.7.4] - 2026-05-21
 
 Patch release with _SoilProfileCollection_ integration and schema cleanup.

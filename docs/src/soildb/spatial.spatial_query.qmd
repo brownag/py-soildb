@@ -136,13 +136,8 @@ Examples:
 For common use cases, consider using these instead:
 - `point_query(lat, lon, table, return_type)` - Simplified point queries
 - `bbox_query(xmin, ymin, xmax, ymax, table, return_type)` - Simplified bbox queries
-- `mupolygon_in_bbox(xmin, ymin, xmax, ymax, ...)` - Quick map unit lookups
-- `sapolygon_in_bbox(xmin, ymin, xmax, ymax, ...)` - Quick survey area lookups
 
 **DEPRECATION NOTE:**
-- The functions query_mupolygon(), query_sapolygon(), query_featpoint(),
-  query_featline() are deprecated. Use spatial_query() instead.
-- They now wrap this function for backward compatibility.
 - SpatialQueryBuilder is an internal implementation detail; use spatial_query() instead.
 
 **SEE ALSO:**

@@ -52,5 +52,3 @@ Examples:
 See Also:
     spatial_query() - For full control over geometry and parameters
     point_query() - For point-based queries
-    mupolygon_in_bbox() - Specialized for map unit polygons
-    sapolygon_in_bbox() - Specialized for survey area polygons

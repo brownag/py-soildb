@@ -78,7 +78,7 @@ from .exceptions import SoilDBError
 from .query import Query
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
-from .utils import add_sync_version
+from .utils import add_sync_version, get_geometry_column_for_table
 
 logger = logging.getLogger(__name__)
 
@@ -489,7 +489,7 @@ async def fetch_by_keys(
 
     # Add geometry column for spatial tables if requested
     if include_geometry:
-        geom_column = _get_geometry_column_for_table(table)
+        geom_column = get_geometry_column_for_table(table)
         if geom_column:
             if select_columns == "*":
                 select_columns = f"*, {geom_column}.STAsText() as geometry"
@@ -937,18 +937,6 @@ def _format_key_for_sql(key: Union[str, int]) -> str:
     else:
         # Numeric keys don't need quotes
         return str(key)
-
-
-# Deprecated: Use get_geometry_column_for_table from utils instead
-def _get_geometry_column_for_table(table: str) -> Optional[str]:
-    """Get the geometry column name for a spatial table.
-
-    Deprecated: Use get_geometry_column_for_table from utils instead.
-    Kept for backward compatibility.
-    """
-    from .utils import get_geometry_column_for_table
-
-    return get_geometry_column_for_table(table)
 
 
 @add_sync_version
