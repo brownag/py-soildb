@@ -13,7 +13,7 @@ examples = [
     'docs/examples/04_schema.py',
     'docs/examples/05_awdb.py',
     'docs/examples/06_awdb_availability.py',
-    'docs/examples/07_querybuilder.py',
+    'docs/examples/07_query_templates.py',
     'docs/examples/08_fetch.py',
     'docs/examples/09_wss_download.py',
 ]
