@@ -431,13 +431,8 @@ async def spatial_query(
     For common use cases, consider using these instead:
     - `point_query(lat, lon, table, return_type)` - Simplified point queries
     - `bbox_query(xmin, ymin, xmax, ymax, table, return_type)` - Simplified bbox queries
-    - `mupolygon_in_bbox(xmin, ymin, xmax, ymax, ...)` - Quick map unit lookups
-    - `sapolygon_in_bbox(xmin, ymin, xmax, ymax, ...)` - Quick survey area lookups
 
     **DEPRECATION NOTE:**
-    - The functions query_mupolygon(), query_sapolygon(), query_featpoint(),
-      query_featline() are deprecated. Use spatial_query() instead.
-    - They now wrap this function for backward compatibility.
     - SpatialQueryBuilder is an internal implementation detail; use spatial_query() instead.
 
     **SEE ALSO:**
@@ -566,8 +561,6 @@ async def bbox_query(
     See Also:
         spatial_query() - For full control over geometry and parameters
         point_query() - For point-based queries
-        mupolygon_in_bbox() - Specialized for map unit polygons
-        sapolygon_in_bbox() - Specialized for survey area polygons
     """
     if client is None:
         client = SDAClient()
@@ -575,79 +568,4 @@ async def bbox_query(
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await spatial_query(
         bbox, table, return_type, spatial_relation, client=client
-    )
-
-
-# Bounding box convenience functions
-async def mupolygon_in_bbox(
-    xmin: float,
-    ymin: float,
-    xmax: float,
-    ymax: float,
-    return_type: ReturnType = "tabular",
-    client: Optional[SDAClient] = None,
-) -> SDAResponse:
-    """
-    Get map unit polygons in a bounding box.
-
-    Convenience wrapper combining query_mupolygon() with bbox input.
-
-    Args:
-        xmin: Western boundary (longitude)
-        ymin: Southern boundary (latitude)
-        xmax: Eastern boundary (longitude)
-        ymax: Northern boundary (latitude)
-        return_type: "tabular" (default) or "spatial"
-        client: Optional SDA client instance
-
-    Returns:
-        SDAResponse: Query results
-
-    See Also:
-        bbox_query() - More flexible bounding box queries
-        spatial_query() - For full control
-    """
-    if client is None:
-        client = SDAClient()
-
-    bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-    return await spatial_query(
-        bbox, table="mupolygon", return_type=return_type, client=client
-    )
-
-
-async def sapolygon_in_bbox(
-    xmin: float,
-    ymin: float,
-    xmax: float,
-    ymax: float,
-    return_type: ReturnType = "tabular",
-    client: Optional[SDAClient] = None,
-) -> SDAResponse:
-    """
-    Get survey area polygons in a bounding box.
-
-    Convenience wrapper combining query_sapolygon() with bbox input.
-
-    Args:
-        xmin: Western boundary (longitude)
-        ymin: Southern boundary (latitude)
-        xmax: Eastern boundary (longitude)
-        ymax: Northern boundary (latitude)
-        return_type: "tabular" (default) or "spatial"
-        client: Optional SDA client instance
-
-    Returns:
-        SDAResponse: Query results
-
-    See Also:
-        bbox_query() - More flexible bounding box queries
-        spatial_query() - For full control
-    """
-    if client is None:
-        client = SDAClient()
-
-    bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-    return await spatial_query(
-        bbox, table="sapolygon", return_type=return_type, client=client
     )

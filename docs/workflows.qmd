@@ -228,7 +228,7 @@ async with SDAClient() as client:
     response = await client.execute(q1)
 ```
 
-**See also:** [07_querybuilder.py](examples/07_querybuilder.py), [API Reference](api.qmd)
+**See also:** [07_query_templates.py](examples/07_query_templates.py), [API Reference](api.qmd)
 
 ---
 

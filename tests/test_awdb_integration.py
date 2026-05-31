@@ -3,7 +3,7 @@
 import pytest
 
 try:
-    from soildb.awdb_integration import (
+    from soildb._awdb_integration import (
         estimate_water_availability,
         get_component_water_properties,
         get_recommended_awdb_depths_for_soil,

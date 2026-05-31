@@ -10,13 +10,10 @@ from typing import Optional
 from ..type_processors import to_optional_float, to_str
 from ._base import ColumnSchema, TableSchema
 
-SCHEMA_VERSION = "1.0"
-LAST_UPDATED = "2025-10-27"
-
 # Component horizon schema
 CHORIZON_SCHEMA = TableSchema(
     name="chorizon",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "properties": [],
         "extra_fields": {},
@@ -94,7 +91,7 @@ CHORIZON_SCHEMA = TableSchema(
 # Aggregate horizon schema - simplified variant
 AGGREGATE_HORIZON_SCHEMA = TableSchema(
     name="aggregate_horizon",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "properties": [],
         "extra_fields": {},

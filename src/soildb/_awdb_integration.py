@@ -1,20 +1,19 @@
 """
-Helper functions for soil water availability modeling with AWDB data.
+INTERNAL INTEGRATION TESTING - SDA + AWDB workflows.
 
-This module provides workflows that combine:
-- SDA soil properties (texture, available water capacity, depth to water table, permeability)
-- AWDB environmental monitoring (soil moisture, precipitation, soil temperature from SCAN/SNOTEL)
+This module is NOT part of the public API. It provides experimental workflows
+combining SDA soil properties with AWDB environmental monitoring data. Use the
+public AWDB API via `soildb.awdb` for production code.
 
-Use these functions to:
-- Validate SDA available water capacity predictions against SCAN field measurements
-- Monitor soil water status and stress conditions
-- Assess seasonal water availability dynamics
-- Optimize irrigation scheduling based on soil and weather data
+This module is kept for internal integration testing and development.
+Workflows that combine SDA soil properties (texture, available water capacity,
+depth to water table, permeability) with AWDB environmental monitoring
+(soil moisture, precipitation, soil temperature from SCAN/SNOTEL).
 """
 
 from typing import Any, Optional
 
-from .awdb import convenience as awdb_convenience
+from .awdb import get_property_data_near
 from .awdb.exceptions import AWDBError
 from .client import SDAClient
 from .query import Query
@@ -179,7 +178,7 @@ async def get_scan_soil_moisture_profile(
     """
     try:
         # Get monitoring data from nearest SCAN station
-        data = await awdb_convenience.get_property_data_near(
+        data = await get_property_data_near(
             latitude=latitude,
             longitude=longitude,
             property_name="soil_moisture",
@@ -215,7 +214,7 @@ async def get_scan_soil_temperature_profile(
         Dictionary with soil temperature time series at available depths
     """
     try:
-        data = await awdb_convenience.get_property_data_near(
+        data = await get_property_data_near(
             latitude=latitude,
             longitude=longitude,
             property_name="soil_temp",
@@ -251,7 +250,7 @@ async def get_precipitation_data(
         Dictionary with precipitation time series
     """
     try:
-        data = await awdb_convenience.get_property_data_near(
+        data = await get_property_data_near(
             latitude=latitude,
             longitude=longitude,
             property_name="precipitation",

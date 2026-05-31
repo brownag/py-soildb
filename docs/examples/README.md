@@ -16,7 +16,7 @@ These examples demonstrate the recommended approaches. Start here.
 | **02_spatial.py** | ✅ Geographic queries (point, bbox, polygon) with optional GeoPandas | Queries by location |
 | **05_awdb.py** | ✅ AWDB station data retrieval (SCAN, SNOTEL networks) | Finding and fetching monitoring station data |
 | **08_fetch.py** | ✅ Bulk data retrieval with automatic pagination using `fetch_by_keys()` | Fetching data for multiple keys |
-| **07_querybuilder.py** | Query template patterns using `query_templates` module | Pre-built SQL queries for common patterns |
+| **07_query_templates.py** | Query template patterns using `query_templates` module | Pre-built SQL queries for common patterns |
 
 ---
 
@@ -170,7 +170,7 @@ gdf = response.to_geodataframe()            # GeoDataFrame (with WKT)
 
 **Finding data by location**: Start with `01_basic.py`, then `02_spatial.py`
 
-**Fetching bulk data**: See `08_fetch.py` and `07_querybuilder.py`
+**Fetching bulk data**: See `08_fetch.py` and `07_query_templates.py`
 
 **AWDB monitoring stations**: See `05_awdb.py` and `06_awdb_availability.py`
 

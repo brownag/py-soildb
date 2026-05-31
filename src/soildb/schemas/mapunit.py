@@ -10,14 +10,10 @@ from typing import Optional
 from ..type_processors import to_optional_str, to_str
 from ._base import ColumnSchema, TableSchema
 
-# Schema version tracking
-SCHEMA_VERSION = "1.0"
-LAST_UPDATED = "2025-10-27"
-
 # Mapunit schema - soil map unit table
 MAPUNIT_SCHEMA = TableSchema(
     name="mapunit",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "components": [],
         "extra_fields": {},
@@ -70,7 +66,7 @@ MAPUNIT_SCHEMA = TableSchema(
 # Soil map unit schema - simplified mapunit variant
 SOIL_MAP_UNIT_SCHEMA = TableSchema(
     name="soil_map_unit",
-    version=SCHEMA_VERSION,
+    version="1.0",
     base_fields={
         "components": [],
         "extra_fields": {},

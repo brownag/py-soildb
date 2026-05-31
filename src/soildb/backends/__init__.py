@@ -2,7 +2,7 @@
 Unified backend infrastructure for multi-database support.
 
 This module provides the foundational components for supporting multiple database
-backends (SDA, SQLite, GeoPackage, PostgreSQL, etc.) in a consistent way.
+backends (SDA, SQLite, GeoPackage) in a consistent way.
 
 ## Architecture
 
@@ -89,7 +89,6 @@ class MyDatabaseBackend(BaseBackend):
 - **SDABackend** - Soil Data Access web service (HTTP API)
 - **SQLiteBackend** - Local SQLite database snapshots
 - **GeoPackageBackend** - OGC GeoPackage format (spatial SQLite)
-- **PostgreSQLBackend** - PostgreSQL with PostGIS (future)
 
 ## Configuration
 

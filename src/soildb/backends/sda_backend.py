@@ -87,22 +87,14 @@ class SDABackend(BaseBackend):
     async def get_tables(self) -> list[str]:
         """Get available tables from SDA.
 
-        Returns:
-            List of table names available in SDA
-
         Raises:
-            BackendSchemaError: If schema discovery fails
+            NotImplementedError: Schema discovery is not supported for SDA.
+                Use soildb.query_templates or soildb.Query builder instead.
         """
-        try:
-            # For SDA, we could query information_schema for an accurate list
-            # For now, return an empty list to allow dynamic discovery
-            # Actual tables are determined by the user's query
-            return []
-        except Exception as e:
-            raise BackendSchemaError(
-                "Failed to get table list from SDA",
-                details=str(e),
-            ) from e
+        raise NotImplementedError(
+            "SDABackend.get_tables() is not yet implemented. "
+            "Use soildb.query_templates or soildb.Query builder instead."
+        )
 
     async def get_columns(self, table_name: str) -> dict[str, str]:
         """Get schema for a specific table from SDA.
