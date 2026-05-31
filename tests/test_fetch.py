@@ -11,13 +11,13 @@ from soildb.fetch import (
     TABLE_KEY_MAPPING,
     FetchError,
     _format_key_for_sql,
-    _get_geometry_column_for_table,
     fetch_by_keys,
     fetch_pedons_by_bbox,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
 from soildb.response import SDAResponse
+from soildb.utils import get_geometry_column_for_table
 
 
 class TestKeyFormatting:
@@ -39,12 +39,12 @@ class TestGeometryColumns:
 
     def test_known_tables(self):
         """Test geometry column detection for known tables."""
-        assert _get_geometry_column_for_table("mupolygon") == "mupolygongeo"
-        assert _get_geometry_column_for_table("sapolygon") == "sapolygongeo"
+        assert get_geometry_column_for_table("mupolygon") == "mupolygongeo"
+        assert get_geometry_column_for_table("sapolygon") == "sapolygongeo"
 
     def test_unknown_table(self):
         """Test geometry column detection for unknown tables."""
-        assert _get_geometry_column_for_table("unknown") is None
+        assert get_geometry_column_for_table("unknown") is None
 
 
 class TestTableKeyMapping:
