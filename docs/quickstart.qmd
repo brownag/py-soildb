@@ -5,36 +5,31 @@ description: "Get started with py-soildb in 5 minutes"
 
 # Quick Start
 
-Choose your pattern based on your use case, then see [Workflows](workflows.qmd) for detailed examples.
+Pick a pattern for your use case. See [Workflows](workflows.qmd) for end-to-end examples.
 
-## Pattern: Simple Script or Jupyter Notebook
+## Synchronous Script or Notebook
 
-**Use this for:** Scripts, Jupyter notebooks, quick analysis, most one-off queries.
-
-**Recommended** because it's simplest and handles client management automatically.
+Use `.sync()` for scripts, notebooks, and one-off queries. It manages the client and event loop automatically.
 
 ```python
 from soildb import get_mapunit_by_point
 
-# Synchronous wrapper - all soildb functions support .sync() method
-# This handles async client creation and event loop management automatically
-response = get_mapunit_by_point(-93.6, 42.0)
+# .sync() handles client creation and the event loop
+response = get_mapunit_by_point.sync(-93.6, 42.0)
 df = response.to_pandas()
 print(df)
 ```
 
 See also:
 
-- [01_basic.py](examples/01_basic.py) — Full working example
-- [Workflows: Point Queries](workflows.qmd#point-queries) — Detailed walkthrough
+- [01_basic.py](examples/01_basic.py): Working example
+- [Workflows: Point Queries](workflows.qmd#point-queries): Detailed walkthrough
 
 ---
 
-## Pattern: Production Application or High-Performance Queries
+## Async Application or Concurrent Queries
 
-**Use this for:** Web services, long-running applications, concurrent requests, bulk operations.
-
-**Why:** Explicit client management and async/await allow concurrent processing and better resource control.
+Use `async with SDAClient()` for services and concurrent requests. Explicit client management reuses connections across queries.
 
 ```python
 import asyncio
@@ -51,89 +46,92 @@ df = asyncio.run(fetch_data())
 
 See also:
 
-- [Async Guide](async.qmd) — Concurrency, error handling, patterns
-- [Workflows: Async Examples](workflows.qmd#async-patterns) — Detailed async patterns
+- [Async Guide](async.qmd): Concurrency, error handling, patterns
+- [Workflows: Async Examples](workflows.qmd#async-patterns): Detailed async patterns
 
 ---
 
-## Pattern: Query by Location
+## Query by Location
 
-**Use this for:** "What soil is at this point?" or "Show me soil in this area."
+Query map units by point coordinates, bounding box, or WKT polygon.
 
 ```python
-from soildb import get_mapunit_by_point, spatial_query
+import asyncio
+from soildb import SDAClient, get_mapunit_by_point, spatial_query
 
-# Single point
-response = get_mapunit_by_point(-93.6, 42.0)
+async def main():
+    async with SDAClient() as client:
+        # Point query
+        point_data = await get_mapunit_by_point(-93.6, 42.0, client=client)
 
-# Bounding box
-response = spatial_query(
-    {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}, 
-    table="mupolygon"
-)
+        # Bounding box
+        bbox = {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}
+        bbox_data = await spatial_query(bbox, table="mupolygon", client=client)
 
-# Polygon (WKT)
-response = spatial_query(
-    "POLYGON((-93.7 42.0, -93.6 42.0, -93.6 42.1, -93.7 42.1, -93.7 42.0))",
-    table="mupolygon"
-)
+        # Polygon (WKT)
+        poly = "POLYGON((-93.7 42.0, -93.6 42.0, -93.6 42.1, -93.7 42.1, -93.7 42.0))"
+        poly_data = await spatial_query(poly, table="mupolygon", client=client)
+
+asyncio.run(main())
 ```
+
+For synchronous point queries, use `get_mapunit_by_point.sync(-93.6, 42.0)`.
 
 See also:
 
-- [02_spatial.py](examples/02_spatial.py) — Full spatial examples
-- [Workflows: Spatial Queries](workflows.qmd#spatial-queries) — Detailed patterns
+- [02_spatial.py](examples/02_spatial.py): Spatial query examples
+- [Workflows: Spatial Queries](workflows.qmd#spatial-queries): Detailed patterns
 
 ---
 
-## Pattern: Query by Survey Area
+## Query by Survey Area
 
-**Use this for:** "Get all soil data for county XYZ."
+Fetch all map units in a soil survey area by its symbol:
 
 ```python
 from soildb import get_mapunit_by_areasymbol
 
 # Get all map units in Iowa survey area IA109
-response = get_mapunit_by_areasymbol("IA109")
+response = get_mapunit_by_areasymbol.sync("IA109")
 df = response.to_pandas()
 ```
 
 See also:
 
-- [Workflows: Survey Area Queries](workflows.qmd#survey-area-queries) — Details
+- [Workflows: Survey Area Queries](workflows.qmd#survey-area-queries): Survey area details
 
 ---
 
-## Pattern: Bulk Data Fetching
+## Bulk Data Fetching
 
-**Use this for:** "Fetch components/horizons for 1000+ map units."
+Fetch records for hundreds or thousands of keys. `fetch_by_keys()` chunks queries and merges results automatically:
 
 ```python
 from soildb import fetch_by_keys, get_mukey_by_areasymbol
 
-# Get mukeys first
-mukeys = get_mukey_by_areasymbol(["IA109", "IA113"])
+# Get mukeys for survey areas
+mukeys = get_mukey_by_areasymbol.sync(["IA109", "IA113"])
 
-# Fetch all components - automatic pagination/chunking
-response = fetch_by_keys(
+# Fetch components with automatic chunking
+response = fetch_by_keys.sync(
     mukeys, 
     "component", 
     key_column="mukey",
-    chunk_size=500  # Auto-handled internally
+    chunk_size=500
 )
 df = response.to_pandas()
 ```
 
 See also:
 
-- [08_fetch.py](examples/08_fetch.py) — Full bulk fetching examples
-- [Workflows: Bulk Data Fetching](workflows.qmd#bulk-data-fetching) — Advanced patterns
+- [08_fetch.py](examples/08_fetch.py): Bulk fetching examples
+- [Workflows: Bulk Data Fetching](workflows.qmd#bulk-data-fetching): Advanced patterns
 
 ---
 
-## Pattern: Custom SQL Query
+## Custom SQL Query
 
-**Use this for:** Complex queries, joins, specific WHERE conditions.
+Build SQL with `Query` for custom joins and filters:
 
 ```python
 from soildb import Query, SDAClient
@@ -150,27 +148,27 @@ query = (Query()
 async with SDAClient() as client:
     response = await client.execute(query)
 
-# Or synchronous (runs its own event loop)
-response = SDAClient.execute.sync(query)
+# Synchronous
+response = SDAClient().execute.sync(query)
 ```
 
 See also:
 
-- [Workflows: Custom Queries](workflows.qmd#custom-queries) — Query builder details
-- [API Reference](api.qmd) — Full Query API
+- [Workflows: Custom Queries](workflows.qmd#custom-queries): Query builder details
+- [API Reference](api.qmd): Full Query API
 
 ---
 
-## Pattern: AWDB Monitoring Data
+## AWDB Monitoring Data
 
-**Use this for:** "Get soil water data from SCAN/SNOTEL stations."
+Retrieve climate and soil monitoring data from SCAN and SNOTEL stations:
 
 ```python
 import asyncio
 from soildb.awdb import discover_stations, get_soil_moisture_by_depth
 
 async def main():
-    # Find SCAN stations in Idaho
+    # Find active SCAN stations in Idaho
     stations = await discover_stations(
         state_codes=["ID"],
         network_codes=["SCAN"],
@@ -190,72 +188,63 @@ async def main():
 asyncio.run(main())
 ```
 
-**Note:** AWDB is a free public resource. Space out requests and avoid hammering it with concurrent queries. If you encounter errors, reduce request frequency and retry with backoff.
+AWDB is a public service. Space out requests and avoid high concurrency. If requests fail, add backoff retries.
 
 See also:
 
-- [05_awdb.py](examples/05_awdb.py) — Full AWDB examples
-- [AWDB Integration](awdb.qmd) — Detailed guide
+- [05_awdb.py](examples/05_awdb.py): AWDB examples
+- [AWDB Integration](awdb.qmd): Detailed guide
 
 ---
 
-## Pattern: Convert to SoilProfileCollection
+## Convert to SoilProfileCollection
 
-**Use this for:** Specialized soil horizon analysis (requires `soilprofilecollection` package).
+Convert horizon data to a `SoilProfileCollection` object for profile-level analysis (requires `soildb[soil]`):
 
 ```python
 from soildb import get_mapunit_by_point
 
-# Fetch horizon data (includes component info)
-response = get_mapunit_by_point(-93.6, 42.0)
+# Fetch map unit data
+response = get_mapunit_by_point.sync(-93.6, 42.0)
 
 # Convert to SoilProfileCollection
 spc = response.to_soilprofilecollection()
-
-# Use SPC methods
-print(f"Number of profiles: {len(spc)}")
+print(f"Profiles: {len(spc)}")
 print(f"Deepest profile: {spc.depth.max()} cm")
 ```
 
 See also:
 
-- [SoilProfileCollection examples](examples/soilprofilecollection/) — Detailed strategies
-- [Workflows: SoilProfileCollection](workflows.qmd#soilprofilecollection) — Integration patterns
+- [SoilProfileCollection examples](examples/soilprofilecollection/): Integration examples
+- [Workflows: SoilProfileCollection](workflows.qmd#soilprofilecollection): Integration patterns
 
 ---
 
 ## Export Formats
 
-All API calls return `SDAResponse` which supports multiple formats:
+`SDAResponse` exports to several data formats:
 
 ```python
-# pandas DataFrame (most common)
-df = response.to_pandas()
-
-# Polars DataFrame (performant alternative)
-df = response.to_polars()
-
-# Dictionary list (JSON-like)
-data = response.to_dict()
-
-# SoilProfileCollection (soil science)
-spc = response.to_soilprofilecollection()
-
-# GeoDataFrame (spatial analysis, requires GeoPandas)
-gdf = response.to_geodataframe()
+df = response.to_pandas()                    # pandas DataFrame
+df = response.to_polars()                    # Polars DataFrame
+data = response.to_dict()                    # List of dicts
+spc = response.to_soilprofilecollection()   # SoilProfileCollection
+gdf = response.to_geodataframe()            # GeoDataFrame (requires geopandas)
 ```
 
 ---
 
 ## Error Handling
 
+Catch subsystem exceptions to handle network issues or query errors:
+
 ```python
-from soildb import SDAConnectionError, SDAQueryError
+from soildb import SDAConnectionError, SDAQueryError, get_mapunit_by_point
 
 try:
-    response = get_mapunit_by_point(-93.6, 42.0)
+    response = get_mapunit_by_point.sync(-93.6, 42.0)
 except SDAConnectionError:
-    print("Can't reach SDA service")
+    print("Cannot reach SDA service")
 except SDAQueryError as e:
     print(f"Query error: {e}")
 ```
@@ -266,8 +255,8 @@ See [Error Handling](error-handling.qmd) for exception types and recovery strate
 
 ## Next Steps
 
-1. **See [Workflows](workflows.qmd)** for detailed examples with explanations
-2. **Clone/run examples** from [docs/examples/](examples/)
-3. **Check [Async Guide](async.qmd)** if building high-performance services
-4. **Read [API Reference](api.qmd)** for complete function documentation
-5. **Review [Troubleshooting](troubleshooting.qmd)** for common issues
+1. See [Workflows](workflows.qmd) for task-based workflows.
+2. Run sample scripts in [docs/examples/](examples/).
+3. Read the [Async Guide](async.qmd) for concurrent queries.
+4. Consult the [API Reference](api.qmd) for full function documentation.
+5. Review [Troubleshooting](troubleshooting.qmd) for common errors.

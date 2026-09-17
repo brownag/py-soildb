@@ -1,25 +1,24 @@
 """
-Example 4: Custom Column Configuration
+Convert non-standard horizon data to SoilProfileCollection with custom columns.
 
-This example demonstrates using CustomColumnConfig to convert data with
-user-defined column name mappings. Useful when working with non-standard
-data structures or data from external sources that need harmonization.
-
-Use this when:
-- You have data with non-standard column names
-- You want to map custom column names to SPC structure
-- You need to work with external soil data formats
-- You want to standardize multiple data sources
+Demonstrates mapping custom or aliased column names to SoilProfileCollection.
+Requires optional soilprofilecollection package: pip install 'soildb[soil]'
 """
 
 import asyncio
 
-from soildb import Query, SDAClient
-from soildb.spc_presets import CustomColumnConfig
+from soildb import Query, SDAClient, SDAResponse
+
+
+def handle_missing_spc():
+    """Handle missing soilprofilecollection dependency."""
+    print("Optional dependency missing: soilprofilecollection")
+    print("Install with: pip install 'soildb[soil]'")
+    return None
 
 
 async def main():
-    """Convert data using custom column configuration."""
+    """Convert custom horizon columns to SoilProfileCollection."""
 
     print("=" * 60)
     print("Example 4: Custom Column Configuration")
@@ -27,60 +26,41 @@ async def main():
     print()
 
     async with SDAClient() as client:
-        # Query standard SDA data
-        print("Querying horizon data from SDA...")
+        print("Querying horizon data with aliased column names...")
         query = (
             Query()
             .select(
-                "cokey",
-                "chkey",
-                "hzdept_r",
-                "hzdepb_r",
-                "claytotal_r",
-                "sandtotal_r",
-                "om_r",
+                "cokey AS profile_id",
+                "chkey AS horizon_id",
+                "hzdept_r AS top_cm",
+                "hzdepb_r AS bottom_cm",
+                "claytotal_r AS clay_pct",
+                "sandtotal_r AS sand_pct",
+                "om_r AS organic_matter",
             )
             .from_("chorizon")
+            .where("hzdept_r IS NOT NULL AND hzdepb_r IS NOT NULL")
             .order_by("cokey, hzdept_r")
             .limit(100)
         )
 
-        response = await client.execute(query)
-        print(f"  Retrieved {len(response)} horizon records")
+        response: SDAResponse = await client.execute(query)
+        print(f"Retrieved {len(response)} horizon records")
+        print(f"Columns: {response.columns}")
         print()
 
         if response.is_empty():
-            print("No data available. SDA service may be unavailable.")
+            print("No data retrieved.")
             return None
 
-        # Define custom column mappings
-        print("Defining custom column configuration...")
-        custom_config = CustomColumnConfig(
-            description="Custom profile/horizon mapping with descriptive names",
-            site_id_col="cokey",
-            horizon_id_col="chkey",
-            horizon_top_col="hzdept_r",
-            horizon_bottom_col="hzdepb_r",
-            optional_columns=["claytotal_r", "sandtotal_r", "om_r"],
-        )
-
-        print(f"  Site ID column: {custom_config.site_id_col}")
-        print(f"  Horizon ID column: {custom_config.horizon_id_col}")
-        print(
-            f"  Depth columns: {custom_config.horizon_top_col} -> {custom_config.horizon_bottom_col}"
-        )
-        print(
-            f"  Optional columns: {len(custom_config.optional_columns or [])} columns"
-        )
-        print()
-
-        # Convert using custom config
-        print("Converting to SoilProfileCollection with custom config...")
+        # Convert using custom column mappings
+        print("Converting with custom column mappings...")
         try:
             spc = response.to_soilprofilecollection(
-                preset=custom_config,
-                validate_depths=False,  # Don't pre-validate; SoilProfileCollection will validate
-                warn_on_defaults=False,
+                site_id_col="profile_id",
+                hz_id_col="horizon_id",
+                hz_top_col="top_cm",
+                hz_bot_col="bottom_cm",
             )
 
             print("Conversion successful.")
@@ -88,43 +68,21 @@ async def main():
             print("Results:")
             print(f"  Profiles: {len(spc)}")
             print(f"  Horizons: {len(spc.horizons)}")
-            print()
-
-            # Show structure
-            print("Profile structure:")
             print(f"  Site ID name: {spc.idname}")
             print(f"  Horizon ID name: {spc.hzidname}")
-            print(f"  Site columns: {spc.site.columns.tolist()}")
-            print(f"  Horizon columns: {spc.horizons.columns.tolist()}")
             print()
 
-            # Show sample data
-            print("Sample horizons (first 5):")
-            display_cols = [
-                custom_config.site_id_col,
-                custom_config.horizon_id_col,
-                custom_config.horizon_top_col,
-                custom_config.horizon_bottom_col,
-                "claytotal_r",
-            ]
-            available = [col for col in display_cols if col in spc.horizons.columns]
+            print("First 5 horizons:")
+            cols = ["profile_id", "horizon_id", "top_cm", "bottom_cm", "clay_pct"]
+            available = [c for c in cols if c in spc.horizons.columns]
             print(spc.horizons[available].head())
 
             return spc
 
+        except ImportError:
+            return handle_missing_spc()
         except Exception as e:
-            print(f"Note: {type(e).__name__}: {e}")
-            print()
-            print("This may occur if:")
-            print("  - Horizons have depth gaps (not all components have all depths)")
-            print("  - Depth values are missing or invalid")
-            print("  - Data quality issues exist in the SDA service")
-            print()
-            print("For production data, consider:")
-            print("  - Filtering to components with complete horizon sequences")
-            print("  - Cleaning/validating depth values before conversion")
-            print("  - Using pandas/polars export for flexible data handling")
-            print(f"   Available columns: {response.columns}")
+            print(f"Conversion error: {e}")
             return None
 
 
@@ -135,5 +93,5 @@ if __name__ == "__main__":
     if spc is not None:
         print("Example completed successfully!")
     else:
-        print("Example encountered an error.")
+        print("Example finished (conversion skipped).")
     print("=" * 60)

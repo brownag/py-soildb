@@ -1,18 +1,21 @@
 """
-Example 1: Basic SoilProfileCollection Conversion
+Convert SDA horizon data to a SoilProfileCollection object.
 
-This example demonstrates the simplest way to convert SDA query results
-to a SoilProfileCollection object using the default preset.
-
-Use this when:
-- Working with standard SDA horizon data
-- You have cokey, chkey, hzdept_r, hzdepb_r columns
-- You want quick conversion without configuration
+Requires:
+- cokey, chkey, hzdept_r, hzdepb_r columns
+- optional soilprofilecollection package: pip install 'soildb[soil]'
 """
 
 import asyncio
 
-from soildb import Query, SDAClient
+from soildb import Query, SDAClient, SDAResponse
+
+
+def handle_missing_spc():
+    """Handle missing soilprofilecollection dependency."""
+    print("Optional dependency missing: soilprofilecollection")
+    print("Install with: pip install 'soildb[soil]'")
+    return None
 
 
 async def main():
@@ -48,7 +51,7 @@ async def main():
         print()
 
         # Execute query
-        response = await client.execute(query)
+        response: SDAResponse = await client.execute(query)
 
         print(f"Query returned {len(response)} horizon records")
         print(f"Columns: {response.columns}")
@@ -58,9 +61,12 @@ async def main():
             print("No data retrieved. Try adjusting the query.")
             return None
 
-        # Convert to SoilProfileCollection using default preset
+        # Convert to SoilProfileCollection
         print("Converting to SoilProfileCollection...")
-        spc = response.to_soilprofilecollection()
+        try:
+            spc = response.to_soilprofilecollection()
+        except ImportError:
+            return handle_missing_spc()
 
         print("Conversion successful.")
         print()
@@ -86,5 +92,5 @@ if __name__ == "__main__":
     if spc is not None:
         print("Example completed successfully!")
     else:
-        print("Example encountered an error.")
+        print("Example finished (conversion skipped).")
     print("=" * 60)

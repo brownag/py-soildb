@@ -1,11 +1,5 @@
 """
-Example of downloading SSURGO data from Web Soil Survey.
-
-This example shows how to:
-1. Download specific survey areas as ZIP files
-2. Download all survey areas for a state
-3. Download STATSGO data
-4. Handle the downloaded files
+Download SSURGO and STATSGO database archives from Web Soil Survey (WSS).
 """
 
 import asyncio

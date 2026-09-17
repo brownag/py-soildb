@@ -18,7 +18,7 @@ National Cooperative Soil Survey data sources.
 - **Bulk Downloads**: Complete SSURGO/STATSGO datasets from Web Soil Survey
 - **Multiple Backends**: Query data from SDA web service, local SQLite snapshots, or GeoPackage files
 
-Query soil survey data via web service or local database, export to pandas/polars DataFrames,
+Query soil survey data via web service or local database, export to pandas or polars DataFrames,
 and handle spatial queries.
 
 ## Installation
@@ -33,7 +33,7 @@ For spatial functionality:
 pip install soildb[spatial]
 ```
 
-For all optional features support:
+For all optional features:
 
 ``` bash
 pip install soildb[all]
@@ -43,35 +43,29 @@ pip install soildb[all]
 
 ### Soil Survey Data (SDA)
 
-- Query SSURGO/STATSGO data from NRCS Soil Data Access web service
-- Build custom SQL queries with fluent interface
-- Spatial queries with points, bounding boxes, and polygons
-- Bulk data fetching with automatic pagination and chunking
-- Export to pandas and polars DataFrames
+- Query SSURGO and STATSGO data from USDA Soil Data Access
+- Build SQL queries with fluent `Query` builder
+- Spatial queries with points, bounding boxes, and WKT polygons
+- Bulk data fetching with automatic chunking and pagination
+- Export to pandas, polars, and GeoPandas DataFrames
 
 ### Laboratory Characterization Data
 
-- Access NCSS Kellogg Soil Survey Laboratory (KSSL) pedon data
+- Query NCSS Kellogg Soil Survey Laboratory (KSSL) pedon and horizon data
 - Query via SDA web service or local SQLite snapshot databases
-- Full horizon-level data with lab analyses
-- Structured object models for nested pedon data
-- Support for flexible column selection
+- Convert horizon data to `SoilProfileCollection` objects
 
 ### Web Soil Survey Downloads
 
-- Download complete SSURGO datasets as ZIP files
-- Download STATSGO (general soil map) data
-- Concurrent downloads with progress tracking
-- Automatic file extraction and organization
-- State-wide and custom area selections
+- Download complete SSURGO and STATSGO datasets as ZIP archives
+- Concurrent downloads with automated file extraction
+- Select by state or survey area symbol
 
 ### Multi-Backend Support
 
-- Query from SDA web service (live data)
-- Query from local SQLite snapshots (offline analysis)
-- Support for GeoPackage files with spatial features
+- Query live SDA web service or offline SQLite/GeoPackage snapshots
 - Unified interface across all backends
-- Async I/O for high performance and concurrency
+- Async and synchronous execution for all workflows
 
 ## Quick Start
 
@@ -80,7 +74,8 @@ pip install soildb[all]
 Build and execute custom SQL queries with the fluent interface:
 
 ``` python
-from soildb import Query
+import asyncio
+from soildb import Query, SDAClient
 
 query = (Query()
         .select("mukey", "muname", "musym")
@@ -89,16 +84,14 @@ query = (Query()
         .where("areasymbol = 'IA109'")
         .limit(5))
 
-# Inspect the generated SQL
+# Inspect generated SQL
 print(query.to_sql())
 
 # Execute and get results
-import asyncio
-from soildb import SDAClient
-
 async def main():
-    result = await SDAClient().execute(query)
-    return result.to_pandas()
+    async with SDAClient() as client:
+        result = await client.execute(query)
+        return result.to_pandas()
 
 df = asyncio.run(main())
 print(df.head())
@@ -155,7 +148,7 @@ df.head()
 
 </div>
 
-The `.sync` methods automatically manage SDA client connections for you. For multiple calls, consider reusing a client:
+The `.sync` methods manage SDA client connections automatically. To execute multiple queries, reuse a client:
 
 ``` python
 from soildb import SDAClient, get_mapunit_by_areasymbol
@@ -163,64 +156,42 @@ from soildb import SDAClient, get_mapunit_by_areasymbol
 client = SDAClient()
 mapunits1 = get_mapunit_by_areasymbol.sync("IA109", client=client)
 mapunits2 = get_mapunit_by_areasymbol.sync("IA113", client=client)
-client.close()
+client.close.sync()
 ```
 
 ### Convenience Functions
 
-soildb provides high-level functions for common tasks:
+`soildb` provides high-level functions for common tasks:
 
 ``` python
-from soildb import get_mapunit_by_areasymbol
+from soildb import get_mapunit_by_point
 
-mapunits = get_mapunit_by_areasymbol.sync("IA109")
-df = mapunits.to_pandas()
-print(f"Found {len(df)} map units")
-df.head()
+# Point query for Ames, Iowa
+response = get_mapunit_by_point.sync(-93.6319, 42.0308)
+df = response.to_pandas()
+print(f"Found {len(df)} records at coordinates")
 ```
 
-    Found 80 map units
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-&#10;    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-&#10;    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-
-|  | mukey | musym | muname | mukind | muacres | areasymbol | areaname |
-|----|----|----|----|----|----|----|----|
-| 0 | 408333 | 1032 | Spicer silty clay loam, 0 to 2 percent slopes | Consociation | 1834 | IA109 | Kossuth County, Iowa |
-| 1 | 408334 | 107 | Webster clay loam, 0 to 2 percent slopes | Consociation | 46882 | IA109 | Kossuth County, Iowa |
-| 2 | 408335 | 108 | Wadena loam, 0 to 2 percent slopes | Consociation | 807 | IA109 | Kossuth County, Iowa |
-| 3 | 408336 | 108B | Wadena loam, 2 to 6 percent slopes | Consociation | 1103 | IA109 | Kossuth County, Iowa |
-| 4 | 408337 | 1133 | Colo silty clay loam, channeled, 0 to 2 percen... | Consociation | 1403 | IA109 | Kossuth County, Iowa |
-
-</div>
-
-If you have suggestions for new convenience functions please file a
-[feature request on
-GitHub](https://github.com/brownag/py-soildb/issues/new).
+To request convenience functions, open an issue on [GitHub](https://github.com/brownag/py-soildb/issues/new).
 
 ### Spatial Queries
 
 Query soil data by location with points, bounding boxes, or polygons:
 
 ``` python
-from soildb import spatial_query
+import asyncio
+from soildb import SDAClient, spatial_query
 
-# Point query
-response = spatial_query.sync(
-    geometry="POINT(-93.6 42.0)",
-    table="mupolygon"
-)
-df = response.to_pandas()
+async def main():
+    async with SDAClient() as client:
+        response = await spatial_query(
+            geometry="POINT(-93.6 42.0)",
+            table="mupolygon",
+            client=client
+        )
+        return response.to_pandas()
+
+df = asyncio.run(main())
 print(f"Point query found {len(df)} results")
 ```
 
@@ -247,7 +218,7 @@ print(f"Point query found {len(df)} results")
 
 ### Bulk Data Fetching
 
-Retrieve large datasets efficiently with automatic pagination and chunking:
+Retrieve large datasets with automatic pagination and chunking:
 
 ``` python
 from soildb import fetch_by_keys, get_mukey_by_areasymbol
@@ -302,17 +273,7 @@ print(f"Fetched {len(df)} component records")
 
 </div>
 
-The `component` table has a hierarchical relationship:
-
-- mukey (map unit key) is the parent
-- cokey (component key) is the child
-
-So when fetching components, you typically want to filter by mukey to
-get all components for specific map units.
-
-Use the `fetch_by_keys()` function with the `"mukey"` as the
-`key_column` to achieve this with automatic pagination over chunks with
-`100` rows each (or specify your own `chunk_size`).
+In SSURGO, `mukey` (map unit key) is the parent and `cokey` (component key) is the child. Pass `key_column="mukey"` to fetch child components for known map units.
 
 ### Bulk Downloads (Web Soil Survey)
 
@@ -334,7 +295,7 @@ paths = download_wss.sync(
     where_clause="areasymbol LIKE 'IA%'",
     dest_dir="./iowa_ssurgo",
     extract=True,
-    remove_zip=True  # Clean up ZIP files after extraction
+    remove_zip=True
 )
 
 # Download STATSGO (general soil map) data
@@ -346,19 +307,16 @@ paths = download_wss.sync(
 )
 ```
 
-Each extracted survey area directory contains:
+Extracted survey area directories contain:
 
-- `tabular/` - Pipe-delimited TXT files with soil data tables
-- `spatial/` - ESRI shapefiles with map unit polygons and boundaries
+- `tabular/`: Pipe-delimited text files with soil attribute tables
+- `spatial/`: Shapefiles with map unit polygons and boundaries
 
-**Use Cases:**
-
-- **SDA**: Live queries, filtered data, programmatic access to current data
-- **WSS Downloads**: Complete offline datasets, bulk data for analysis, static snapshots updated annually
+Use SDA for targeted live queries. Use WSS downloads for complete offline datasets.
 
 ## Async Usage
 
-For performance-critical applications, use async functions directly with concurrent requests:
+Use async functions directly for concurrent operations:
 
 ``` python
 import asyncio
@@ -383,14 +341,12 @@ async def concurrent_example():
 df = asyncio.run(concurrent_example())
 ```
 
-For more async patterns, see the [Async Programming Guide](docs/async.qmd).
+See the [Async Guide](docs/async.qmd) for more concurrency patterns.
 
-# Examples
+## Examples
 
-See the [`examples/` directory](examples/) and [documentation](docs/)
-for detailed usage patterns.
+See [docs/examples/](docs/examples/) and [Workflows](docs/workflows.qmd) for runnable code.
 
 ## License
 
-This project is licensed under the MIT License. See the
-[LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).

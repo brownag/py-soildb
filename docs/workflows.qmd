@@ -5,25 +5,25 @@ description: "Practical patterns for common soil data tasks"
 
 # Common Workflows
 
-Task-focused guide with code patterns. For quick pattern selection, see [Quick Start](quickstart.qmd).
+Task-focused code patterns for working with soil data. See [Quick Start](quickstart.qmd) for quick orientation.
 
 ## Point Queries
 
-Get soil data at a specific coordinate.
+Get soil data at specific coordinates.
 
 ```python
 from soildb import get_mapunit_by_point
 
-# Synchronous (recommended for scripts/notebooks)
-response = get_mapunit_by_point(lon=-93.6, lat=42.0)
+# Synchronous (scripts and notebooks)
+response = get_mapunit_by_point.sync(longitude=-93.6, latitude=42.0)
 df = response.to_pandas()
 print(f"Found components: {df['compname'].unique()}")
 ```
 
 ```python
-# Asynchronous (production applications)
+# Asynchronous (concurrent workflows)
 import asyncio
-from soildb import SDAClient
+from soildb import SDAClient, get_mapunit_by_point
 
 async def point_query():
     async with SDAClient() as client:
@@ -39,42 +39,39 @@ df = asyncio.run(point_query())
 
 ## Survey Area Queries
 
-Get all map units for a survey area (county, quad, etc.).
+Fetch map units for one or more soil survey areas.
 
 ```python
-from soildb import get_mapunit_by_areasymbol
+from soildb import fetch_by_keys, get_mapunit_by_areasymbol, get_mukey_by_areasymbol
 
-# Get map units for Boone County, Iowa (IA015)
-response = get_mapunit_by_areasymbol("IA015")
+# Single survey area: Boone County, Iowa (IA015)
+response = get_mapunit_by_areasymbol.sync("IA015")
 df = response.to_pandas()
-
 print(f"Found {len(df)} map units")
 print(f"Total area: {df['muacres'].sum():,.0f} acres")
 
-# Multiple survey areas
-response = get_mapunit_by_areasymbol(["IA015", "IA109", "IA113"])
+# Multiple survey areas: discover mukeys, then fetch
+mukeys = get_mukey_by_areasymbol.sync(["IA015", "IA109", "IA113"])
+response = fetch_by_keys.sync(mukeys, table="mapunit")
 df = response.to_pandas()
 print(f"Found {len(df)} total map units across 3 counties")
 ```
-
-**Use this for:** Downloading data for administrative boundaries, complete county/state datasets.
 
 ---
 
 ## Spatial Queries
 
-Query soil data using geographic regions (point, bbox, polygon).
+Query soil data using geographic geometries (points, bounding boxes, polygons).
 
 ### Point Geometry
 
 ```python
 from soildb import spatial_query
 
-# Simple point
-response = spatial_query(
+response = spatial_query.sync(
     "POINT(-93.6 42.0)",
     table="mupolygon",
-    return_type="spatial"  # Include geometry
+    return_type="spatial"
 )
 df = response.to_pandas()
 ```
@@ -82,25 +79,27 @@ df = response.to_pandas()
 ### Bounding Box
 
 ```python
+from soildb import spatial_query
+
 # Dictionary format
 bbox = {"xmin": -93.65, "ymin": 42.0, "xmax": -93.6, "ymax": 42.05}
-response = spatial_query(bbox, table="mupolygon", return_type="spatial")
+response = spatial_query.sync(bbox, table="mupolygon", return_type="spatial")
 
-# Or WKT format
+# WKT format
 wkt_bbox = "POLYGON((-93.65 42.0, -93.6 42.0, -93.6 42.05, -93.65 42.05, -93.65 42.0))"
-response = spatial_query(wkt_bbox, table="mupolygon", return_type="spatial")
-
+response = spatial_query.sync(wkt_bbox, table="mupolygon", return_type="spatial")
 df = response.to_pandas()
 ```
 
-### Polygon Query
+### Polygon Geometry
 
 ```python
-# For complex geometries, use WKT or GeoJSON-like dicts
-polygon = "POLYGON((-93.7 42.0, -93.6 42.0, -93.6 42.1, -93.7 42.1, -93.7 42.0))"
-response = spatial_query(polygon, table="mupolygon", return_type="spatial")
+from soildb import spatial_query
 
-# Can also convert to GeoDataFrame with geometry (requires geopandas)
+polygon = "POLYGON((-93.7 42.0, -93.6 42.0, -93.6 42.1, -93.7 42.1, -93.7 42.0))"
+response = spatial_query.sync(polygon, table="mupolygon", return_type="spatial")
+
+# Convert to GeoDataFrame (requires geopandas)
 gdf = response.to_geodataframe()
 gdf.plot(column="musym", legend=True)
 ```
@@ -111,22 +110,21 @@ gdf.plot(column="musym", legend=True)
 
 ## Bulk Data Fetching
 
-Fetch data for large key lists with automatic pagination.
+Fetch records for large key lists with automatic pagination.
 
 ```python
 from soildb import fetch_by_keys, get_mukey_by_areasymbol
 
-# Step 1: Get keys
-mukeys = get_mukey_by_areasymbol(["IA109", "IA113"])
+# Discover keys
+mukeys = get_mukey_by_areasymbol.sync(["IA109", "IA113"])
 print(f"Found {len(mukeys)} map units")
 
-# Step 2: Fetch data (handles pagination automatically)
-response = fetch_by_keys(
+# Fetch data in chunks
+response = fetch_by_keys.sync(
     keys=mukeys,
     table="mapunit",
-    key_column="mukey",  # Default detected for known tables
     columns=["mukey", "muname", "mukind", "muacres"],
-    chunk_size=500  # Process in chunks
+    chunk_size=500
 )
 df = response.to_pandas()
 print(f"Retrieved {len(df)} map units")
@@ -135,46 +133,50 @@ print(f"Retrieved {len(df)} map units")
 ### Hierarchical Fetch (Components, Horizons)
 
 ```python
-from soildb import fetch_by_keys
+import asyncio
+from soildb import fetch_by_keys, get_mukey_by_areasymbol
 
-# Get sample mukeys first
-mukeys = get_mukey_by_areasymbol("IA015")
-sample_mukeys = mukeys[:100]
+async def fetch_hierarchy():
+    mukeys = await get_mukey_by_areasymbol("IA015")
+    sample_mukeys = mukeys[:100]
 
-# Fetch components for these mukeys
-comp_response = await fetch_by_keys(
-    keys=sample_mukeys,
-    table="component",
-    key_column="mukey"
-)
-comp_df = comp_response.to_pandas()
-print(f"Found {len(comp_df)} components")
+    # Fetch components
+    comp_response = await fetch_by_keys(
+        keys=sample_mukeys,
+        table="component",
+        key_column="mukey"
+    )
+    comp_df = comp_response.to_pandas()
+    print(f"Found {len(comp_df)} components")
 
-# Fetch horizons for those components
-cokeys = comp_df["cokey"].tolist()
-hz_response = await fetch_by_keys(
-    keys=cokeys,
-    table="chorizon",
-    key_column="cokey",
-    columns=["chkey", "cokey", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r"]
-)
-hz_df = hz_response.to_pandas()
-print(f"Found {len(hz_df)} horizons")
+    # Fetch horizons
+    cokeys = comp_df["cokey"].tolist()
+    hz_response = await fetch_by_keys(
+        keys=cokeys,
+        table="chorizon",
+        key_column="cokey",
+        columns=["chkey", "cokey", "hzname", "hzdept_r", "hzdepb_r", "claytotal_r"]
+    )
+    hz_df = hz_response.to_pandas()
+    print(f"Found {len(hz_df)} horizons")
+
+asyncio.run(fetch_hierarchy())
 ```
 
-### With Geometry
+### Spatial Polygons with Geometry
 
 ```python
-# Fetch with geometry data included
-response = fetch_by_keys(
+from soildb import fetch_by_keys, get_mukey_by_areasymbol
+
+mukeys = get_mukey_by_areasymbol.sync("IA015")
+response = fetch_by_keys.sync(
     mukeys[:10],
     table="mupolygon",
     include_geometry=True
 )
 
-# Export as GeoDataFrame
 gdf = response.to_geodataframe()
-print(f"Total area: {gdf.geometry.area.sum()} m²")
+print(f"Loaded {len(gdf)} spatial polygon records")
 ```
 
 **See also:** [08_fetch.py](examples/08_fetch.py)
@@ -183,49 +185,52 @@ print(f"Total area: {gdf.geometry.area.sum()} m²")
 
 ## Custom Queries
 
-Build SQL queries for complex requirements.
+Build SQL queries for custom joins and filters.
 
-### Using Query Builder
+### Query Builder
 
 ```python
+import asyncio
 from soildb import Query, SDAClient
 
-# Build query
 query = (Query()
     .select("m.mukey", "m.muname", "c.compname", "h.hzname", "h.claytotal_r")
     .from_("mapunit m")
     .inner_join("component c", "m.mukey = c.mukey")
     .inner_join("chorizon h", "c.cokey = h.cokey")
     .where("m.areasymbol = 'IA015'")
-    .where("h.claytotal_r > 40")  # High clay
+    .where("h.claytotal_r > 40")
     .where("c.majcompflag = 'Yes'")
     .order_by("h.claytotal_r", "DESC")
     .limit(50))
 
-print(f"SQL: {query.to_sql()}")
+async def run_query():
+    async with SDAClient() as client:
+        response = await client.execute(query)
+        return response.to_pandas()
 
-# Execute synchronously
-async with SDAClient() as client:
-    response = await client.execute(query)
-    df = response.to_pandas()
+df = asyncio.run(run_query())
 ```
 
-### Using Query Templates
+### Query Templates
 
-Pre-built query patterns:
+Use pre-built templates for standard queries:
 
 ```python
-from soildb import query_templates
+import asyncio
+from soildb import SDAClient, query_templates
 
-# Available templates (discoverable in code)
 q1 = query_templates.query_mapunits_by_legend("IA109")
 q2 = query_templates.query_components_at_point(-93.6, 42.0)
 q3 = query_templates.query_available_survey_areas()
-q4 = query_templates.query_from_sql("SELECT * FROM mapunit LIMIT 10")
+q4 = query_templates.query_from_sql("SELECT TOP 10 * FROM mapunit")
 
-# Execute any of these
-async with SDAClient() as client:
-    response = await client.execute(q1)
+async def run_templates():
+    async with SDAClient() as client:
+        response = await client.execute(q1)
+        return response.to_pandas()
+
+df = asyncio.run(run_templates())
 ```
 
 **See also:** [07_query_templates.py](examples/07_query_templates.py), [API Reference](api.qmd)
@@ -234,20 +239,20 @@ async with SDAClient() as client:
 
 ## Hierarchical Data Analysis
 
-Work with map unit → component → horizon hierarchy.
+Analyze data across map unit, component, and horizon tables.
 
-### DataFrame Approach
+### Pandas Analysis
 
 ```python
 from soildb import fetch_by_keys, get_mapunit_by_areasymbol
 
 # Get map units
-mu_response = get_mapunit_by_areasymbol("IA015")
+mu_response = get_mapunit_by_areasymbol.sync("IA015")
 mu_df = mu_response.to_pandas()
 
-# Get components for these
-comp_response = fetch_by_keys(
-    mu_df["mukey"].tolist(), 
+# Get components
+comp_response = fetch_by_keys.sync(
+    mu_df["mukey"].tolist(),
     "component",
     key_column="mukey"
 )
@@ -257,7 +262,7 @@ comp_df = comp_response.to_pandas()
 major = comp_df[comp_df["majcompflag"] == "Yes"]
 cokeys = major["cokey"].tolist()
 
-hz_response = fetch_by_keys(
+hz_response = fetch_by_keys.sync(
     cokeys,
     "chorizon",
     key_column="cokey",
@@ -265,30 +270,22 @@ hz_response = fetch_by_keys(
 )
 hz_df = hz_response.to_pandas()
 
-# Analysis
 print(f"Average clay content: {hz_df['claytotal_r'].mean():.1f}%")
 print(f"Deepest horizon: {hz_df['hzdepb_r'].max():.0f} cm")
 ```
 
-### SoilProfileCollection Approach
+### SoilProfileCollection Analysis
 
 If `soilprofilecollection` is installed:
 
 ```python
-from soildb import fetch_by_keys, get_mapunit_by_areasymbol
+from soildb import fetch_by_keys
 
-# Fetch horizon data
-hz_response = fetch_by_keys(...)
+hz_response = fetch_by_keys.sync(cokeys, "chorizon", key_column="cokey")
+spc = hz_response.to_soilprofilecollection()
 
-# Create SoilProfileCollection
-spc = hz_response.to_soilprofilecollection(site_data=major_components)
-
-# Use SPC methods
 print(f"Profiles: {len(spc)}")
 print(f"Deepest: {spc.depth.max():.0f} cm")
-
-# Weighted mean clay to 100cm
-mean_clay = spc.get_prop_value("claytotal_r", depth=100, method="weighted_mean")
 ```
 
 **See also:** [SoilProfileCollection examples](examples/soilprofilecollection/)
@@ -304,7 +301,6 @@ import asyncio
 from soildb.awdb import discover_stations, get_soil_moisture_by_depth
 
 async def main():
-    # Find stations
     stations = await discover_stations(
         state_codes=["ID"],
         network_codes=["SCAN"],
@@ -312,7 +308,6 @@ async def main():
     )
     print(f"Found {len(stations)} SCAN stations in Idaho")
 
-    # Get soil moisture data at multiple depths
     data = await get_soil_moisture_by_depth(
         station_triplet="2126:NV:SCAN",
         depths_inches=[-2, -8],
@@ -320,15 +315,14 @@ async def main():
         end_date="2024-01-31",
     )
 
-    # Access depth data
-    for depth, depth_info in data['depths'].items():
-        n_points = depth_info['n_data_points']
+    for depth, depth_info in data.get("depths", {}).items():
+        n_points = depth_info.get("n_data_points", 0)
         print(f"Depth {depth} inches: {n_points} data points")
 
 asyncio.run(main())
 ```
 
-**Note:** AWDB is a free public service. Be respectful: space out requests, avoid concurrent hammering, and implement backoff on errors. Don't overwhelm the server.
+AWDB is a public service. Space out requests, avoid tight concurrency loops, and handle errors with backoff.
 
 **See also:** [05_awdb.py](examples/05_awdb.py), [06_awdb_availability.py](examples/06_awdb_availability.py), [AWDB Integration](awdb.qmd)
 
@@ -336,9 +330,9 @@ asyncio.run(main())
 
 ## Async Patterns
 
-For high-performance applications and concurrent processing.
+Use `asyncio` for concurrent execution.
 
-### Basic Async
+### Basic Async Query
 
 ```python
 import asyncio
@@ -357,12 +351,10 @@ df = asyncio.run(main())
 
 ```python
 import asyncio
-from soildb import SDAClient
+from soildb import SDAClient, get_mapunit_by_areasymbol
 
 async def concurrent_queries():
-    from soildb import get_mapunit_by_areasymbol
     async with SDAClient() as client:
-        # Run multiple queries concurrently
         tasks = [
             get_mapunit_by_areasymbol(area, client=client)
             for area in ["IA109", "IA113", "IA117"]
@@ -379,113 +371,80 @@ dfs = asyncio.run(concurrent_queries())
 
 ## Data Export Formats
 
-All responses support multiple export formats:
+`SDAResponse` objects convert to multiple formats:
 
 ```python
 from soildb import get_mapunit_by_areasymbol
 
-response = get_mapunit_by_areasymbol("IA015")
+response = get_mapunit_by_areasymbol.sync("IA015")
 
-# pandas DataFrame (default, most common)
+# pandas DataFrame
 df = response.to_pandas()
 
-# Polars (faster for large datasets)
-df = response.to_polars()
+# Polars DataFrame
+pl_df = response.to_polars()
 
-# Dictionary (JSON-like, serializable)
+# Python dictionary
 data = response.to_dict()
 
-# GeoDataFrame (spatial analysis, needs GeoPandas)
+# GeoPandas GeoDataFrame (requires geopandas)
 gdf = response.to_geodataframe()
 
-# SoilProfileCollection (soil science analysis)
+# SoilProfileCollection (requires soilprofilecollection)
 spc = response.to_soilprofilecollection()
 ```
 
-### GeoPandas: Geometry Column and CRS
+### GeoPandas CRS and Geometry Detection
 
-When converting spatial data to GeoDataFrame with `to_geopandas()`, the method automatically detects geometry columns and their coordinate reference systems (CRS):
-
-**Common use case: Fetch map units with geometry**
+`to_geodataframe()` (or `to_geopandas()`) auto-detects geometry columns and sets coordinate reference systems (CRS):
 
 ```python
 from soildb import fetch_by_keys
 
-# Fetch map unit polygons with geometry
 mukeys = [481608, 481600]
 response = fetch_by_keys.sync(mukeys, "mupolygon", include_geometry=True)
 
-# Auto-detection: mupolygongeo -> EPSG:4326 (WGS 84, geographic)
-gdf = response.to_geopandas()
+gdf = response.to_geodataframe()
 print(gdf.crs)  # EPSG:4326
 gdf.plot(column="muname", legend=True)
 ```
 
-**Spatial queries: Get features in a region**
+**Detection order:**
+1. Geographic `*geo` columns: `EPSG:4326` (WGS 84).
+2. Standard `geometry` column: `EPSG:4326`.
+3. Projected `*proj` columns: `EPSG:3857` (Web Mercator).
+
+Override defaults with explicit parameters:
 
 ```python
-from soildb import spatial_query
-
-# Query map units within a bounding box
-bbox = {"xmin": -93.7, "ymin": 42.0, "xmax": -93.6, "ymax": 42.1}
-response = spatial_query.sync(bbox, "mupolygon", return_type="spatial")
-
-# Auto-detection: mupolygongeo -> EPSG:4326
-gdf = response.to_geopandas()
-print(f"Found {len(gdf)} map units in region")
-```
-
-**Supported SDA spatial tables:**
-
-- **Map unit polygons**: `mupolygon` (uses `mupolygongeo` / `mupolygonproj`)
-- **Map unit points**: `mupoint` (uses `mupointgeo` / `mupointproj`)
-- **Map unit lines**: `muline` (uses `mulinegeo` / `mulineproj`)
-- **Survey area boundaries**: `sapolygon` (uses `sapolygongeo` / `sapolygonproj`)
-- **Feature points**: `featpoint` (uses `featpointgeo` / `featpointproj`)
-- **Feature lines**: `featline` (uses `featlinegeo` / `featlineproj`)
-
-**Column detection priority:**
-
-1. Geographic ``*geo`` columns (preferred): EPSG:4326 (WGS 84)
-2. Standard ``geometry`` column: EPSG:4326
-3. Projected ``*proj`` columns (fallback only if no geographic columns): EPSG:3857 (Web Mercator)
-
-The projected columns are only used as a fallback if no geographic or standard columns
-are found. Custom geometry column names (e.g., `geom`, `shape`, `wkt`) must be specified
-explicitly via the `geometry_col` parameter.
-
-**Override auto-detection:** If your query returns custom geometry or uses a non-standard CRS, specify parameters explicitly:
-
-```python
-# Custom geometry column name
-gdf = response.to_geopandas(geometry_col="my_wkt_column")
-
-# Override CRS (e.g., query returns EPSG:5070 coordinates)
-gdf = response.to_geopandas(crs="EPSG:5070")
-
-# Both
-gdf = response.to_geopandas(geometry_col="custom_geom", crs="EPSG:5070")
+# Custom geometry column and CRS
+gdf = response.to_geodataframe(geometry_col="custom_geom", crs="EPSG:5070")
 ```
 
 ---
 
 ## Error Handling
 
-Handle common errors gracefully:
+Catch specific exceptions from the `SoilDBError` hierarchy:
 
 ```python
-from soildb import SDAConnectionError, SDAQueryError, SDAMaintenanceError
+from soildb import (
+    SDAConnectionError,
+    SDAMaintenanceError,
+    SDAQueryError,
+    get_mapunit_by_point,
+)
 
 try:
-    response = get_mapunit_by_point(-93.6, 42.0)
+    response = get_mapunit_by_point.sync(-93.6, 42.0)
 except SDAConnectionError:
-    print("SDA service unavailable - check network or service status")
+    print("SDA service unreachable.")
 except SDAQueryError as e:
     print(f"Query error: {e}")
-    if hasattr(e, 'query'):
+    if hasattr(e, "query"):
         print(f"Failed query: {e.query}")
 except SDAMaintenanceError:
-    print("SDA under maintenance - scheduled 12:45-1:00 AM Central")
+    print("SDA nightly maintenance in progress (12:45-1:00 AM Central).")
 ```
 
 **See also:** [Error Handling Reference](error-handling.qmd), [Troubleshooting](troubleshooting.qmd)
@@ -496,21 +455,21 @@ except SDAMaintenanceError:
 
 | Use Case | Pattern | Example |
 |----------|---------|---------|
-| Quick script | Simple function call | `get_mapunit_by_point(-93.6, 42.0)` |
-| Production app | Async with context manager | `async with SDAClient() as client:` |
-| Query by location | `spatial_query()` | Bbox, polygon, point |
-| Query by boundary | `get_mapunit_by_areasymbol()` | Survey area, county |
-| Bulk fetch | `fetch_by_keys()` with chunking | Large mukey lists |
-| Complex SQL | `Query()` builder | Custom joins, conditions |
-| Pre-built query | `query_templates.*` | Common patterns |
-| Monitoring data | `awdb.*` functions | SCAN, SNOTEL stations |
-| Soil profiles | `to_soilprofilecollection()` | Specialized analysis |
+| Script / notebook | Sync convenience call | `get_mapunit_by_point.sync(-93.6, 42.0)` |
+| Async workflow | Async client context manager | `async with SDAClient() as client:` |
+| Location query | Spatial query | `spatial_query.sync(bbox, "mupolygon")` |
+| Survey area query | Legend query | `get_mapunit_by_areasymbol.sync("IA015")` |
+| Bulk fetch | Key-based fetch with chunking | `fetch_by_keys.sync(mukeys, "mapunit")` |
+| Custom SQL | Query builder | `Query().select(...).from_(...)` |
+| Pre-built query | Query templates | `query_templates.query_mapunits_by_legend(...)` |
+| Climate data | AWDB functions | `discover_stations(...)` |
+| Soil profiles | Specialized profile collection | `response.to_soilprofilecollection()` |
 
 ---
 
 ## Next Steps
 
-- Review [API Reference](api.qmd) for complete function documentation
-- Check [examples/](examples/) folder for runnable demonstrations
-- See [Async Guide](async.qmd) for advanced concurrency patterns
-- Read [Troubleshooting](troubleshooting.qmd) for common issues
+- Read [API Reference](api.qmd) for function signatures.
+- Explore runnable scripts in [examples/](examples/).
+- See [Async Guide](async.qmd) for concurrency details.
+- Read [Troubleshooting](troubleshooting.qmd) for common errors.

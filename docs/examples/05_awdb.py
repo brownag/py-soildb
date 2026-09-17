@@ -1,15 +1,13 @@
 """
-Example of using the soildb.awdb module to fetch SCAN/SNOTEL monitoring data.
+Fetch SCAN and SNOTEL monitoring station data from the Air and Water Database (AWDB).
 
-This example demonstrates core AWDB functionality with minimal server load:
-- Finding monitoring stations by location or criteria
-- Retrieving soil moisture data from stations
-- Working with multi-depth sensor data
+Finds stations, inspects available sensors, and retrieves soil moisture time series.
 """
 
 import asyncio
 
 from soildb.awdb import (
+    AWDBConnectionError,
     discover_stations,
     discover_stations_nearby,
     get_property_data_near,
@@ -26,22 +24,27 @@ async def main():
 
     # 1. Find nearby stations
     print("\n1. Finding SCAN stations near Denver, CO...")
-    stations = await discover_stations_nearby(
-        latitude=39.74,
-        longitude=-104.99,
-        max_distance_km=50,
-        network_codes=["SCAN"],
-        limit=2,  # Keep it small
-    )
+    try:
+        stations = await discover_stations_nearby(
+            latitude=39.74,
+            longitude=-104.99,
+            max_distance_km=50,
+            network_codes=["SCAN"],
+            limit=2,  # Keep it small
+        )
 
-    if stations:
-        station = stations[0]  # Use first station
-        triplet = station["station_triplet"]
-        print(f"   Found: {station['name']} ({triplet})")
-        print(f"   Distance: {station.get('distance_km', 'N/A')} km")
-    else:
-        print("   No stations found, using example triplet")
-        triplet = "2197:CO:SCAN"  # Fallback for demo
+        if stations:
+            station = stations[0]  # Use first station
+            triplet = station["station_triplet"]
+            print(f"   Found: {station['name']} ({triplet})")
+            print(f"   Distance: {station.get('distance_km', 'N/A')} km")
+        else:
+            print("   No stations found, using example triplet")
+            triplet = "2197:CO:SCAN"  # Fallback for demo
+    except (AWDBConnectionError, Exception) as e:
+        print(f"   Could not discover stations: {e}")
+        print("   Using fallback example triplet: 2197:CO:SCAN")
+        triplet = "2197:CO:SCAN"
 
     # Brief pause between requests
     await asyncio.sleep(0.5)
@@ -60,6 +63,8 @@ async def main():
             print("   Soil properties:")
             for prop in soil_props[:3]:
                 print(f"     - {prop['property_name']}")
+    except AWDBConnectionError as e:
+        print(f"   Connection error retrieving properties: {e}")
     except Exception as e:
         print(f"   Could not retrieve properties: {e}")
 
@@ -88,6 +93,8 @@ async def main():
         else:
             print("   No data available for date range")
 
+    except AWDBConnectionError as e:
+        print(f"   Connection or timeout retrieving moisture data: {e}")
     except Exception as e:
         print(f"   Error retrieving moisture data: {e}")
         print("   (AWDB API may have rate limit or data availability issues)")
@@ -118,6 +125,8 @@ async def main():
         else:
             print("   No data found")
 
+    except AWDBConnectionError as e:
+        print(f"   Connection or timeout error: {e}")
     except Exception as e:
         print(f"   Error: {e}")
 
@@ -135,6 +144,8 @@ async def main():
         print(f"   Found {len(stations)} active stations")
         for st in stations[:2]:
             print(f"     - {st['name']} ({st['station_triplet']})")
+    except AWDBConnectionError as e:
+        print(f"   Connection error discovering stations: {e}")
     except Exception as e:
         print(f"   Error: {e}")
 

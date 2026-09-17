@@ -1,12 +1,9 @@
 """
-Spatial analysis examples using soildb.
-
-Demonstrates working with geographic soil data including spatial queries,
-area calculations, and mapping.
+Run spatial soil queries with bounding boxes, point buffers, and watershed boundaries.
 
 See also:
-- Workflows: Spatial Queries → ../workflows.qmd#spatial-queries
-- Quick Start: Query by Location → ../quickstart.qmd#pattern-query-by-location
+- Workflows: Spatial Queries -> ../workflows.qmd#spatial-queries
+- Quick Start: Query by Location -> ../quickstart.qmd#pattern-query-by-location
 """
 
 import asyncio
@@ -15,7 +12,6 @@ from soildb import spatial_query
 
 try:
     import geopandas as gpd
-    import pandas as pd
     from shapely.geometry import Point
 
     SPATIAL_LIBS = True
@@ -104,29 +100,21 @@ async def survey_area_boundaries():
     # Iowa counties
     areasymbols = ["IA015", "IA109", "IA113", "IA169"]  # Boone, Polk, Story, Story
 
-    # Get survey area polygons - need to query each area separately
-    all_gdfs = []
-    for _areasymbol in areasymbols:
-        # Create a simple bbox for each area (this is simplified)
-        response = await spatial_query(
-            geometry={
-                "xmin": -94,
-                "ymin": 41,
-                "xmax": -93,
-                "ymax": 42,
-            },  # Rough Iowa bbox
-            table="sapolygon",
-            return_type="spatial",
-        )
-        if response.data:
-            gdf = response.to_geodataframe()
-            # Filter to specific area symbol
-            area_gdf = gdf[gdf["areasymbol"].isin(areasymbols)]
-            if not area_gdf.empty:
-                all_gdfs.append(area_gdf)
-
-    if all_gdfs:
-        gdf = pd.concat(all_gdfs, ignore_index=True)
+    # Get survey area polygons
+    response = await spatial_query(
+        geometry={
+            "xmin": -94,
+            "ymin": 41,
+            "xmax": -93,
+            "ymax": 42,
+        },  # Rough Iowa bbox
+        table="sapolygon",
+        return_type="spatial",
+    )
+    if response.data:
+        gdf = response.to_geodataframe()
+        # Filter to requested survey areas
+        gdf = gdf[gdf["areasymbol"].isin(areasymbols)]
 
         print(f"Found {len(gdf)} survey area polygons")
 

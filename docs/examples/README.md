@@ -1,35 +1,29 @@
 # py-soildb Examples
 
-Practical, runnable examples for querying USDA-NRCS Soil Data Access (SDA) and AWDB soil monitoring data.
+Runnable examples for querying USDA Soil Data Access (SDA) and AWDB soil monitoring stations.
 
-**Location in docs**: These examples are referenced throughout the [workflows](../workflows.qmd), [async](../async.qmd), [AWDB](../awdb.qmd), and [API](../api.qmd) documentation. See the corresponding docs file for context.
+## Core Examples
 
----
-
-## Core Examples (Primary Patterns)
-
-These examples demonstrate the recommended approaches. Start here.
+Start here for common patterns.
 
 | File | Purpose | Use Case |
 |------|---------|----------|
-| **01_basic.py** | ✅ Core SDA functionality: client setup, queries, DataFrame export | How to connect and run basic queries |
-| **02_spatial.py** | ✅ Geographic queries (point, bbox, polygon) with optional GeoPandas | Queries by location |
-| **05_awdb.py** | ✅ AWDB station data retrieval (SCAN, SNOTEL networks) | Finding and fetching monitoring station data |
-| **08_fetch.py** | ✅ Bulk data retrieval with automatic pagination using `fetch_by_keys()` | Fetching data for multiple keys |
-| **07_query_templates.py** | Query template patterns using `query_templates` module | Pre-built SQL queries for common patterns |
+| **01_basic.py** | Core SDA queries and DataFrame export | Connect and run queries |
+| **02_spatial.py** | Location queries (point, bbox, polygon) | Spatial filtering |
+| **05_awdb.py** | AWDB station retrieval (SCAN, SNOTEL) | Monitoring station data |
+| **08_fetch.py** | Bulk data fetching with `fetch_by_keys()` | Paginated bulk queries |
+| **07_query_templates.py** | Pre-built SQL queries in `query_templates` | Reusable SQL templates |
 
 ---
 
 ## Feature & Domain Examples
 
-Demonstrate specific features or domain workflows.
-
 | File | Purpose | Feature |
 |------|---------|---------|
-| **03_metadata.py** | Survey metadata parsing from SDA responses | Metadata extraction |
-| **04_schema.py** | Schema inspection and working with column type information | Type system & schema discovery |
-| **06_awdb_availability.py** | Data availability assessment across monitoring stations | AWDB analysis workflows |
-| **09_wss_download.py** | Web Soil Survey (WSS) file downloads with extraction | WSS integration |
+| **03_metadata.py** | Survey metadata parsing | Metadata extraction |
+| **04_schema.py** | Schema inspection and column types | Schema discovery |
+| **06_awdb_availability.py** | Station data availability checks | Availability audits |
+| **09_wss_download.py** | Web Soil Survey file downloads and extraction | WSS downloads |
 
 ---
 
@@ -37,76 +31,59 @@ Demonstrate specific features or domain workflows.
 
 ### SoilProfileCollection
 
-Converting horizon/layer data to `SoilProfileCollection` format for specialized analysis.
+Convert horizon and layer data to `SoilProfileCollection` objects (requires `soildb[soil]`):
 
-- **01_basic_conversion.py** — Basic horizon to SoilProfileCollection with default preset
-- **02_with_site_metadata.py** — Include component metadata in site slot
-- **03_lab_pedon_workflow.py** — Different preset configurations for lab pedon data
-- **04_custom_columns.py** — Custom column mapping for non-standard data
+- **01_basic_conversion.py**: Convert horizon data with standard SSURGO columns (`cokey`, `chkey`, `hzdept_r`, `hzdepb_r`).
+- **02_with_site_metadata.py**: Merge component site attributes with horizon data.
+- **03_lab_pedon_workflow.py**: Convert lab pedon data using direct column parameter mappings (`site_id_col`, `hz_id_col`, `hz_top_col`, `hz_bot_col`).
+- **04_custom_columns.py**: Custom column mappings for non-standard or aliased column names.
 
-See [SoilProfileCollection docs](../api.qmd) for preset options.
+See [SoilProfileCollection](soilprofilecollection/) for runnable scripts.
 
 ### Jupyter Notebooks
 
-- **notebooks/01_metadata_discovery.ipynb** — Interactive survey area discovery, filtering by keywords/bbox
-
-See [Using Jupyter Notebooks](#using-jupyter-notebooks) below.
+- **notebooks/01_metadata_discovery.ipynb**: Interactive survey area discovery, filtering by keywords and bounding boxes.
 
 ---
 
 ## Running Examples
 
-### Prerequisites
+Install development dependencies from the repository root:
 
 ```bash
-# Install dependencies (from root py-soildb directory)
 pip install -e ".[dev]"
 ```
 
-### Run Individual Examples
+Run an individual script:
 
 ```bash
-cd /path/to/docs/examples
-python 01_basic.py
-python 02_spatial.py
-python 08_fetch.py
+python docs/examples/01_basic.py
 ```
 
-### Run All Examples
+Run all standalone examples:
 
 ```bash
-python 0*.py
-```
-
-### Using Jupyter Notebooks
-
-```bash
-# Start Jupyter
-jupyter notebook
-
-# Open notebooks/01_metadata_discovery.ipynb
+python docs/examples/0*.py
 ```
 
 ---
 
 ## API Patterns Reference
 
-See the [workflows](../workflows.qmd) doc for detailed explanations. This is a quick reference.
+### Pattern 1: Synchronous Script
 
-### Pattern 1: Simple Synchronous (Scripts & Jupyter)
-
-Use sync wrappers (`.sync()` suffix) for simplicity:
+Use `.sync()` for scripts and notebooks:
 
 ```python
 from soildb import get_mapunit_by_areasymbol
 
-response = get_mapunit_by_areasymbol("IA109")  # Auto-created sync wrapper
+response = get_mapunit_by_areasymbol.sync("IA109")
 df = response.to_pandas()
 ```
 
-### Pattern 2: Async with Context Manager
+### Pattern 2: Async Client Context
 
-For production applications:
+Use `async with SDAClient()` for services and concurrent requests:
 
 ```python
 import asyncio
@@ -121,23 +98,26 @@ async def main():
 df = asyncio.run(main())
 ```
 
-### Pattern 3: Using Query Templates
+### Pattern 3: Query Templates
 
-Pre-built queries for common patterns:
+Pre-built SQL templates for standard queries:
 
 ```python
-from soildb import query_templates, fetch_by_keys
+import asyncio
+from soildb import SDAClient, query_templates
 
-# Get map units by survey area
-query = query_templates.query_mapunits_by_legend("IA109")
+async def main():
+    async with SDAClient() as client:
+        query = query_templates.query_mapunits_by_legend("IA109")
+        response = await client.execute(query)
+        return response.to_pandas()
 
-# Get components for those map units
-response = await fetch_by_keys(mukeys, "component", key_column="mukey")
+df = asyncio.run(main())
 ```
 
 ### Pattern 4: Custom SQL
 
-For complex queries, build your own using `Query()`:
+Build custom queries with `Query`:
 
 ```python
 from soildb import Query
@@ -154,11 +134,11 @@ query = (Query()
 
 ## Data Export Formats
 
-All examples return `SDAResponse` which supports multiple export formats:
+`SDAResponse` exports to several formats:
 
 ```python
 df = response.to_pandas()                    # pandas DataFrame
-df = response.to_polars()                    # Polars DataFrame  
+df = response.to_polars()                    # Polars DataFrame
 data = response.to_dict()                    # List of dicts
 spc = response.to_soilprofilecollection()   # SoilProfileCollection
 gdf = response.to_geodataframe()            # GeoDataFrame (with WKT)
@@ -168,23 +148,19 @@ gdf = response.to_geodataframe()            # GeoDataFrame (with WKT)
 
 ## Common Tasks
 
-**Finding data by location**: Start with `01_basic.py`, then `02_spatial.py`
-
-**Fetching bulk data**: See `08_fetch.py` and `07_query_templates.py`
-
-**AWDB monitoring stations**: See `05_awdb.py` and `06_awdb_availability.py`
-
-**Converting to SoilProfileCollection**: See `soilprofilecollection/` examples
-
-**Working with metadata**: See `03_metadata.py`
+- **Location queries**: See `01_basic.py` and `02_spatial.py`.
+- **Bulk data fetching**: See `08_fetch.py` and `07_query_templates.py`.
+- **AWDB monitoring stations**: See `05_awdb.py` and `06_awdb_availability.py`.
+- **SoilProfileCollection conversion**: See `soilprofilecollection/` examples.
+- **Metadata parsing**: See `03_metadata.py`.
 
 ---
 
 ## Reference
 
-- [Workflows Documentation](../workflows.qmd) — Common tasks with explanations
-- [Async Guide](../async.qmd) — Advanced async patterns
-- [AWDB Integration](../awdb.qmd) — Soil monitoring data
-- [API Reference](../api.qmd) — Full public API
-- [Error Handling](../error-handling.qmd) — Exception types and handling
-- [Troubleshooting](../troubleshooting.qmd) — Common issues
+- [Workflows](../workflows.qmd): Task-based walkthroughs
+- [Async Guide](../async.qmd): Concurrency patterns
+- [AWDB Integration](../awdb.qmd): Soil monitoring stations
+- [API Reference](../api.qmd): Public API documentation
+- [Error Handling](../error-handling.qmd): Exception types
+- [Troubleshooting](../troubleshooting.qmd): Common errors

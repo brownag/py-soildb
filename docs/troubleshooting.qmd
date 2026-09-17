@@ -8,137 +8,97 @@ description: "Solutions to common issues with py-soildb"
 ### Issue: "Failed to connect to USDA Soil Data Access service"
 
 **Symptoms:**
-- `SDAConnectionError` thrown
-- Can't reach SDA endpoint
-- Network timeouts
+- `SDAConnectionError` raised.
+- Connection drops or DNS failures.
 
 **Solutions:**
 
-1. **Check your internet connection**
+1. **Verify network connectivity:**
    ```bash
-   ping wcc.nrcs.usda.gov
+   ping -c 3 sdmdataaccess.sc.egov.usda.gov
    ```
 
-2. **Try a different network** (if on corporate network with proxy)
+2. **Configure custom timeouts and retries with `ClientConfig`:**
    ```python
    from soildb import SDAClient
    from soildb.base_client import ClientConfig
-   
-   # Configure proxy if needed
+
+   # Configure connection properties
+   # Pass custom timeout and retry settings
    config = ClientConfig(
-       timeout=30,
-       retry_count=3,
-       retry_delay=1
+       timeout=30.0,
+       max_retries=3,
+       retry_delay=1.0
    )
    async with SDAClient(config=config) as client:
        result = await client.execute(query)
    ```
 
-3. **Increase timeout for slow connections**
+3. **Increase timeout for slow links:**
    ```python
-   async with SDAClient(timeout=60) as client:  # 60 seconds instead of default
+   async with SDAClient(timeout=120.0) as client:
        result = await client.execute(query)
    ```
 
-4. **Check if SDA is under maintenance**
-   - SDA undergoes daily maintenance from 12:45 AM to 1 AM Central Time
-   - Check [SDA status page](https://sdmdataaccess.sc.egov.usda.gov/) 
-   - Try again after maintenance window closes
+4. **Verify SDA maintenance windows:**
+   SDA runs daily scheduled maintenance from 12:45 AM to 1:00 AM Central Time. Operations during this window raise `SDAMaintenanceError`.
+
+---
 
 ### Issue: "Request timed out"
 
 **Symptoms:**
-- `SDATimeoutError` thrown
-- Queries taking longer than expected
-- Works for simple queries but not complex ones
+- `SDATimeoutError` raised on large queries.
+- Simple queries succeed, but complex queries fail.
 
 **Solutions:**
 
-1. **Increase timeout threshold**
-   ```python
-   async with SDAClient(timeout=120) as client:
-       result = await client.execute(query)
-   ```
-
-2. **Break query into smaller chunks**
+1. **Use chunked key fetches with `fetch_by_keys()`:**
    ```python
    from soildb import fetch_by_keys
-   
-   # Instead of fetching all components at once:
-   # Bad: Too large for one query
-   # all_components = await fetch_by_keys(all_mukeys, "component", "mukey")
-   
-   # Good: Break into batches
-   batch_size = 100
-   all_components = []
-   for i in range(0, len(mukeys), batch_size):
-       batch = mukeys[i:i+batch_size]
-       components = await fetch_by_keys(batch, "component", "mukey")
-       all_components.extend(components)
-   ```
 
-3. **Simplify your query**
-   ```python
-   from soildb import Query
-   
-   # Bad: Requesting too many columns and complex conditions
-   complex_query = Query().select(
-       "mukey", "muname", "muacres", "mapunitsymbol",
-       "slopegradient", "flodfreqdcd", "comp_id", "coname",
-       "localphase", "comppct_r", "taxclname", "chorizonkey",
-       "hzname", "hzdept_r", "hzdepb_r", "sandtotal_r", "silttotal_r"
-   ).from_("mapunit").inner_join("component").inner_join("chorizon").where(
-       "areasymbol IN ('IA001', 'IA003', 'IA005', 'IA007')"
+   # fetch_by_keys handles chunking and pagination internally
+   response = await fetch_by_keys(
+       keys=all_mukeys,
+       table="component",
+       chunk_size=500
    )
-   
-   # Good: Start with essential columns
-   simple_query = Query().select(
-       "mukey", "muname"
-   ).from_("mapunit").where("areasymbol = 'IA001'")
    ```
 
-4. **Use pagination for large result sets**
+2. **Select only required columns:**
    ```python
    from soildb import Query
-   
-   query = Query().select("mukey", "muname").from_("mapunit").limit(100)
-   result = await client.execute(query)
-   
-   # Get first 100 rows, then increment offset for next batch
-   offset = 0
-   all_data = []
-   while offset < total_count:
-       paginated = Query().select("mukey", "muname").from_("mapunit").limit(100).offset(offset)
-       batch = await client.execute(paginated)
-       all_data.extend(batch)
-       offset += 100
+
+   query = (Query()
+       .select("mukey", "muname")
+       .from_("mapunit")
+       .where("areasymbol = 'IA001'"))
    ```
+
+---
 
 ## Query Issues
 
 ### Issue: "Query failed: Column 'X' does not exist"
 
 **Symptoms:**
-- `SDAQueryError` with message about invalid column
-- Query syntax looks correct
-- Works in SSURGO but not in soildb
+- `SDAQueryError` reports an invalid column name.
 
 **Solutions:**
 
-1. **Check column names** (case-sensitive, no spaces)
+1. **Inspect table columns in the schema registry:**
    ```python
-   # Bad: Wrong column names
-   bad_query = Query().select("muacres").from_("mapunit")
-   
-   # Good: Correct SSURGO names
-   good_query = Query().select("muacres").from_("mapunit")
+   from soildb.schema_system import get_schema
+
+   schema = get_schema("mapunit")
+   if schema:
+       print(list(schema.columns.keys()))
    ```
 
-2. **Use Query builder for safety**
+2. **Build queries with `Query`:**
    ```python
    from soildb import Query
-   
-   # Use fluent API instead of raw SQL
+
    query = (Query()
        .select("mukey", "muname", "muacres")
        .from_("mapunit")
@@ -146,464 +106,180 @@ description: "Solutions to common issues with py-soildb"
        .limit(10))
    ```
 
-3. **Inspect table structure**
-   ```python
-   from soildb import Query, SDAClient
+---
 
-   # Get sample data to see available columns
-   async with SDAClient() as client:
-       query = Query().select("*").from_("mapunit").limit(1)
-       result = await client.execute(query)
-       print(f"Available columns: {result.columns}")
-   ```
-
-### Issue: "No results returned"
+### Issue: Empty results returned
 
 **Symptoms:**
-- Query executes successfully but returns empty DataFrame
-- No error messages
-- Uncertain why no data
+- Query completes without error, but `len(response)` is 0.
 
 **Solutions:**
 
-1. **Verify area symbol exists**
+1. **Check that the survey area exists in `sacatalog`:**
    ```python
    from soildb import get_sacatalog
-   
-   # List all valid survey areas
+
    catalog = await get_sacatalog()
-   print(catalog.to_pandas())
-   
-   # Check specific area symbol
-   ia_areas = catalog[catalog['areasymbol'].str.contains('IA')]
+   df = catalog.to_pandas()
+   print(df[df["areasymbol"] == "IA109"])
    ```
 
-2. **Check your WHERE conditions**
-   ```python
-   from soildb import Query
-   
-   # Too restrictive conditions?
-   # Bad: Might return nothing if no exact matches
-   restrictive = Query().select("*").from_("mapunit").where(
-       "areasymbol = 'IA109' AND muacres > 10000"
-   )
-   
-   # Good: Start broad then filter
-   broad = Query().select("mukey", "muname", "muacres").from_("mapunit").where(
-       "areasymbol = 'IA109'"
-   ).limit(100)
-   result = await client.execute(broad)
-   print(result.to_pandas())
-   ```
-
-3. **Verify data exists for your criteria**
+2. **Verify coordinates with `point_query`:**
    ```python
    from soildb import point_query
-   
-   # Check if data exists at a location
-   response = await point_query(-93.6, 42.0, "mupolygon")
-   if response.data:
-       print(f"Found {len(response.data)} mapunits")
-   else:
-       print("No mapunits found at this location")
+
+   response = await point_query(latitude=42.0, longitude=-93.6, table="mupolygon")
+   if not response.data:
+       print("No map units intersect coordinates.")
    ```
 
-### Issue: Query too complex for SDA
-
-**Symptoms:**
-- Complex joins cause timeouts
-- Multiple table joins fail
-- Performance degrades with more conditions
-
-**Solutions:**
-
-1. **Use existing templates for complex queries**
-   ```python
-   from soildb import query_templates, fetch_by_keys
-
-   # Use pre-built templates instead of writing complex joins
-   query = query_templates.query_mapunits_by_legend("IA109")
-
-   # For components, use fetch_by_keys with specific mukeys
-   response = await fetch_by_keys([mukey1, mukey2], "component", key_column="mukey")
-   ```
-
-2. **Execute separate queries instead of complex joins**
-   ```python
-   # Bad: Complex multi-table join
-   # complex_query = Query().select(...).from_("mapunit").inner_join("component")...
-   
-   # Good: Multiple simple queries
-   from soildb import fetch_by_keys
-   
-   # Step 1: Get mapunits
-   mapunits = await client.execute(
-       Query().select("mukey", "muname").from_("mapunit").where("areasymbol = 'IA109'")
-   )
-   
-   # Step 2: Get components for those mapunits
-   mukeys = [row['mukey'] for row in mapunits.rows]
-   components = await fetch_by_keys(mukeys, "component", "mukey")
-   ```
+---
 
 ## Data and Validation Issues
 
-### Issue: "SoilProfileCollection validation failed"
+### Issue: SoilProfileCollection conversion errors
 
 **Symptoms:**
-- `SPCValidationError` when converting response to SoilProfileCollection
-- Invalid depth values detected
-- Horizon stacking issues
+- Depth inconsistencies prevent profile construction.
 
 **Solutions:**
 
-1. **Check for invalid depths**
+1. **Verify horizon depth ordering:**
+   Top depth (`hzdept_r`) must be non-negative, and bottom depth (`hzdepb_r`) must exceed top depth:
    ```python
-   from soildb.spc_validator import validate_soil_profile_data
-   
-   # Validate before converting to SPC
-   response = await client.execute(query)
-   data = response.to_dict()
-   
-   validation_result = validate_soil_profile_data(data)
-   if validation_result.is_valid:
-       spc = response.to_soilprofilecollection()
-   else:
-       print("Validation errors:", validation_result.errors)
-   ```
-
-2. **Review depth value requirements**
-   - Top depth (hzdept_r): Must be numeric and >= 0
-   - Bottom depth (hzdepb_r): Must be numeric and > top depth
-   - No "missing" values allowed
-   
-   ```python
-   # Check data for common issues
    df = response.to_pandas()
-   
+
    # Find negative depths
-   negative = df[df['hzdept_r'] < 0]
-   if not negative.empty:
-       print("Found negative depths:", negative)
-   
-   # Find invalid stacking (bottom <= top)
-   invalid_stack = df[df['hzdepb_r'] <= df['hzdept_r']]
-   if not invalid_stack.empty:
-       print("Found invalid stacking:", invalid_stack)
-   
-   # Find missing values
-   missing = df[df['hzdept_r'].isna() | df['hzdepb_r'].isna()]
-   if not missing.empty:
-       print("Found missing depths:", missing)
+   negatives = df[df["hzdept_r"] < 0]
+
+   # Find inverted boundaries
+   inverted = df[df["hzdepb_r"] <= df["hzdept_r"]]
    ```
 
-3. **Handle gaps between horizons**
+2. **Filter out missing depth records before conversion:**
    ```python
-   # SPC may flag gaps between horizons
-   # This is not necessarily an error, but indicates discontinuity
-   try:
-       spc = response.to_soilprofilecollection()
-   except SPCValidationError as e:
-       print(f"Validation issues: {e}")
-       # May be fixable with SPC preprocessing
+   valid_df = df.dropna(subset=["hzdept_r", "hzdepb_r"])
    ```
 
-### Issue: "Type conversion error"
+---
+
+### Issue: Column type validation
 
 **Symptoms:**
-- `TypeError` when converting data types
-- Can't convert to expected format
-- Column type mismatch
+- Need to verify expected data types for a table.
 
 **Solutions:**
 
-1. **Check type specifications**
+1. **Inspect column definitions from schema metadata:**
    ```python
-   from soildb import SDAClient
-   from soildb.type_processors import get_type_for_column
-   
-   # Verify expected types
-   async with SDAClient() as client:
-       mukey_type = get_type_for_column("mapunit", "mukey")
-       print(f"mukey type: {mukey_type}")
+   from soildb.schema_system import get_schema
+
+   schema = get_schema("mapunit")
+   col = schema.columns.get("mukey")
+   if col:
+       print(f"Type: {col.type_hint}, SQL: {col.sql_type}")
    ```
 
-2. **Handle optional fields**
-   ```python
-   import pandas as pd
-   
-   df = response.to_pandas()
-   
-   # Some columns might be nullable
-   # Convert gracefully
-   if 'muacres' in df.columns:
-       df['muacres'] = pd.to_numeric(df['muacres'], errors='coerce')
-   ```
-
-3. **Check data before processing**
-   ```python
-   # Inspect data types
-   df = response.to_pandas()
-   print(df.dtypes)
-   
-   # Look for unexpected values
-   for col in df.columns:
-       unique_vals = df[col].unique()
-       if len(unique_vals) < 20:
-           print(f"{col}: {unique_vals}")
-   ```
+---
 
 ## Performance Issues
 
-### Issue: "Slow response times"
+### Issue: Slow queries across multiple areas
 
 **Symptoms:**
-- Queries taking > 30 seconds
-- High memory usage
-- Program becomes unresponsive
+- Sequential loops over survey areas take minutes.
 
 **Solutions:**
 
-1. **Use async/await for concurrent requests**
+1. **Run concurrent queries with a shared client:**
    ```python
    import asyncio
-   from soildb import SDAClient, Query
-   
-   async def fetch_multiple_areas(area_symbols):
-       """Fetch data for multiple areas concurrently."""
+   from soildb import SDAClient, get_mapunit_by_areasymbol
+
+   async def fetch_areas(area_symbols):
        async with SDAClient() as client:
-           tasks = []
-           for symbol in area_symbols:
-               query = Query().select("*").from_("mapunit").where(
-                   f"areasymbol = '{symbol}'"
-               )
-               tasks.append(client.execute(query))
-           
-           # All requests happen concurrently
-           results = await asyncio.gather(*tasks)
-           return results
+           tasks = [
+               get_mapunit_by_areasymbol(symbol, client=client)
+               for symbol in area_symbols
+           ]
+           return await asyncio.gather(*tasks)
    ```
 
-2. **Batch large operations**
+2. **Use spatial bounding box queries for contiguous regions:**
    ```python
-   from soildb import fetch_by_keys
-   
-   # Don't fetch too many keys at once
-   # Bad: Slow: All at once
-   # all_results = await fetch_by_keys(10000_keys, "component", "mukey")
-   
-   # Good: Fast: In batches
-   batch_size = 100
-   all_results = []
-   for i in range(0, len(keys), batch_size):
-       batch = keys[i:i+batch_size]
-       results = await fetch_by_keys(batch, "component", "mukey")
-       all_results.extend(results)
-       print(f"Processed {i+batch_size}/{len(keys)}")
-   ```
+   from soildb import bbox_query
 
-3. **Cache results when appropriate**
-   ```python
-   from functools import lru_cache
-   
-   @lru_cache(maxsize=128)
-   def get_cached_mapunit(mukey):
-       """Cache mapunit lookups."""
-       # Note: Works with sync API; for async use a different approach
-       pass
-   
-   # For async, use a dict cache:
-   mapunit_cache = {}
-   
-   async def get_mapunit_cached(mukey):
-       if mukey not in mapunit_cache:
-           query = Query().select("*").from_("mapunit").where(f"mukey = {mukey}")
-           result = await client.execute(query)
-           mapunit_cache[mukey] = result.rows[0]
-       return mapunit_cache[mukey]
-   ```
-
-4. **Select only needed columns**
-   ```python
-   from soildb import Query
-   
-   # Bad: Slow: Select all columns
-   # query = Query().select("*").from_("chorizon").limit(10000)
-   
-   # Good: Fast: Select only needed columns
-   query = Query().select("chorizonkey", "cokey", "hzname").from_("chorizon").limit(10000)
-   ```
-
-5. **Use spatial queries for large regions**
-   ```python
-   from soildb import bbox_query, spatial_query
-   
-   # For large areas, use spatial queries
-   # This is faster than area symbol filtering
    response = await bbox_query(
-       bbox=(-95, 40, -94, 41),  # (west, south, east, north)
-       feature_type="mupolygon"
+       xmin=-95.0,
+       ymin=40.0,
+       xmax=-94.0,
+       ymax=41.0,
+       table="mupolygon"
    )
    ```
 
-### Issue: "Out of memory"
+---
+
+### Issue: High memory usage
 
 **Symptoms:**
-- Memory usage grows without limit
-- Application crashes
-- Large DataFrames cause issues
+- Python process runs out of memory loading large result sets.
 
 **Solutions:**
 
-1. **Process data in chunks**
+1. **Export to Polars DataFrames:**
    ```python
-   from soildb import fetch_by_keys
-   
-   async def process_large_dataset():
-       # Process in chunks instead of loading all at once
-       chunk_size = 1000
-       
-       for i in range(0, len(all_keys), chunk_size):
-           batch = all_keys[i:i+chunk_size]
-           results = await fetch_by_keys(batch, "component", "mukey")
-           
-           # Process batch immediately
-           process_results(results)
-           
-           # Don't keep all in memory
-           del results
+   df = response.to_polars()
    ```
 
-2. **Use generators for streaming**
+2. **Stream survey areas one by one:**
    ```python
-   async def stream_large_result():
-       """Stream results instead of loading all."""
-       query = Query().select("mukey", "muname").from_("mapunit")
-       response = await client.execute(query)
-       
-       # Process row by row
-       for row in response.data:
-           yield row
+   from soildb import SDAClient, get_mapunit_by_areasymbol
+
+   async with SDAClient() as client:
+       for symbol in ["IA109", "IA113", "IA117"]:
+           resp = await get_mapunit_by_areasymbol(symbol, client=client)
+           df = resp.to_pandas()
+           # Process and discard immediately
+           del df
    ```
 
-3. **Delete unused DataFrames**
-   ```python
-   import gc
-   
-   df1 = response1.to_pandas()  # Large DataFrame
-   # Process df1
-   del df1
-   gc.collect()  # Force garbage collection
-   
-   df2 = response2.to_pandas()  # Load next dataset
-   ```
+---
 
-## Installation and Import Issues
+## Installation Issues
 
-### Issue: "ModuleNotFoundError: No module named 'soildb'"
+### Issue: Optional dependencies missing
 
 **Symptoms:**
-- Import fails on fresh installation
-- Can't find soildb package
-- Virtual environment not activated
+- `ImportError` on pandas, polars, geopandas, or soilprofilecollection.
 
 **Solutions:**
 
-1. **Install the package**
-   ```bash
-   pip install soildb
-   # or from development
-   pip install -e .
-   ```
+Install matching optional extras:
 
-2. **Activate virtual environment**
-   ```bash
-   # Linux/Mac
-   source venv/bin/activate
-   
-   # Windows
-   venv\Scripts\activate
-   ```
+```bash
+# Dataframe extras
+pip install "soildb[dataframes]"
 
-3. **Check Python path**
-   ```python
-   import sys
-   print(sys.path)
-   
-   # soildb should be in one of these paths
-   import soildb
-   print(soildb.__file__)
-   ```
+# Spatial extras (geopandas)
+pip install "soildb[spatial]"
 
-### Issue: "Optional dependency not installed"
+# SoilProfileCollection support
+pip install "soildb[soil]"
 
-**Symptoms:**
-- `ImportError: pandas not found` (but pandas needed)
-- Some features not available
+# All optional dependencies
+pip install "soildb[all]"
+```
 
-**Solutions:**
-
-1. **Install optional dependencies**
-   ```bash
-   # With pandas support
-   pip install soildb[pandas]
-   
-   # With geopandas (includes pandas)
-   pip install soildb[geopandas]
-   
-   # With polars
-   pip install soildb[polars]
-   
-   # All extras
-   pip install soildb[all]
-   ```
-
-2. **Check what's installed**
-   ```bash
-   pip list | grep -E 'soildb|pandas|polars|geo'
-   ```
+---
 
 ## Getting Help
 
-If you encounter issues not covered here:
-
-1. **Check the test suite** for examples
-   - Look in `tests/` directory for test cases similar to your issue
-   - See how tests handle errors and edge cases
-
-2. **Check existing issues** on GitHub
-   - Search [py-soildb issues](https://github.com/brownag/py-soildb/issues)
-   - Filter by labels like "bug", "question", "help wanted"
-
-3. **Run in debug mode**
+1. **Inspect logs with debug logging:**
    ```python
    import logging
    logging.basicConfig(level=logging.DEBUG)
-   logger = logging.getLogger("soildb")
-   logger.setLevel(logging.DEBUG)
-   
-   # Now run your code with detailed logging
-   result = await client.execute(query)
    ```
 
-4. **Create a minimal reproducible example**
-   ```python
-   import asyncio
-   from soildb import SDAClient, Query
-   
-   async def minimal_example():
-       async with SDAClient() as client:
-           query = Query().select("mukey").from_("mapunit").limit(1)
-           result = await client.execute(query)
-           return result.to_dict()
-   
-   asyncio.run(minimal_example())
-   ```
-
-5. **Report the issue** with:
-   - Your Python version: `python --version`
-   - soildb version: `pip show soildb`
-   - Operating system
-   - Minimal reproducible code
-   - Full error traceback
-   - What you expected vs. what happened
+2. **Check the test suite** in `tests/` for working query and client patterns.
+3. **Submit issues** on GitHub: [py-soildb repository](https://github.com/brownag/py-soildb/issues).
