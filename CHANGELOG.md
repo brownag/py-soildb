@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.1] - 2026-09-16
+
+Documentation and examples overhaul.
+
+### Fixed
+
+* Fixed call signatures in `docs/examples/01_basic.py` to use `client=client` keyword arguments
+* Fixed error handling and timeouts in AWDB monitoring examples
+* Fixed invalid keyword arguments, parameter ordering, and phantom imports across technical guides
+
+### Changed
+
+* Streamlined prose across all documentation guides and docstrings using plain language directive (/dr-lexus)
+* Modernized `soilprofilecollection/` examples and metadata discovery notebook for current APIs
+* Expanded `scripts/validate_examples.py` to cover all 13 example scripts with optional dependency handling
+
 ## [0.8.0] - 2026-05-30
 
 Minor release with streamlined codebase and improved documentation.
