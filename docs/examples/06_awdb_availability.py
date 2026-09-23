@@ -1,21 +1,7 @@
 """
-AWDB Data Availability Assessment Script
+Assess data availability across California AWDB stations for temperature and snow depth.
 
-This script assesses data availability across California stations for key variables
-(air temperature, snow depth) at configurable temporal resolutions.
-
-Current configuration: Daily data assessment (30-year period)
-- For each station in California (limited to 5 for testing)
-- For each variable (air temp, snow depth)
-- Process 1 station at a time in chunks
-- Return full year of daily dates for each year in 30-year interval
-- Count days with available data out of each year
-
-Configurable for different temporal resolutions and sampling strategies.
-
-NOTE: This example demonstrates the data availability assessment framework.
-In a real scenario, you would have network connectivity to the AWDB API.
-For demonstration purposes, this script shows the structure and approach.
+Queries daily data per station and counts days with measurements over a multi-year window.
 """
 
 import asyncio
@@ -25,6 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from soildb.awdb.client import AWDBClient
+from soildb.awdb.exceptions import AWDBConnectionError
 from soildb.awdb.models import StationInfo
 
 # Key variables to assess (focused on air temperature and snow depth)
@@ -67,8 +54,12 @@ async def get_days_with_data(
                 if data and len(data) > 0:
                     days_with_data[element][year] = len(data)
 
+            except AWDBConnectionError as e:
+                # Break element loop on connection error or rate limit to prevent hanging
+                print(f"      Connection issue for {element} ({year}): {e}")
+                break
             except Exception:
-                # Skip this element/year combination if there's an error
+                # Skip this element/year combination if there is a data issue
                 continue
 
     return dict(days_with_data)
@@ -77,71 +68,69 @@ async def get_days_with_data(
 async def assess_station_data_availability(
     station: StationInfo, variables: dict[str, dict], start_year: int, end_year: int
 ) -> dict[str, Any]:
-    """
-    Assess data availability for a single station.
-    """
-    client = AWDBClient(timeout=30)
-    station_results = {
-        "station_triplet": station.station_triplet,
-        "station_name": station.name,
-        "network": station.network_code,
-        "latitude": station.latitude,
-        "longitude": station.longitude,
-        "elevation": station.elevation,
-        "variables": {},
-    }
+    """Assess data availability for a single station."""
+    async with AWDBClient(timeout=15) as client:
+        station_results = {
+            "station_triplet": station.station_triplet,
+            "station_name": station.name,
+            "network": station.network_code,
+            "latitude": station.latitude,
+            "longitude": station.longitude,
+            "elevation": station.elevation,
+            "variables": {},
+        }
 
-    for var_key, var_info in variables.items():
-        days_data = await get_days_with_data(
-            client=client,
-            station_triplet=station.station_triplet,
-            elements=var_info["elements"],
-            start_year=start_year,
-            end_year=end_year,
-        )
-
-        # Calculate overall statistics
-        total_days_with_data = 0
-        total_days_possible = 0
-        yearly_breakdown = {}
-
-        for element, years_data in days_data.items():
-            for year, days_count in years_data.items():
-                total_days_with_data += days_count
-                # Approximate days in year (ignoring leap years for simplicity)
-                total_days_possible += 365
-                yearly_breakdown[f"{year}_{element}"] = days_count
-
-        # Find the element with the most data
-        if days_data:
-            best_element = max(
-                days_data.keys(), key=lambda x: sum(days_data[x].values())
-            )
-            overall_percentage = (
-                round(total_days_with_data / total_days_possible * 100, 1)
-                if total_days_possible > 0
-                else 0.0
+        for var_key, var_info in variables.items():
+            days_data = await get_days_with_data(
+                client=client,
+                station_triplet=station.station_triplet,
+                elements=var_info["elements"],
+                start_year=start_year,
+                end_year=end_year,
             )
 
-            station_results["variables"][var_key] = {
-                "element_used": best_element,
-                "total_days_with_data": total_days_with_data,
-                "total_days_possible": total_days_possible,
-                "overall_data_percentage": overall_percentage,
-                "yearly_data_by_element": days_data,
-                "all_elements_tried": list(days_data.keys()),
-            }
-        else:
-            station_results["variables"][var_key] = {
-                "element_used": None,
-                "total_days_with_data": 0,
-                "total_days_possible": total_days_possible,
-                "overall_data_percentage": 0.0,
-                "yearly_data_by_element": {},
-                "all_elements_tried": [],
-            }
+            # Calculate overall statistics
+            total_days_with_data = 0
+            total_days_possible = 0
+            yearly_breakdown = {}
 
-    return station_results
+            for element, years_data in days_data.items():
+                for year, days_count in years_data.items():
+                    total_days_with_data += days_count
+                    # Approximate days in year (ignoring leap years for simplicity)
+                    total_days_possible += 365
+                    yearly_breakdown[f"{year}_{element}"] = days_count
+
+            # Find the element with the most data
+            if days_data:
+                best_element = max(
+                    days_data.keys(), key=lambda x: sum(days_data[x].values())
+                )
+                overall_percentage = (
+                    round(total_days_with_data / total_days_possible * 100, 1)
+                    if total_days_possible > 0
+                    else 0.0
+                )
+
+                station_results["variables"][var_key] = {
+                    "element_used": best_element,
+                    "total_days_with_data": total_days_with_data,
+                    "total_days_possible": total_days_possible,
+                    "overall_data_percentage": overall_percentage,
+                    "yearly_data_by_element": days_data,
+                    "all_elements_tried": list(days_data.keys()),
+                }
+            else:
+                station_results["variables"][var_key] = {
+                    "element_used": None,
+                    "total_days_with_data": 0,
+                    "total_days_possible": total_days_possible,
+                    "overall_data_percentage": 0.0,
+                    "yearly_data_by_element": {},
+                    "all_elements_tried": [],
+                }
+
+        return station_results
 
 
 async def main():
@@ -165,10 +154,20 @@ async def main():
 
     # Get all California stations
     print("Fetching California stations...")
-    async with AWDBClient(timeout=60) as client:
-        # First get all stations, then filter by state from station triplet (format: stationId:stateCode:networkCode)
-        all_stations = await client.get_stations(state_codes=["CA"], active_only=True)
-        ca_stations = all_stations  # Already filtered by state
+    try:
+        async with AWDBClient(timeout=15) as client:
+            # First get all stations, then filter by state from station triplet (format: stationId:stateCode:networkCode)
+            all_stations = await client.get_stations(
+                state_codes=["CA"], active_only=True
+            )
+            ca_stations = all_stations  # Already filtered by state
+    except AWDBConnectionError as e:
+        print(f"AWDB connection error: {e}")
+        print("Could not reach AWDB API. Check network or retry later.")
+        return
+    except Exception as e:
+        print(f"Error fetching stations: {e}")
+        return
 
     print(f"Found {len(ca_stations)} active stations in California")
     print()

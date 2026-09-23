@@ -12,10 +12,19 @@ Essential commands (extract from `Makefile`):
 
 ```bash
 make install              # Install with dev extras
+make install-prod         # Install production dependencies only
 make test                 # Run all unit tests (pytest)
+make test-cov             # Run tests with coverage report (HTML + terminal)
+make test-integration     # Run integration tests (requires network)
 make lint-fix             # Auto-fix linting (ruff + mypy)
-make docs                 # Build Quarto docs
+make format               # Format code
+make format-check         # Check formatting without changes
 make security             # Run security checks (bandit/safety)
+make docs                 # Build Quarto documentation
+make docs-serve           # Serve docs with live reload (watch mode)
+make examples-validate    # Validate example scripts (import check)
+make examples-test        # Run selected example scripts (network-dependent)
+make all                  # Full pipeline (clean → install → lint-fix → test → build → docs → validate-examples)
 ```
 
 Common pytest patterns:
@@ -23,6 +32,7 @@ Common pytest patterns:
 pytest tests/test_query.py -v                # Single test file
 pytest -m "not integration" -v               # Skip network-dependent tests
 pytest tests/test_query.py::test_name -v    # Single test
+pytest tests/ -v --cov=soildb               # Run with coverage
 ```
 
 Setup: See `CONTRIBUTING.md` for detailed environment setup.
@@ -33,21 +43,67 @@ Setup: See `CONTRIBUTING.md` for detailed environment setup.
 
 ```
 src/soildb/
-├── __init__.py              # Public API re-exports
+├── __init__.py              # Public API re-exports (__all__ list)
+├── base_client.py           # BaseDataAccessClient and ClientConfig
 ├── client.py                # SDAClient (async HTTP to NRCS web service)
 ├── query.py                 # Query builder (fluent interface for SQL)
+├── query_templates.py       # Pre-built query templates for common tasks
 ├── response.py              # SDAResponse (DataFrame/dict/GeoDataFrame export)
 ├── spatial.py               # Spatial filtering (point/bbox queries)
 ├── fetch.py                 # Bulk key-based queries with pagination
 ├── convenience.py           # Single/simple queries
 ├── high_level.py            # Complex workflows returning nested dataclasses
 ├── type_conversion.py       # Type mapping (SQL → Python)
+├── type_processors.py       # Type processor implementations
+├── schema_system.py         # Schema metadata system
+├── metadata.py              # Survey metadata parsing and filtering
+├── sanitization.py          # Input validation and SQL injection prevention
+├── utils.py                 # Shared utility functions
+├── wss.py                   # Web Soil Survey data download
+├── _awdb_integration.py     # AWDB/SDA integration (internal)
 ├── exceptions.py            # SoilDBError hierarchy
 ├── ldm/                     # Lab Data Model (KSSL pedon data)
+│   ├── client.py            # LDMClient (multi-backend support)
+│   ├── backends.py          # LDM backend implementations
+│   ├── query_builder.py     # SQL query builder for lab data
+│   ├── tables.py            # Lab data table schemas
+│   ├── exceptions.py        # LDMError hierarchy
+│   └── __init__.py
 ├── awdb/                    # AWDB/SCAN/SNOTEL monitoring data
-├── henry/                   # Henry climate database
-├── backends/                # Multi-database backends (SDA, LDM, SQLite, PostGIS stubs)
-└── schemas/                 # Table schemas with type metadata
+│   ├── client.py            # AWDBClient
+│   ├── convenience.py       # High-level AWDB queries
+│   ├── models.py            # Data models (StationInfo, TimeSeriesDataPoint, etc.)
+│   ├── exceptions.py        # AWDBError hierarchy
+│   └── __init__.py
+├── henry/                   # Henry (Mount Soil) climate database
+│   ├── client.py            # HenryClient
+│   ├── convenience.py       # High-level Henry queries
+│   ├── models.py            # Data models
+│   ├── utils.py             # Henry-specific utilities
+│   ├── exceptions.py        # HenryError hierarchy
+│   └── __init__.py
+├── backends/                # Multi-database backends
+│   ├── base.py              # BaseBackend interface
+│   ├── sda_backend.py       # SDA web service backend
+│   ├── sqlite_backend.py    # SQLite file backend
+│   ├── geopackage_backend.py # GeoPackage vector backend
+│   ├── ssurgo_client.py     # SSURGO data client
+│   ├── schema.py            # Backend schema utilities
+│   ├── response_adapter.py  # Response adapter for multi-backend
+│   ├── type_mapper.py       # Type mapping for backends
+│   ├── exceptions.py        # BackendError hierarchy
+│   └── __init__.py
+├── schemas/                 # Table schemas with type metadata
+│   ├── _base.py             # Base schema class
+│   ├── pedon.py             # Lab pedon schema
+│   ├── chorizon.py          # Component horizon schema
+│   ├── component.py         # Map unit component schema
+│   ├── mapunit.py           # Map unit schema
+│   ├── property.py          # Soil property schema
+│   ├── spatial.py           # Spatial data schema
+│   ├── _registry.py         # Schema registry
+│   └── __init__.py
+└── py.typed                 # PEP 561 type hints marker
 ```
 
 Key files by task:
@@ -56,39 +112,76 @@ Key files by task:
 |------|---------|
 | Add public API | `__init__.py` (`__all__` list) |
 | Fix query bugs | `query.py`, `query_templates.py` |
+| Add query templates | `query_templates.py` |
 | Spatial queries | `spatial.py` |
 | Bulk fetch logic | `fetch.py` |
-| Type conversion | `type_conversion.py` |
+| Type conversion | `type_conversion.py`, `type_processors.py` |
+| Schema system | `schema_system.py`, `schemas/*.py` |
+| Input validation | `sanitization.py` |
 | Response export | `response.py` |
-| Exceptions | `exceptions.py` |
+| Survey metadata | `metadata.py` |
+| Exceptions | `exceptions.py`, `ldm/exceptions.py`, `awdb/exceptions.py`, `henry/exceptions.py`, `backends/exceptions.py` |
 | Async client | `client.py`, `base_client.py` |
 | LDM workflows | `ldm/*.py` |
 | AWDB workflows | `awdb/*.py` |
 | Henry workflows | `henry/*.py` |
+| Backend support | `backends/*.py` |
+| Web Soil Survey | `wss.py` |
+| Utilities | `utils.py` |
 
 ### Tests
 
 ```
 tests/
-├── test_query.py            # Query builder tests
-├── test_fetch.py            # Bulk fetch tests
-├── test_spatial.py          # Spatial query tests
-├── test_response.py         # Response export tests
-├── test_public_api.py       # Public API exports
-├── test_ldm*.py             # LDM subsystem tests
-├── test_awdb*.py            # AWDB subsystem tests
-└── test_backends*.py        # Multi-backend infrastructure tests
+├── conftest.py                        # pytest fixtures and configuration
+├── test_query.py                      # Query builder tests
+├── test_query_templates.py            # (See test_fetch.py for query template coverage)
+├── test_fetch.py                      # Bulk fetch and QueryPresets tests
+├── test_spatial_and_responses.py      # Spatial queries and response exports
+├── test_response.py                   # SDAResponse export tests
+├── test_public_api.py                 # Public API exports (__all__ list)
+├── test_client.py                     # SDAClient tests
+├── test_type_conversion.py            # Type mapping tests
+├── test_type_processors.py            # (Coverage in test_type_conversion.py)
+├── test_metadata.py                   # Survey metadata parsing tests
+├── test_sanitization.py               # Input validation tests
+├── test_sync.py                       # Sync wrapper decorator tests
+├── test_integration.py                # Integration tests (marked @pytest.mark.integration)
+├── test_ssurgo_client.py              # SSURGO backend client tests
+├── test_wss.py                        # Web Soil Survey download tests
+├── test_ldm_imports.py                # LDM module import tests
+├── test_ldm_exceptions.py             # LDM exception handling
+├── test_ldm_query_builder.py          # LDM SQL query builder tests
+├── test_ldm_tables.py                 # LDM table schema tests
+├── test_ldm_backend_execution.py      # LDM backend execution tests
+├── test_awdb.py                       # AWDB client tests
+├── test_awdb_integration.py           # AWDB integration tests (requires network)
+├── test_henry.py                      # Henry climate database tests
+├── test_backends_infrastructure.py    # Multi-backend infrastructure tests
+├── test_backends_sda_sqlite.py        # SDA/SQLite backend tests
+└── test_geopackage_backend.py         # GeoPackage backend tests
 ```
 
-Run via `pytest tests/<file>.py -v` or `pytest -m "not integration" -v` (skip network tests).
+Run via:
+```bash
+pytest tests/<file>.py -v              # Single test file
+pytest -m "not integration" -v         # Skip network-dependent tests
+pytest tests/ -v --cov=soildb          # All tests with coverage
+```
 
 ### Documentation
 
 - `README.md` — API overview and quick examples
 - `CONTRIBUTING.md` — Setup, PR guidelines, code conventions
-- `docs/examples/` — Runnable code samples (client lifecycle, spatial, bulk fetch, etc.)
-- `docs/` — Quarto source (build with `make docs`)
-- `pyproject.toml` — Dependencies, build config, test config
+- `AGENTS.md` — This file: agent navigation guide
+- `docs/` — Quarto source documentation (build with `make docs`)
+  - `docs/examples/` — Runnable code samples (client lifecycle, spatial, bulk fetch, LDM, AWDB, Henry, etc.)
+  - `docs/*.qmd` — Quarto markdown files (validated via `make docs-validate`)
+- `scripts/` — Utility scripts
+  - `validate_examples.py` — Import validation for example scripts
+  - `awdb_health_check.py` — AWDB service health monitoring
+- `pyproject.toml` — Dependencies, build config, test config, project metadata
+- `.github/` — GitHub workflows (if present)
 
 ## Workflows
 
@@ -104,12 +197,34 @@ USDA soil data is hierarchical:
 
 1. **High-level** (`high_level.py`): Nested dataclasses with pre-fetched relationships
    - Examples: `fetch_ssurgo_mapunit_by_point()`, `fetch_labpedon_by_bbox()`
+   - Returns complex nested structures with relationships resolved
 
-2. **Mid-level** (`fetch.py`, `convenience.py`): `SDAResponse` (exports to DataFrame/dict/GeoDataFrame)
+2. **Mid-level** (`fetch.py`, `convenience.py`, subsystem `**/convenience.py`): `SDAResponse` (exports to DataFrame/dict/GeoDataFrame)
    - Examples: `fetch_by_keys()`, `get_mapunit_by_areasymbol()`, `get_sacatalog()`
+   - Returns `SDAResponse` with flexible export options
+   - Subsystems: `awdb.convenience`, `henry.convenience` (similar pattern)
 
-3. **Low-level** (`query.py`, `spatial.py`): Manual SQL + fluent Query builder
+3. **Low-level** (`query.py`, `query_templates.py`, `spatial.py`): Manual SQL + fluent Query builder
    - Use when mid-level functions don't fit
+   - Includes pre-built templates for common queries
+
+### Schema & Metadata System
+
+- **Schemas** (`schemas/`): Table definitions with type metadata
+  - Pedon, component, horizon, map unit, property schemas
+  - Use for introspection, validation, and type mapping
+- **Metadata** (`metadata.py`): Survey-level metadata parsing and filtering
+  - Parse SSURGO survey metadata, search by keywords, filter by bbox
+  - Use `SurveyMetadata` to explore available data sources
+
+### Multi-Backend Support
+
+LDM queries can run against multiple backends via `LDMClient`:
+- **SDA backend**: NRCS web service (default, requires network)
+- **SQLite backend**: Local database file (portable, offline)
+- **GeoPackage backend**: Vector data in standardized format
+
+Backend selection is automatic when a database path is provided.
 
 ### Async/Sync Pattern
 
@@ -158,25 +273,63 @@ async with SDAClient(config=ClientConfig(timeout=120.0, retries=5)) as client:
     result = await client.execute_sql(sql)
 ```
 
+**LDMClient** (Lab Data Model) supports multiple backends:
+```python
+# Auto-detect from database path
+async with LDMClient(database_path="/path/to/data.db") as client:
+    result = await client.query_by_location(...)
+```
+
+**Multi-backend support**: Backends auto-selected via `backend_name` or detected from database path.
+
 **SDA maintenance window**: ~12:45–1:00 AM US Central Time. Use `ClientConfig.reliable()` (120s timeout, 5 retries) for transient timeouts.
+
+### Subsystem Clients
+
+Each subsystem (AWDB, Henry, LDM) has its own client with independent configuration:
+- **AWDBClient** — SCAN/SNOTEL stations (USDA water/snow monitoring)
+- **HenryClient** — Mount Soil climate data
+- **LDMClient** — Lab Data Model (KSSL pedon data)
+
+All follow the same async context manager pattern as SDAClient.
 
 ### Code Style
 
 - **Type hints**: Full PEP 484 (target Python ≥3.9, run mypy)
-- **Docstrings**: NumPy-style with Examples section
+- **Docstrings**: NumPy-style with Examples section (see existing code for patterns)
 - **Line length**: 88 characters (ruff)
 - **Linting**: `ruff check` + `mypy` (run via `make lint-fix`)
-- **Imports**: Organize per black/isort standards
+- **Formatting**: `ruff format` (run via `make format`)
+- **Imports**: Organize per black/isort standards (enforced by ruff)
+- **Pre-commit**: Use `make pre-commit-install` to set up hooks
 
 ### Dependencies
 
-**Core runtime**: httpx (async HTTP), aiosqlite (async SQLite)
+**Core runtime**:
+- `httpx>=0.24.0` — async HTTP client
+- `aiosqlite>=0.19.0` — async SQLite driver
 
-**Dev**: pytest, pytest-asyncio, pytest-httpx, ruff, mypy, bandit, safety
+**Development**:
+- `pytest>=7.0`, `pytest-asyncio`, `pytest-httpx`, `pytest-cov`, `pytest-timeout`
+- `ruff>=0.1.0` — linting and formatting
+- `mypy>=1.0.0` — static type checking
+- `pre-commit>=3.0.0` — git hooks
 
-**Optional extras**: pandas/polars, geopandas, soilprofilecollection, jupyter
+**Documentation**:
+- `quartodoc>=0.9.0` — API documentation extraction
+- `quarto>=0.1.0` — document renderer
 
-See `pyproject.toml` for full list and version specs.
+**Security**:
+- `bandit>=1.7.0` — security issue scanner
+- `safety>=2.3.0` — dependency vulnerability checker
+
+**Optional features**:
+- **DataFrames**: `pandas>=1.5.0`, `polars>=0.18.0`
+- **Spatial**: `geopandas>=0.13.0`, `shapely>=2.0.0`
+- **Jupyter**: `jupyter>=1.0.0`, `ipython>=8.0.0`, `nest-asyncio>=1.5.0`
+- **Soil profiles**: `soilprofilecollection>=0.2.0`
+
+See `pyproject.toml` for full list and exact version specs.
 
 ## References
 

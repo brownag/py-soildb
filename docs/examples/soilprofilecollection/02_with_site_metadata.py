@@ -1,20 +1,22 @@
 """
-Example 2: SoilProfileCollection with Site Metadata
+Convert horizon data to SoilProfileCollection with site-level metadata.
 
-This example shows how to include site-level metadata in the
-SoilProfileCollection by merging horizon data with component information.
-
-Use this when:
-- You want component information in site slot
-- You need properties like comppct_r, taxclname, component names, etc.
-- You want to correlate soil properties with component metadata
+Joins component attributes (compname, comppct_r) into the site slot.
+Requires optional soilprofilecollection package: pip install 'soildb[soil]'
 """
 
 import asyncio
 
 import pandas as pd
 
-from soildb import Query, SDAClient
+from soildb import Query, SDAClient, SDAResponse
+
+
+def handle_missing_spc():
+    """Handle missing soilprofilecollection dependency."""
+    print("Optional dependency missing: soilprofilecollection")
+    print("Install with: pip install 'soildb[soil]'")
+    return None
 
 
 async def main():
@@ -48,7 +50,7 @@ async def main():
             .limit(100)
         )
 
-        response = await client.execute(query)
+        response: SDAResponse = await client.execute(query)
         print(f"  Retrieved {len(response)} records")
         print()
 
@@ -111,6 +113,8 @@ async def main():
 
             return spc
 
+        except ImportError:
+            return handle_missing_spc()
         except Exception as e:
             print(f"Conversion error: {e}")
             print(f"   Available columns: {response.columns}")
@@ -124,5 +128,5 @@ if __name__ == "__main__":
     if spc is not None:
         print("Example completed successfully!")
     else:
-        print("Example encountered an error.")
+        print("Example finished (conversion skipped).")
     print("=" * 60)

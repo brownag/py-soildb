@@ -1,12 +1,9 @@
 """
-soildb Query Templates Examples
-
-Demonstrates using query_templates for common query patterns.
-query_templates provides pre-built, discoverable SQL queries for standard tasks.
+Execute common soil queries using pre-built SQL templates.
 
 See also:
-- Workflows: Custom Queries → ../workflows.qmd#custom-queries
-- API Reference → ../api.qmd
+- Workflows: Custom Queries -> ../workflows.qmd#custom-queries
+- API Reference -> ../api.qmd
 """
 
 import asyncio
@@ -113,11 +110,14 @@ async def main():
     print("soildb Query Templates Examples")
     print("=" * 50)
 
-    await basic_point_query()
-    await basic_area_query()
-    await basic_spatial_query()
-    await bulk_fetch_components()
-    await discover_survey_areas()
+    try:
+        await basic_point_query()
+        await basic_area_query()
+        await basic_spatial_query()
+        await bulk_fetch_components()
+        await discover_survey_areas()
+    except Exception as e:
+        print(f"Error running query template examples: {e}")
 
     print("All examples completed!")
 

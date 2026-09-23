@@ -1,16 +1,9 @@
 """
-Example: Fetching SSURGO Data (Bulk Operations)
-
-This example demonstrates modern bulk data fetching using fetch_by_keys().
-fetch_by_keys is the primary recommended approach for:
-  - Fetching data for multiple keys
-  - Intelligent chunking and pagination
-  - Works with all SSURGO tables (mapunit, component, chorizon, etc.)
-  - Supports column filtering and geometry retrieval
+Fetch SSURGO data in bulk using key lists, pagination, and geometry options.
 
 See also:
-- Workflows: Bulk Data Fetching → ../workflows.qmd#bulk-data-fetching
-- Quick Start:  Bulk Data Fetching → ../quickstart.qmd
+- Workflows: Bulk Data Fetching -> ../workflows.qmd#bulk-data-fetching
+- Quick Start: Bulk Data Fetching -> ../quickstart.qmd
 """
 
 import asyncio
@@ -37,7 +30,11 @@ async def main():
     response = await fetch_by_keys(sample_mukeys, "mapunit")
     df = response.to_pandas()
     print(f"\nFetched {len(df)} map units:")
-    print(df[["mukey", "muname", "mukind"]].head() if not df.empty else "No data")
+    if not df.empty:
+        print(df[["mukey", "muname", "mukind"]].head())
+        print(f"Column dtypes: mukey={df['mukey'].dtype}, muname={df['muname'].dtype}")
+    else:
+        print("Warning: No map units returned for the given keys.")
 
     print("\n" + "=" * 60 + "\n")
 
@@ -53,7 +50,12 @@ async def main():
     print(f"Fetched {len(df)} polygons")
 
     if not df.empty:
-        print(df[["mukey", "musym", "muareaacres"]].head())
+        display_cols = [
+            c for c in ["mukey", "musym", "muareaacres", "geometry"] if c in df.columns
+        ]
+        print(df[display_cols].head())
+    else:
+        print("Warning: No polygons returned for the given keys.")
 
     print("\n" + "=" * 60 + "\n")
 
@@ -82,6 +84,10 @@ async def main():
         print(f"Found {len(hz_df)} horizons")
         if not hz_df.empty:
             print(hz_df[["cokey", "chkey", "hzname", "hzdept_r", "hzdepb_r"]].head())
+        else:
+            print("Warning: No horizons found for the given components.")
+    else:
+        print("Warning: No components found for the given map units.")
 
     print("\n" + "=" * 60 + "\n")
 
@@ -98,7 +104,12 @@ async def main():
     sa_df = sa_response.to_pandas()
     print(f"Fetched {len(sa_df)} survey area polygons:")
     if not sa_df.empty:
-        print(sa_df[["areasymbol", "spatialversion", "lkey"]].head())
+        cols = [
+            c for c in ["areasymbol", "spatialversion", "lkey"] if c in sa_df.columns
+        ]
+        print(sa_df[cols].head())
+    else:
+        print("Warning: No survey area polygons returned.")
 
     print("\n" + "=" * 60 + "\n")
 
@@ -116,6 +127,8 @@ async def main():
     print(f"Columns: {list(custom_df.columns) if not custom_df.empty else 'No data'}")
     if not custom_df.empty:
         print(custom_df.head())
+    else:
+        print("Warning: No components returned for custom columns query.")
 
     print("\n" + "=" * 60 + "\n")
 
@@ -137,8 +150,11 @@ async def main():
         print(
             f"Successfully fetched {len(paginated_df)} map units using chunked queries"
         )
-        print("Sample results:")
-        print(paginated_df.head())
+        if not paginated_df.empty:
+            print("Sample results:")
+            print(paginated_df.head())
+        else:
+            print("Warning: No map units returned from paginated query.")
     else:
         print("Not enough mukeys for pagination demo")
 
@@ -179,6 +195,10 @@ async def main():
 
     try:
         response = await fetch_by_keys([999999999], "mapunit")
+        if response.is_empty():
+            print(
+                "Notice: Query returned an empty response as expected for invalid keys."
+            )
         empty_df = response.to_pandas()
         print(f"Invalid key result: {len(empty_df)} rows (expected 0)")
     except Exception as e:

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Validate that example scripts have correct syntax and can import."""
 
-import sys
-import py_compile
 import importlib.util
+import py_compile
+import sys
 from pathlib import Path
 
 examples = [
@@ -16,6 +16,10 @@ examples = [
     'docs/examples/07_query_templates.py',
     'docs/examples/08_fetch.py',
     'docs/examples/09_wss_download.py',
+    'docs/examples/soilprofilecollection/01_basic_conversion.py',
+    'docs/examples/soilprofilecollection/02_with_site_metadata.py',
+    'docs/examples/soilprofilecollection/03_lab_pedon_workflow.py',
+    'docs/examples/soilprofilecollection/04_custom_columns.py',
 ]
 
 print("Validating example scripts...")
@@ -38,15 +42,23 @@ for example in examples:
         print(f"  FAIL: {example}")
 
 if errors:
-    print(f"\nSyntax errors found:")
+    print("\nSyntax errors found:")
     for err in errors:
         print(f"  {err}")
     sys.exit(1)
 
 # Phase 2: Import check (ensures all dependencies resolve)
 print("\n2. Checking imports...")
+has_spc = importlib.util.find_spec("soilprofilecollection") is not None
 errors = []
+skipped = 0
+
 for example in examples:
+    if "soilprofilecollection" in example and not has_spc:
+        print(f"  SKIP: {example} (soilprofilecollection not installed)")
+        skipped += 1
+        continue
+
     try:
         spec = importlib.util.spec_from_file_location("example", example)
         if spec is None or spec.loader is None:
@@ -61,9 +73,12 @@ for example in examples:
         print(f"  FAIL: {example} ({type(e).__name__})")
 
 if errors:
-    print(f"\nImport errors found:")
+    print("\nImport errors found:")
     for err in errors:
         print(f"  {err}")
     sys.exit(1)
 
-print(f"\n✓ All {len(examples)} examples validated")
+if skipped:
+    print(f"\n✓ All {len(examples)} examples validated ({skipped} skipped import check: missing optional dependency)")
+else:
+    print(f"\n✓ All {len(examples)} examples validated")

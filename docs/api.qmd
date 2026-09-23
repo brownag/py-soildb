@@ -1,6 +1,6 @@
 # API Reference
 
-**This is the API reference tier** - for detailed usage patterns and examples, see [Common Workflows](workflows.qmd) or [Quick Start](quickstart.qmd).
+API reference for core classes and functions in `soildb`. See [Common Workflows](workflows.qmd) and [Quick Start](quickstart.qmd) for guided tasks.
 
 ---
 
@@ -20,25 +20,28 @@ async with SDAClient() as client:
     response = await client.execute(query)
 
 # Custom configuration
-client = SDAClient(
+from soildb.base_client import ClientConfig
+
+config = ClientConfig(
     base_url="https://sdmdataaccess.sc.egov.usda.gov",
     timeout=30.0,
     max_retries=3,
     retry_delay=1.0
 )
+client = SDAClient(config=config)
 ```
 
 **Methods:**
 
-- `execute(query)` - Execute a query and return SDAResponse
-- `connect()` - Test connection to SDA service
-- `close()` - Close client connections
+- `execute(query)`: Run a query and return an `SDAResponse`.
+- `connect()`: Open and test client connection.
+- `close()`: Close open HTTP connections.
 
 ## Query Building
 
 ### `Query`
 
-SQL query builder with fluent interface. This is the only query builder class in v0.4.0 (SpatialQuery and QueryBuilder were removed).
+SQL query builder with a fluent chaining interface.
 
 ```{python}
 from soildb import Query
@@ -60,291 +63,248 @@ query = (Query()
 
 **Methods:**
 
-- `select(*columns)` - Add columns to SELECT clause
-- `from_(table)` - Set table for FROM clause  
-- `where(condition)` - Add WHERE condition (multiple calls use AND)
-- `inner_join(table, condition)` - Add INNER JOIN
-- `left_join(table, condition)` - Add LEFT JOIN
-- `order_by(column, direction="ASC")` - Add ORDER BY
-- `limit(count)` - Add LIMIT clause
-- `to_sql()` - Generate SQL string
+- `select(*columns)`: Add columns to SELECT clause.
+- `from_(table)`: Set table for FROM clause.
+- `where(condition)`: Add WHERE condition (joined by AND).
+- `inner_join(table, condition)`: Add INNER JOIN.
+- `left_join(table, condition)`: Add LEFT JOIN.
+- `order_by(column, direction="ASC")`: Add ORDER BY clause.
+- `limit(count)`: Add LIMIT clause.
+- `offset(count)`: Add OFFSET clause.
+- `to_sql()`: Render SQL string.
 
 ### Query Templates
 
-For common query patterns, use the `query_templates` module instead of building queries manually:
+The `query_templates` module provides pre-built queries for standard access patterns:
 
 ```{python}
 #| eval: false
 from soildb import query_templates
 
-# Get map units for survey area (replaces QueryBuilder.mapunits_by_legend())
+# Map units for a survey area
 query = query_templates.query_mapunits_by_legend("IA109")
 
-# Get components for survey area (replaces QueryBuilder.components_by_legend())
+# Components for a survey area
 query = query_templates.query_components_by_legend("IA109")
 
-# Get components at point (replaces QueryBuilder.components_at_point())
+# Components at a geographic coordinate
 query = query_templates.query_components_at_point(-93.6, 42.0)
 
-# Get available survey areas (replaces QueryBuilder.available_survey_areas())
+# Available survey areas
 query = query_templates.query_available_survey_areas()
 
-# Get survey area boundaries (replaces QueryBuilder.survey_area_boundaries())
+# Survey area boundaries
 query = query_templates.query_survey_area_boundaries()
 
-# Custom SQL query
+# Custom SQL string
 query = query_templates.query_from_sql("SELECT * FROM mapunit WHERE areasymbol = 'IA109'")
 ```
 
 **Available Templates:**
 
-- `query_mapunits_by_legend(areasymbol)` - Map units for survey area
-- `query_components_by_legend(areasymbol)` - Components for survey area
-- `query_component_horizons_by_legend(areasymbol)` - Components and horizons
-- `query_components_at_point(lon, lat)` - Components at coordinate
-- `query_spatial_by_legend(areasymbol)` - Spatial data for map units
-- `query_mapunits_intersecting_bbox(xmin, ymin, xmax, ymax)` - Map units in bbox
-- `query_pedons_intersecting_bbox(xmin, ymin, xmax, ymax)` - Lab pedons in bbox
-- `query_available_survey_areas()` - List available survey areas
-- `query_survey_area_boundaries()` - Survey area boundary polygons
-- `query_pedon_horizons_by_pedon_keys(pedon_keys)` - Horizons for pedons
-- `query_from_sql(sql_string)` - Custom SQL query
+- `query_mapunits_by_legend(areasymbol, columns=None)`: Map units for a survey area.
+- `query_components_by_legend(areasymbol, columns=None)`: Components for a survey area.
+- `query_component_horizons_by_legend(areasymbol, columns=None)`: Components and horizons for a survey area.
+- `query_components_at_point(longitude, latitude, columns=None)`: Soil components at a coordinate.
+- `query_spatial_by_legend(areasymbol, columns=None)`: Spatial geometry for map units.
+- `query_mapunits_intersecting_bbox(xmin, ymin, xmax, ymax, columns=None)`: Map units inside a bounding box.
+- `query_pedons_intersecting_bbox(xmin, ymin, xmax, ymax, columns=None)`: Pedons inside a bounding box.
+- `query_available_survey_areas(columns=None)`: Listing of active survey areas.
+- `query_survey_area_boundaries(columns=None)`: Boundary polygons from `sapolygon`.
+- `query_pedon_horizons_by_pedon_keys(pedon_keys, columns=None)`: Horizons for pedons.
+- `query_from_sql(query)`: Wrap arbitrary SQL into a Query instance.
 
 ## Response Handling
 
 ### `SDAResponse`
 
-Response object with data conversion methods.
+Response object with type conversion and export methods:
 
 ```{python}
 #| eval: false
-# DataFrame export
 df = response.to_pandas()        # pandas DataFrame
-df = response.to_polars()        # polars DataFrame (if installed)
-gdf = response.to_geodataframe() # GeoPandas GeoDataFrame (spatial data)
+df = response.to_polars()        # polars DataFrame
+gdf = response.to_geodataframe() # GeoPandas GeoDataFrame (spatial geometry)
+data = response.to_dict()        # List of record dictionaries
 
-# Raw data access
-rows = response.data            # List of data rows
-columns = response.columns      # Column names
-count = len(response)           # Number of rows
+rows = response.data             # Raw tabular rows
+columns = response.columns       # Column names
+count = len(response)            # Row count
 ```
-
-**Properties:**
-
-- `data` - Raw data as list of lists
-- `columns` - Column names as list of strings
-- `metadata` - Response metadata
 
 **Methods:**
 
-- `to_pandas()` - Export to pandas DataFrame
-- `to_polars()` - Export to polars DataFrame
-- `to_geodataframe()` - Export to GeoPandas GeoDataFrame (for spatial data)
-- `to_dict()` - Export to list of dictionaries
-- `to_soilprofilecollection()` - Convert to SoilProfileCollection (soil-specific)
+- `to_pandas()`: Export to pandas DataFrame.
+- `to_polars()`: Export to polars DataFrame.
+- `to_geodataframe()`: Export to GeoPandas GeoDataFrame with auto-detected geometry and CRS.
+- `to_dict()`: Export as a list of column-to-value dictionaries.
+- `to_soilprofilecollection()`: Convert horizon records into a `SoilProfileCollection`.
 
-## High-Level Functions
+## Convenience Functions
 
-### Point Queries
-
-```{python}
-#| eval: false
-from soildb import get_mapunit_by_point
-
-# Get map units at a point
-response = await get_mapunit_by_point(-93.6, 42.0)
-df = response.to_pandas()
-```
-
-### Area Queries
+### Point and Area Queries
 
 ```{python}
 #| eval: false
-from soildb import get_mapunit_by_areasymbol, get_mapunit_by_bbox
+from soildb import SDAClient, get_mapunit_by_areasymbol, get_mapunit_by_bbox, get_mapunit_by_point, get_sacatalog
 
-# Get map units for survey area
-response = await get_mapunit_by_areasymbol("IA109")
-df = response.to_pandas()
+async with SDAClient() as client:
+    # Map units at a point
+    response = await get_mapunit_by_point(-93.6, 42.0, client=client)
 
-# Get map units in bounding box
-response = await get_mapunit_by_bbox(-93.7, 42.0, -93.6, 42.1)
-df = response.to_pandas()
-```
+    # Map units in a survey area
+    response = await get_mapunit_by_areasymbol("IA109", client=client)
 
-### Survey Areas
+    # Map units in a bounding box
+    response = await get_mapunit_by_bbox(-93.7, 42.0, -93.6, 42.1, client=client)
 
-```{python}
-#| eval: false
-from soildb import get_sacatalog
-
-# Get survey area catalog with custom columns
-response = await get_sacatalog(columns=['areasymbol', 'areaname'])
-df = response.to_pandas()
-
-# Get just survey area symbols
-sacatalog = await get_sacatalog(columns=['areasymbol'])
-area_list = sacatalog.to_pandas()['areasymbol'].tolist()
+    # Survey area catalog
+    catalog = await get_sacatalog(columns=['areasymbol', 'areaname'], client=client)
 ```
 
 ## Spatial Queries
 
-### `spatial_query` (Unified Spatial Interface)
+### `spatial_query`
 
-Generic spatial query function - replaces all table-specific functions (query_mupolygon, etc.)
+Unified spatial query function for points, bounding boxes, and polygons:
 
 ```{python}
 #| eval: false
 from soildb import spatial_query
 
-# Point query for map unit polygons
+# Point intersection
 response = await spatial_query(
     geometry="POINT(-93.6 42.0)",
     table="mupolygon",
     return_type="tabular"
 )
 
-# Bounding box query with geometry
+# Bounding box intersection with geometry
 response = await spatial_query(
     geometry={"xmin": -93.7, "ymin": 42.0, "xmax": -93.6, "ymax": 42.1},
     table="mupolygon",
-    return_type="spatial"  # Include geometry
-)
-
-# Survey area polygons
-response = await spatial_query(
-    geometry="POINT(-93.6 42.0)",
-    table="sapolygon",
     return_type="spatial"
 )
 ```
 
 **Parameters:**
 
-- `geometry` - WKT string, bounding box dict, or GeoJSON
-- `table` - Target table ("mupolygon", "sapolygon", "featpoint", "featline")
-- `return_type` - "tabular" (attributes only) or "spatial" (with geometry)
+- `geometry`: WKT string, bounding box dictionary (`xmin`, `ymin`, `xmax`, `ymax`), or GeoJSON dictionary.
+- `table`: Target spatial table (`"mupolygon"`, `"sapolygon"`, `"mupoint"`, `"muline"`, `"featpoint"`, `"featline"`).
+- `return_type`: `"tabular"` (attributes only) or `"spatial"` (includes geometry column).
 
-### Convenience Spatial Functions
+### Simplified Spatial Functions
 
-```{python}
-#| eval: false
-from soildb import point_query, bbox_query
+```python
+from soildb import bbox_query, point_query
 
-# Point query (shorthand for spatial_query with POINT geometry)
-response = await point_query(42.0, -93.6, "mupolygon")
+# Point query
+response = await point_query(latitude=42.0, longitude=-93.6, table="mupolygon")
 
-# Bounding box query (shorthand for spatial_query with bbox)
-response = await bbox_query(-93.7, 42.0, -93.6, 42.1, "mupolygon")
+# Bounding box query
+response = await bbox_query(xmin=-93.7, ymin=42.0, xmax=-93.6, ymax=42.1, table="mupolygon")
 ```
 
 ## Bulk Data Fetching
 
-### `fetch_by_keys` (Unified Fetch Interface)
+### `fetch_by_keys`
 
-Generic bulk data retrieval with pagination - replaces all specialized functions (fetch_component_by_mukey, etc.)
+Bulk data retrieval with automatic pagination and chunking:
 
 ```{python}
 #| eval: false
-from soildb import fetch_by_keys
+from soildb import fetch_by_keys, get_cokey_by_mukey, get_mukey_by_areasymbol
 
-# Fetch map units by mukeys
+# Discover keys
+mukeys = await get_mukey_by_areasymbol(["IA109", "IA113"])
+
+# Fetch map units in chunks
 response = await fetch_by_keys(
-    keys=[123456, 123457, 123458],
+    keys=mukeys,
     table="mapunit",
-    key_column="mukey",  # Auto-detected
     columns=["mukey", "muname", "mukind"],
-    chunk_size=1000,     # Pagination size
-    include_geometry=False
+    chunk_size=1000
 )
 
-# Fetch components by mukey
-response = await fetch_by_keys(
+# Fetch components
+comp_response = await fetch_by_keys(
     keys=mukeys,
-    table="component",
-    key_column="mukey"
+    table="component"
 )
 
-# Fetch horizons by cokey
-cokeys = response.to_pandas()['cokey'].tolist()
-response = await fetch_by_keys(
+# Fetch horizons
+cokeys = comp_response.to_pandas()["cokey"].tolist()
+hz_response = await fetch_by_keys(
     keys=cokeys,
-    table="chorizon",
-    key_column="cokey"
-)
-
-# Fetch spatial data with geometry
-response = await fetch_by_keys(
-    keys=mukeys,
-    table="mupolygon",
-    include_geometry=True
+    table="chorizon"
 )
 ```
 
 **Parameters:**
 
-- `keys` - List of keys to fetch
-- `table` - Target table
-- `key_column` - Column name for filtering (auto-detected if known table)
-- `columns` - Specific columns to return (optional)
-- `chunk_size` - Pagination size (default 1000)
-- `include_geometry` - Include geometry column (for spatial tables)
-
-### Key Extraction Helpers
-
-```{python}
-#| eval: false
-from soildb import get_mukey_by_areasymbol, get_cokey_by_mukey
-
-# Get mukeys for survey areas
-mukeys = await get_mukey_by_areasymbol(["IA109", "IA113"])
-
-# Get cokeys for map units (major components only)
-cokeys = await get_cokey_by_mukey(mukeys, major_components_only=True)
-```
+- `keys`: Key values (integer or string).
+- `table`: Target SSURGO table.
+- `key_column`: Column name for filtering (auto-detected for known tables).
+- `columns`: Specific columns to select (optional).
+- `chunk_size`: Batch size per request (default 1000).
+- `include_geometry`: Include spatial geometries for polygon/line tables.
 
 ## Error Handling
 
-### Exception Types
+### Exception Hierarchy
 
-```{python}
-#| eval: false
-from soildb import (
-    get_mapunit_by_areasymbol,
-    SoilDBError,          # Base exception
-    SDAConnectionError,   # Network/connection issues
-    SDAQueryError,        # Query execution errors  
-    SDAMaintenanceError   # Service maintenance
+```python
+from soildb.exceptions import (
+    SoilDBError,
+    SDANetworkError,
+    SDAConnectionError,
+    SDATimeoutError,
+    SDAMaintenanceError,
+    SDAQueryError,
+    SDAResponseError,
+    AWDBError,
+    AWDBConnectionError,
+    AWDBQueryError,
 )
+```
+
+Catch exceptions specifically:
+
+```python
+from soildb import get_mapunit_by_areasymbol
+from soildb.exceptions import SDAConnectionError, SDAMaintenanceError, SDAQueryError
 
 try:
     response = await get_mapunit_by_areasymbol("IA109")
 except SDAConnectionError:
-    print("SDA service unavailable")
-except SDAQueryError as e:
-    print(f"Query error: {e}")
-    print(f"Query: {e.query}")  # Original SQL
+    print("SDA service unreachable.")
 except SDAMaintenanceError:
-    print("Service under maintenance")
+    print("SDA nightly maintenance window active.")
+except SDAQueryError as e:
+    print(f"Query syntax or column error: {e}")
 ```
 
-## Metadata
+## Metadata Parsing
 
-### XML Metadata Parsing
+### FGDC XML Parsing
+
+Parse survey XML metadata from `sacatalog`:
 
 ```{python}
 #| eval: false
-from soildb import SDAClient, parse_survey_metadata, extract_metadata_summary
+from soildb import SDAClient, extract_metadata_summary, parse_survey_metadata
 
-response = await SDAClient().execute("SELECT TOP 1 * FROM sacatalog")
+async with SDAClient() as client:
+    response = await client.execute("SELECT TOP 1 * FROM sacatalog")
+
 xml_content = response.to_pandas()['fgdcmetadata'].tolist()[0]
 
-# Parse FGDC XML metadata
+# Full parsed metadata object
 metadata = parse_survey_metadata(xml_content)
 print(metadata.title)
 print(metadata.abstract)
-print(metadata.keywords)
 
-# Extract summary of key fields
+# Key fields dictionary summary
 summary = extract_metadata_summary(xml_content)
 print(summary['title'])
 print(summary['bounding_box'])
@@ -352,18 +312,18 @@ print(summary['bounding_box'])
 
 ## Configuration
 
-### Environment Variables
+### Client Configuration Options
 
-- `SDA_BASE_URL` - Override default SDA endpoint
-- `SDA_TIMEOUT` - Default request timeout (seconds)
-- `SDA_MAX_RETRIES` - Maximum retry attempts
+```python
+from soildb import SDAClient
+from soildb.base_client import ClientConfig
 
-### Client Configuration
-
-```{python}
-client = SDAClient(
+config = ClientConfig(
     base_url="https://sdmdataaccess.sc.egov.usda.gov",
-    timeout=30.0,        # Request timeout
-    max_retries=3,       # Retry attempts
-    retry_delay=1.0      # Delay between retries
+    timeout=60.0,
+    max_retries=3,
+    retry_delay=1.0
 )
+async with SDAClient(config=config) as client:
+    response = await client.execute(query)
+```

@@ -1,6 +1,12 @@
-.PHONY: help install test lint lint-fix format docs docs-validate clean build all examples-validate examples-test
+.PHONY: help install test lint lint-fix format docs docs-serve docs-validate clean build all examples-validate examples-test check-docs-deps
 .DEFAULT_GOAL := help
 RUFF_ARGS ?=
+VENV ?= venv
+
+# Prepend virtual environment bin directory to PATH if present
+ifneq ($(wildcard $(VENV)/bin),)
+export PATH := $(abspath $(VENV)/bin):$(PATH)
+endif
 
 all: clean install lint-fix test build docs examples-validate ## Run full build pipeline (clean, install, lint-fix, test, build, docs, validate examples)
 
@@ -42,7 +48,20 @@ security: ## Run security checks
 	bandit -r src/
 	safety check
 
-docs: docs-validate ## Build documentation with Quarto (includes validation)
+check-docs-deps: ## Check that required documentation tools are available
+	@if ! command -v quartodoc > /dev/null 2>&1; then \
+		echo "Error: quartodoc not found."; \
+		echo "Activate virtual environment or install docs dependencies:"; \
+		echo "  source $(VENV)/bin/activate && pip install -e '.[docs]'"; \
+		exit 1; \
+	fi
+	@if ! command -v quarto > /dev/null 2>&1; then \
+		echo "Error: quarto CLI not found."; \
+		echo "Install Quarto from https://quarto.org/docs/get-started/"; \
+		exit 1; \
+	fi
+
+docs: docs-validate check-docs-deps ## Build documentation with Quarto (includes validation)
 	@echo "Extracting version from pyproject.toml..."
 	@SOILDB_VERSION=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
 	echo "Version: $$SOILDB_VERSION"; \
@@ -51,7 +70,7 @@ docs: docs-validate ## Build documentation with Quarto (includes validation)
 	sed -i "s/\"version\": \"0.0.9999\"/\"version\": \"$$SOILDB_VERSION\"/g" docs/objects.json; \
 	quarto render docs
 
-docs-serve: docs-validate ## Serve documentation with Quarto and watch for changes (includes validation)
+docs-serve: docs-validate check-docs-deps ## Serve documentation with Quarto and watch for changes (includes validation)
 	@echo "Extracting version from pyproject.toml..."
 	@SOILDB_VERSION=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
 	echo "Version: $$SOILDB_VERSION"; \

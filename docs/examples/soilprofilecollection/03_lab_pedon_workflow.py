@@ -1,131 +1,96 @@
 """
-Example 3: Using Different Presets
+Convert lab pedon characterization data to SoilProfileCollection.
 
-This example demonstrates how to use different presets to convert
-the same horizon data to SoilProfileCollection with different column
-configurations.
-
-Use this when:
-- You want to select which columns to include
-- You need different column sets for different analyses
-- You're comparing different preset configurations
+Queries lab pedon horizons from SDA (lab_layer table) and maps
+pedon and layer keys to SoilProfileCollection identifiers.
+Requires optional soilprofilecollection package: pip install 'soildb[soil]'
 """
 
 import asyncio
 
-from soildb import Query, SDAClient
-from soildb.spc_presets import get_preset, list_presets
+from soildb import Query, SDAClient, SDAResponse
+
+
+def handle_missing_spc():
+    """Handle missing soilprofilecollection dependency."""
+    print("Optional dependency missing: soilprofilecollection")
+    print("Install with: pip install 'soildb[soil]'")
+    return None
 
 
 async def main():
-    """Demonstrate different presets with the same data."""
+    """Query lab pedons and convert to SoilProfileCollection."""
 
     print("=" * 60)
-    print("Example 3: Using Different Presets")
+    print("Example 3: Lab Pedon Workflow")
     print("=" * 60)
     print()
 
     async with SDAClient() as client:
-        # Query standard horizon data
-        print("Querying horizon data...")
+        print("Querying lab pedon horizon data...")
         query = (
             Query()
             .select(
-                "cokey",
-                "chkey",
-                "hzdept_r",
-                "hzdepb_r",
-                "claytotal_r",
-                "sandtotal_r",
-                "silttotal_r",
-                "om_r",
+                "pedon_key",
+                "layer_key",
+                "hzn_top",
+                "hzn_bot",
+                "hzn_desgn",
+                "clay_total",
+                "sand_total",
+                "silt_total",
             )
-            .from_("chorizon")
-            .order_by("cokey, hzdept_r")
+            .from_("lab_layer")
+            .where(
+                "layer_type = 'horizon' AND hzn_top IS NOT NULL AND hzn_bot IS NOT NULL"
+            )
+            .order_by("pedon_key, hzn_top")
             .limit(100)
         )
 
-        response = await client.execute(query)
-        print(f"  Retrieved {len(response)} horizon records")
+        response: SDAResponse = await client.execute(query)
+        print(f"Retrieved {len(response)} lab horizon records")
         print()
 
         if response.is_empty():
-            print("No data available. SDA service may be unavailable.")
+            print("No data retrieved.")
             return None
 
-        # Show available presets
-        print("Available presets:")
-        presets = list_presets()
-        for preset_name in presets:
-            preset = get_preset(preset_name)
-            print(f"  - {preset_name}")
-            print(f"    Description: {preset.description}")
-            if hasattr(preset, "selected_columns"):
-                print(f"    Columns: {len(preset.selected_columns)} columns")
-        print()
-
-        # Try converting with standard_sda preset
-        print("Converting with 'standard_sda' preset...")
+        print("Converting lab pedons to SoilProfileCollection...")
         try:
-            spc_std = response.to_soilprofilecollection(
-                preset="standard_sda",
-                validate_depths=False,  # Disable depth validation for example data
-                warn_on_defaults=False,
+            spc = response.to_soilprofilecollection(
+                site_id_col="pedon_key",
+                hz_id_col="layer_key",
+                hz_top_col="hzn_top",
+                hz_bot_col="hzn_bot",
             )
-
             print("Conversion successful.")
-            print(f"  Profiles: {len(spc_std)}")
-            print(f"  Horizons: {len(spc_std.horizons)}")
-            print(f"  Horizon columns: {spc_std.horizons.columns.tolist()}")
+            print(f"  Profiles: {len(spc)}")
+            print(f"  Horizons: {len(spc.horizons)}")
             print()
 
-            # Show statistics
-            if len(spc_std.horizons) > 0:
-                print("Data statistics:")
-                if "claytotal_r" in spc_std.horizons.columns:
-                    clay_mean = spc_std.horizons["claytotal_r"].mean()
-                    clay_std = spc_std.horizons["claytotal_r"].std()
-                    print(f"  Clay: mean={clay_mean:.1f}%, std={clay_std:.1f}%")
-
-                if "sandtotal_r" in spc_std.horizons.columns:
-                    sand_mean = spc_std.horizons["sandtotal_r"].mean()
-                    print(f"  Sand: mean={sand_mean:.1f}%")
-
-                if "om_r" in spc_std.horizons.columns:
-                    om_mean = spc_std.horizons["om_r"].mean()
-                    print(f"  Organic matter: mean={om_mean:.2f}%")
-                print()
-
-                # Show sample horizons
-                print("Sample horizons (first 5):")
+            if len(spc.horizons) > 0:
+                print("First 5 lab horizon records:")
                 sample_cols = [
                     col
                     for col in [
-                        "cokey",
-                        "hzdept_r",
-                        "hzdepb_r",
-                        "claytotal_r",
-                        "sandtotal_r",
+                        "pedon_key",
+                        "layer_key",
+                        "hzn_top",
+                        "hzn_bot",
+                        "hzn_desgn",
+                        "clay_total",
                     ]
-                    if col in spc_std.horizons.columns
+                    if col in spc.horizons.columns
                 ]
-                print(spc_std.horizons[sample_cols].head())
+                print(spc.horizons[sample_cols].head())
 
-            return spc_std
+            return spc
 
+        except ImportError:
+            return handle_missing_spc()
         except Exception as e:
-            print(f"Note: {type(e).__name__}: {e}")
-            print()
-            print("This may occur if:")
-            print("  - Horizons have depth gaps in the queried data")
-            print("  - Some depth values are missing or invalid")
-            print("  - Data quality issues exist in the SDA service")
-            print()
-            print("For real-world use, consider:")
-            print("  - Filtering to profiles with complete horizon coverage")
-            print("  - Validating and cleaning depth values")
-            print("  - Using the validation functions before conversion")
-            print(f"   Available columns: {response.columns}")
+            print(f"Conversion error: {e}")
             return None
 
 
@@ -136,5 +101,5 @@ if __name__ == "__main__":
     if spc is not None:
         print("Example completed successfully!")
     else:
-        print("Example encountered an error.")
+        print("Example finished (conversion skipped).")
     print("=" * 60)

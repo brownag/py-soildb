@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 """
-Basic usage example for soildb package.
-
-This example demonstrates the core functionality of soildb including:
-- Connecting to SDA service
-- Querying soil data by location
-- Getting map units for survey areas
-- Converting results to pandas DataFrame
+Query Soil Data Access (SDA) by point location, survey area, and bounding box.
 
 See also:
-- Workflows: Point Queries → ../workflows.qmd#point-queries
-- Workflows: Survey Area Queries → ../workflows.qmd#survey-area-queries
-- Quick Start → ../quickstart.qmd
+- Workflows: Point Queries -> ../workflows.qmd#point-queries
+- Workflows: Survey Area Queries -> ../workflows.qmd#survey-area-queries
+- Quick Start -> ../quickstart.qmd
 """
 
 import asyncio
@@ -37,7 +31,9 @@ async def main():
             print("\n2. Getting soil data for Ames, Iowa...")
             longitude, latitude = -93.6319, 42.0308  # Ames, Iowa
 
-            soil_data = await soildb.get_mapunit_by_point(longitude, latitude, client)
+            soil_data = await soildb.get_mapunit_by_point(
+                longitude, latitude, client=client
+            )
             print(f"Found {len(soil_data)} soil records at ({longitude}, {latitude})")
 
             if not soil_data.is_empty():
@@ -57,7 +53,7 @@ async def main():
             print("\n3. Getting map units for Story County, Iowa (IA169)...")
             areasymbol = "IA169"
 
-            mapunits = await soildb.get_mapunit_by_areasymbol(areasymbol, client)
+            mapunits = await soildb.get_mapunit_by_areasymbol(areasymbol, client=client)
             print(f"Found {len(mapunits)} map units in {areasymbol}")
 
             if not mapunits.is_empty():
@@ -105,7 +101,7 @@ async def main():
             # Example 5: Bounding box query
             print("\n6. Getting map units in bounding box around Ames...")
             bbox_data = await soildb.get_mapunit_by_bbox(
-                -93.7, 42.0, -93.6, 42.1, client
+                -93.7, 42.0, -93.6, 42.1, client=client
             )
             print(f"Found {len(bbox_data)} map units in bounding box")
 
