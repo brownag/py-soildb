@@ -9,15 +9,13 @@ backends (SDA, SQLite, GeoPackage) in a consistent way.
 The backend layer consists of:
 
 1. **BaseBackend** - Abstract base class defining the unified interface
-2. **ResponseAdapter** - Converts any database result to SDAResponse
-3. **SchemaIntrospector** - Database-agnostic schema discovery
-4. **TypeMapperFactory** - Database-specific type mappings
-5. **BackendError** - Semantic exception hierarchy
+2. **SchemaIntrospector** - Database-agnostic schema discovery
+3. **BackendError** - Semantic exception hierarchy
 
 ## Usage
 
 ```python
-from soildb.backends import BaseBackend, ResponseAdapter, SchemaIntrospector
+from soildb.backends import BaseBackend, SchemaIntrospector
 
 # Create a backend implementation
 backend = SQLiteBackend("path/to/database.sqlite")
@@ -38,27 +36,21 @@ To add support for a new database system:
 
 1. Create a backend class inheriting from BaseBackend
 2. Implement required methods: connect(), execute(), get_tables(), get_columns()
-3. Use ResponseAdapter to convert results to SDAResponse
+3. Use SDAResponse.from_rows() with TypeMap.infer_sda_type() for type inference
 4. Use SchemaIntrospector for schema discovery
-5. Use TypeMapperFactory to get the appropriate type mapper
 
 Example:
 
 ```python
-from soildb.backends import (
-    BaseBackend,
-    ResponseAdapter,
-    SchemaIntrospector,
-    TypeMapperFactory,
-    BackendConnectionError,
-)
+from soildb.backends import BaseBackend, BackendConnectionError
+from soildb.response import SDAResponse
+from soildb.type_conversion import get_default_type_map
 
 class MyDatabaseBackend(BaseBackend):
     def __init__(self, connection_string, config=None):
         super().__init__(config)
         self.connection_string = connection_string
         self.connection = None
-        self.type_mapper = TypeMapperFactory.get("mydatabase")
 
     async def connect(self):
         try:
@@ -70,7 +62,10 @@ class MyDatabaseBackend(BaseBackend):
     async def execute(self, sql):
         rows = await self.connection.fetch(sql)
         columns = [col[0] for col in rows.description]
-        response = await ResponseAdapter.from_rows(rows, columns, self.type_mapper)
+        # Infer types from first non-null value in each column
+        type_map = get_default_type_map()
+        sda_types = type_map.infer_sda_types(rows, len(columns))
+        response = SDAResponse.from_rows(rows, columns, sda_types)
         return response
 
     async def get_tables(self):
@@ -142,12 +137,9 @@ from soildb.backends.exceptions import (
     BackendSchemaError,
 )
 from soildb.backends.geopackage_backend import GeoPackageBackend
-from soildb.backends.response_adapter import ResponseAdapter
 from soildb.backends.schema import ColumnInfo, DatabaseTableSchema, SchemaIntrospector
 from soildb.backends.sda_backend import SDABackend
 from soildb.backends.sqlite_backend import SQLiteBackend
-from soildb.backends.ssurgo_client import SSURGOClient
-from soildb.backends.type_mapper import DatabaseTypeMapper, TypeMapperFactory
 
 __all__ = [
     # Base classes
@@ -156,16 +148,10 @@ __all__ = [
     "SDABackend",
     "SQLiteBackend",
     "GeoPackageBackend",
-    "SSURGOClient",
-    # Response conversion
-    "ResponseAdapter",
     # Schema introspection
     "SchemaIntrospector",
     "DatabaseTableSchema",
     "ColumnInfo",
-    # Type mapping
-    "TypeMapperFactory",
-    "DatabaseTypeMapper",
     # Exceptions
     "BackendError",
     "BackendConnectionError",

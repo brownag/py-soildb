@@ -3,11 +3,13 @@ Unit tests for backend infrastructure components.
 
 Tests cover:
 - BaseBackend abstract interface
-- ResponseAdapter response conversion
 - SchemaIntrospector schema discovery
-- TypeMapperFactory type mappings
 - BackendError exception hierarchy
 """
+
+import os
+import sqlite3
+import tempfile
 
 import pytest
 
@@ -19,10 +21,8 @@ from soildb.backends import (
     BaseBackend,
     ColumnInfo,
     DatabaseTableSchema,
-    DatabaseTypeMapper,
-    ResponseAdapter,
     SchemaIntrospector,
-    TypeMapperFactory,
+    SQLiteBackend,
 )
 from soildb.response import SDAResponse
 
@@ -218,138 +218,6 @@ class TestBaseBackend:
             await backend.get_tables()
 
 
-class TestResponseAdapter:
-    """Tests for ResponseAdapter response conversion."""
-
-    @pytest.mark.asyncio
-    async def test_from_rows_basic(self):
-        """from_rows() should convert tuple list to SDAResponse."""
-        rows = [
-            (1, "Alice", 25.5),
-            (2, "Bob", 30.0),
-        ]
-        columns = ["id", "name", "score"]
-
-        response = await ResponseAdapter.from_rows(rows, columns)
-        assert isinstance(response, SDAResponse)
-
-        df = response.to_pandas()
-        assert len(df) == 2
-        assert list(df.columns) == ["id", "name", "score"]
-        # Values may be typed as strings by SDAResponse
-        assert df.iloc[0]["id"] in (1, "1")
-        assert df.iloc[0]["name"] == "Alice"
-
-    @pytest.mark.asyncio
-    async def test_from_rows_empty(self):
-        """from_rows() should handle empty results."""
-        rows = []
-        columns = ["id", "name", "score"]
-
-        response = await ResponseAdapter.from_rows(rows, columns)
-        df = response.to_pandas()
-        assert len(df) == 0
-        # Column names are preserved even with empty results
-        assert "id" in df.columns or len(df.columns) == 0
-
-    @pytest.mark.asyncio
-    async def test_from_rows_with_nulls(self):
-        """from_rows() should handle NULL values."""
-        rows = [
-            (1, "Alice", None),
-            (None, "Bob", 30.0),
-        ]
-        columns = ["id", "name", "score"]
-
-        response = await ResponseAdapter.from_rows(rows, columns)
-        df = response.to_pandas()
-        assert len(df) == 2
-        # Nulls may be converted to empty strings or NaN
-        score_val = df.iloc[0]["score"]
-        assert score_val in (None, "", float("nan")) or score_val != score_val
-
-        id_val = df.iloc[1]["id"]
-        assert id_val in (None, "", float("nan")) or id_val != id_val
-
-    @pytest.mark.asyncio
-    async def test_from_rows_type_inference(self):
-        """from_rows() should infer types from values."""
-        rows = [
-            (1, "text", 1.5, True),
-        ]
-        columns = ["int_col", "str_col", "float_col", "bool_col"]
-
-        response = await ResponseAdapter.from_rows(rows, columns)
-        df = response.to_pandas()
-
-        # Values should be present (may be typed as strings by SDAResponse)
-        assert df.iloc[0]["int_col"] in (1, "1")
-        assert df.iloc[0]["str_col"] == "text"
-        assert df.iloc[0]["float_col"] in (1.5, "1.5")
-
-    @pytest.mark.asyncio
-    async def test_from_dict_rows(self):
-        """from_dict_rows() should convert dict list to SDAResponse."""
-        rows = [
-            {"id": 1, "name": "Alice", "score": 25.5},
-            {"id": 2, "name": "Bob", "score": 30.0},
-        ]
-        columns = ["id", "name", "score"]
-
-        response = await ResponseAdapter.from_dict_rows(rows, columns)
-        df = response.to_pandas()
-
-        assert len(df) == 2
-        assert list(df.columns) == ["id", "name", "score"]
-        assert df.iloc[0]["name"] == "Alice"
-
-    @pytest.mark.asyncio
-    async def test_from_dict_rows_empty(self):
-        """from_dict_rows() should handle empty results."""
-        rows = []
-        columns = ["id", "name", "score"]
-        response = await ResponseAdapter.from_dict_rows(rows, columns)
-        df = response.to_pandas()
-        assert len(df) == 0
-
-    @pytest.mark.asyncio
-    async def test_combine_responses(self):
-        """combine_responses() should merge multiple responses."""
-        response1 = SDAResponse(
-            {
-                "Table": [
-                    ["id", "name"],
-                    ["int", "varchar"],
-                    [1, "Alice"],
-                ]
-            }
-        )
-        response2 = SDAResponse(
-            {
-                "Table": [
-                    ["id", "name"],
-                    ["int", "varchar"],
-                    [2, "Bob"],
-                ]
-            }
-        )
-
-        combined = await ResponseAdapter.combine_responses([response1, response2])
-        df = combined.to_pandas()
-
-        assert len(df) == 2
-        # Values may be converted to strings
-        assert list(df["id"]) in ([1, 2], ["1", "2"])
-        assert list(df["name"]) == ["Alice", "Bob"]
-
-    @pytest.mark.asyncio
-    async def test_combine_responses_empty(self):
-        """combine_responses() should handle empty list."""
-        combined = await ResponseAdapter.combine_responses([])
-        df = combined.to_pandas()
-        assert len(df) == 0
-
-
 class TestSchemaIntrospector:
     """Tests for SchemaIntrospector schema discovery."""
 
@@ -542,195 +410,73 @@ class TestDatabaseTableSchema:
         assert types == {"id": "int", "name": "varchar"}
 
 
-class TestTypeMapperFactory:
-    """Tests for TypeMapperFactory type mappers."""
+class TestSQLiteBackendInterface:
+    """Interface tests for SQLite backend type inference."""
 
-    def test_sqlite_mapper(self):
-        """TypeMapperFactory.for_sqlite() should return SQLite mapper."""
-        mapper = TypeMapperFactory.for_sqlite()
-        assert isinstance(mapper, DatabaseTypeMapper)
-        assert mapper.name == "SQLite"
+    @pytest.mark.asyncio
+    async def test_sqlite_backend_infers_types_correctly(self):
+        """SQLite backend should infer and preserve types in SDAResponse."""
+        # Create a temporary SQLite database with mixed types
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            db_path = tmp.name
 
-    def test_sqlite_type_mapping(self):
-        """SQLite mapper should map types correctly."""
-        mapper = TypeMapperFactory.for_sqlite()
+        try:
+            # Create test table and insert data
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE test_types (
+                    int_col INTEGER,
+                    float_col REAL,
+                    str_col TEXT,
+                    nullable_col TEXT
+                )
+                """
+            )
+            cursor.execute(
+                """
+                INSERT INTO test_types (int_col, float_col, str_col, nullable_col)
+                VALUES (42, 3.14, 'hello', NULL),
+                       (100, 2.71, 'world', 'value')
+                """
+            )
+            conn.commit()
+            conn.close()
 
-        assert mapper.map_to_sda("INTEGER") == "int"
-        assert mapper.map_to_sda("TEXT") == "varchar"
-        assert mapper.map_to_sda("REAL") == "float"
-        assert mapper.map_to_sda("BLOB") == "binary"
-        assert mapper.map_to_sda("GEOMETRY") == "geometry"
+            # Execute via SQLite backend
+            backend = SQLiteBackend(db_path)
+            response = await backend.execute("SELECT * FROM test_types")
 
-    def test_sqlite_case_insensitive(self):
-        """SQLite mapper should be case-insensitive."""
-        mapper = TypeMapperFactory.for_sqlite()
+            # Verify response types
+            data = response.to_dict()
+            assert len(data) == 2
 
-        assert mapper.map_to_sda("integer") == "int"
-        assert mapper.map_to_sda("INTEGER") == "int"
-        assert mapper.map_to_sda("Integer") == "int"
+            # Check first row: (42, 3.14, 'hello', NULL)
+            row1 = data[0]
+            assert row1["int_col"] == 42
+            assert isinstance(row1["int_col"], int)
+            assert row1["float_col"] == pytest.approx(3.14)
+            assert isinstance(row1["float_col"], float)
+            assert row1["str_col"] == "hello"
+            assert isinstance(row1["str_col"], str)
+            # NULL values may be converted to empty string or None depending on type
+            assert row1["nullable_col"] in (None, "")
 
-    def test_postgresql_mapper(self):
-        """TypeMapperFactory.for_postgresql() should return PostgreSQL mapper."""
-        mapper = TypeMapperFactory.for_postgresql()
-        assert isinstance(mapper, DatabaseTypeMapper)
-        assert mapper.name == "PostgreSQL"
+            # Check second row: (100, 2.71, 'world', 'value')
+            row2 = data[1]
+            assert row2["int_col"] == 100
+            assert isinstance(row2["int_col"], int)
+            assert row2["float_col"] == pytest.approx(2.71)
+            assert isinstance(row2["float_col"], float)
+            assert row2["str_col"] == "world"
+            assert isinstance(row2["str_col"], str)
+            assert row2["nullable_col"] == "value"
+            assert isinstance(row2["nullable_col"], str)
 
-    def test_postgresql_type_mapping(self):
-        """PostgreSQL mapper should map types correctly."""
-        mapper = TypeMapperFactory.for_postgresql()
-
-        assert mapper.map_to_sda("integer") == "int"
-        assert mapper.map_to_sda("text") == "varchar"
-        assert mapper.map_to_sda("float8") == "float"
-        assert mapper.map_to_sda("bytea") == "binary"
-        assert mapper.map_to_sda("geometry") == "geometry"
-
-    def test_sda_mapper(self):
-        """TypeMapperFactory.for_sda() should return SDA mapper."""
-        mapper = TypeMapperFactory.for_sda()
-        assert isinstance(mapper, DatabaseTypeMapper)
-        assert mapper.name == "SDA"
-
-    def test_sda_type_mapping(self):
-        """SDA mapper should preserve SDA types."""
-        mapper = TypeMapperFactory.for_sda()
-
-        assert mapper.map_to_sda("int") == "int"
-        assert mapper.map_to_sda("varchar") == "varchar"
-        assert mapper.map_to_sda("float") == "float"
-        assert mapper.map_to_sda("geometry") == "geometry"
-
-    def test_geopackage_mapper(self):
-        """TypeMapperFactory.for_geopackage() should return GeoPackage mapper."""
-        mapper = TypeMapperFactory.for_geopackage()
-        assert isinstance(mapper, DatabaseTypeMapper)
-        assert mapper.name == "GeoPackage"
-
-    def test_geopackage_inherits_sqlite(self):
-        """GeoPackage mapper should use SQLite type mappings."""
-        sqlite_mapper = TypeMapperFactory.for_sqlite()
-        geopackage_mapper = TypeMapperFactory.for_geopackage()
-
-        # Should have same mappings
-        assert sqlite_mapper.map_to_sda("INTEGER") == geopackage_mapper.map_to_sda(
-            "INTEGER"
-        )
-        assert sqlite_mapper.map_to_sda("GEOMETRY") == geopackage_mapper.map_to_sda(
-            "GEOMETRY"
-        )
-
-    def test_type_mapper_get_python_type(self):
-        """Type mapper should get Python type for database type."""
-        mapper = TypeMapperFactory.for_sqlite()
-
-        assert mapper.get_python_type("INTEGER") is int
-        assert mapper.get_python_type("TEXT") is str
-        assert mapper.get_python_type("REAL") is float
-
-    def test_type_mapper_unknown_type(self):
-        """Type mapper should default unknown types to varchar."""
-        mapper = TypeMapperFactory.for_sqlite()
-
-        sda_type = mapper.map_to_sda("CUSTOM_TYPE")
-        assert sda_type == "varchar"
-
-    def test_type_mapper_type_with_params(self):
-        """Type mapper should handle types with parameters."""
-        mapper = TypeMapperFactory.for_sqlite()
-
-        # VARCHAR(255) should map to varchar
-        assert mapper.map_to_sda("VARCHAR(255)") == "varchar"
-
-    def test_type_mapper_infer_from_value(self):
-        """Type mapper should infer database type from Python value."""
-        mapper = TypeMapperFactory.for_sqlite()
-
-        assert mapper.infer_type_from_value(42) == "INTEGER"
-        assert mapper.infer_type_from_value("text") == "TEXT"
-        assert mapper.infer_type_from_value(3.14) == "REAL"
-        assert mapper.infer_type_from_value(b"bytes") == "BLOB"
-        assert mapper.infer_type_from_value(True) == "BOOLEAN"
-        assert mapper.infer_type_from_value(None) == "NULL"
-
-    def test_type_mapper_infer_sda_type(self):
-        """Type mapper should infer SDA type from Python value."""
-        mapper = TypeMapperFactory.for_sqlite()
-
-        assert mapper.infer_sda_type_from_value(42) == "int"
-        assert mapper.infer_sda_type_from_value("text") == "varchar"
-        assert mapper.infer_sda_type_from_value(3.14) == "float"
-
-    def test_custom_type_mapper_registration(self):
-        """TypeMapperFactory should support custom mapper registration."""
-        custom_types = {
-            "MY_INT": "int",
-            "MY_STR": "varchar",
-            "MY_FLOAT": "float",
-        }
-        custom_mapper = TypeMapperFactory.create(custom_types, "mydb")
-
-        assert custom_mapper.map_to_sda("MY_INT") == "int"
-        assert custom_mapper.map_to_sda("MY_STR") == "varchar"
-
-        # Register it
-        TypeMapperFactory.register("mydb", custom_mapper)
-
-        # Retrieve it
-        retrieved = TypeMapperFactory.get("mydb")
-        assert retrieved is custom_mapper
-
-    def test_cached_mappers(self):
-        """TypeMapperFactory should cache mapper instances."""
-        mapper1 = TypeMapperFactory.for_sqlite()
-        mapper2 = TypeMapperFactory.for_sqlite()
-
-        # Should be same instance (cached)
-        assert mapper1 is mapper2
-
-
-class TestDatabaseTypeMapper:
-    """Tests for DatabaseTypeMapper."""
-
-    def test_mapper_initialization(self):
-        """DatabaseTypeMapper should initialize with type mappings."""
-        types = {"INT": "int", "VARCHAR": "varchar"}
-        mapper = DatabaseTypeMapper(types, name="TestDB")
-
-        assert mapper.name == "TestDB"
-        assert mapper.map_to_sda("INT") == "int"
-
-    def test_mapper_case_insensitive(self):
-        """DatabaseTypeMapper should be case-insensitive."""
-        types = {"INT": "int", "VARCHAR": "varchar"}
-        mapper = DatabaseTypeMapper(types)
-
-        assert mapper.map_to_sda("int") == "int"
-        assert mapper.map_to_sda("INT") == "int"
-        assert mapper.map_to_sda("Int") == "int"
-
-    def test_mapper_type_with_params(self):
-        """DatabaseTypeMapper should handle types with parameters."""
-        types = {"VARCHAR": "varchar", "INTEGER": "int"}
-        mapper = DatabaseTypeMapper(types)
-
-        assert mapper.map_to_sda("VARCHAR(255)") == "varchar"
-        assert mapper.map_to_sda("INTEGER(10)") == "int"
-
-    def test_mapper_default_unknown(self):
-        """DatabaseTypeMapper should default unknown types to varchar."""
-        types = {"INT": "int"}
-        mapper = DatabaseTypeMapper(types)
-
-        assert mapper.map_to_sda("UNKNOWN_TYPE") == "varchar"
-
-    def test_mapper_repr(self):
-        """DatabaseTypeMapper should have useful repr."""
-        types = {"INT": "int", "VARCHAR": "varchar"}
-        mapper = DatabaseTypeMapper(types, name="TestDB")
-
-        repr_str = repr(mapper)
-        assert "TestDB" in repr_str
-        assert "2" in repr_str  # 2 mappings
+        finally:
+            # Clean up
+            os.unlink(db_path)
 
 
 # Integration test combining multiple components
@@ -776,7 +522,7 @@ class TestBackendIntegration:
 
     @pytest.mark.asyncio
     async def test_response_combination_workflow(self):
-        """Test combining multiple response objects."""
+        """Test combining multiple response objects with SDAResponse.concat."""
         backend = MockBackend()
 
         async with backend:
@@ -785,8 +531,8 @@ class TestBackendIntegration:
                 ["SELECT * FROM table1", "SELECT * FROM table2"]
             )
 
-            # Combine responses
-            combined = await ResponseAdapter.combine_responses(responses)
+            # Combine responses using concat
+            combined = SDAResponse.concat(responses)
             df = combined.to_pandas()
 
             # Should have combined results

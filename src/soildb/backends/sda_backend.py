@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from soildb.client import SDAClient
 from soildb.response import SDAResponse
+from soildb.sanitization import validate_sql_identifier
 
 from .base import BaseBackend
 from .exceptions import BackendConnectionError, BackendQueryError, BackendSchemaError
@@ -100,19 +101,23 @@ class SDABackend(BaseBackend):
         """Get schema for a specific table from SDA.
 
         Args:
-            table_name: Name of the table
+            table_name: Name of the table (validated as SQL identifier)
 
         Returns:
             Dict mapping column names to types
 
         Raises:
-            BackendSchemaError: If schema discovery fails
+            BackendSchemaError: If schema discovery fails or table_name is invalid
+            ValueError: If table_name is not a valid SQL identifier
 
         Note:
             For SDA backend, queries INFORMATION_SCHEMA to get column info.
             This provides approximate schema since SDA SQL Server backend
             may have types that need interpretation.
         """
+        # Validate table_name to prevent SQL injection
+        validate_sql_identifier(table_name)
+
         query = f"""
         SELECT COLUMN_NAME, DATA_TYPE
         FROM INFORMATION_SCHEMA.COLUMNS

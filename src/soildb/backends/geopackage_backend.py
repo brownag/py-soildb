@@ -14,6 +14,7 @@ from typing import Any, Optional, Union
 import aiosqlite
 
 from soildb.response import SDAResponse
+from soildb.sanitization import validate_wkt_geometry
 
 from .exceptions import BackendSchemaError
 from .sqlite_backend import SQLiteBackend
@@ -137,16 +138,22 @@ class GeoPackageBackend(SQLiteBackend):
         Args:
             table: Table name
             geom_col: Geometry column name
-            geometry_wkt: WKT geometry string
+            geometry_wkt: WKT geometry string (validated before use)
             predicate: Spatial predicate
 
         Returns:
-            SQL query string
+            SQL query string with validated WKT geometry
+
+        Raises:
+            ValueError: If predicate is unknown or WKT geometry is invalid
 
         Note:
             This is a basic implementation using bounding boxes.
             For full spatial support, would need SpatiaLite extension.
         """
+        # Validate WKT geometry to prevent SQL injection
+        validate_wkt_geometry(geometry_wkt)
+
         # For basic GeoPackage (without SpatiaLite), use simple approach:
         # Try ST_Intersects if available (SpatiaLite extension)
         # Fall back to bounding box comparison if not

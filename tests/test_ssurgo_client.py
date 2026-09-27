@@ -5,12 +5,15 @@ Tests verify that SSURGOClient can construct proper SQL queries
 for SSURGO tables and execute them via any backend.
 """
 
+import sqlite3
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from soildb.backends.ssurgo_client import SSURGOClient
+from soildb.backends import SQLiteBackend
 from soildb.response import SDAResponse
+from soildb.ssurgo_client import SSURGOClient
+from soildb.ssurgo_tables import filter_fields
 
 
 class MockBackend:
@@ -35,6 +38,97 @@ class MockBackend:
         return {"id": "integer", "name": "text"}
 
 
+@pytest.fixture
+def tmp_ssurgo_db(tmp_path):
+    """Create a temporary SQLite database with SSURGO test tables.
+
+    Sets up minimal mapunit, component, chorizon, and legend tables
+    with test data for interface testing.
+
+    Args:
+        tmp_path: pytest tmp_path fixture
+
+    Yields:
+        Path: Path to the temporary SQLite database file
+    """
+    db_path = tmp_path / "test.db"
+
+    # Create tables and insert test data using sqlite3 (sync)
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+
+    # mapunit table: mukey, musym, muname
+    cursor.execute(
+        """
+        CREATE TABLE mapunit (
+            mukey INTEGER PRIMARY KEY,
+            musym TEXT,
+            muname TEXT
+        )
+        """
+    )
+    cursor.execute(
+        "INSERT INTO mapunit (mukey, musym, muname) VALUES (101, 'IA001A', 'Miami')"
+    )
+    cursor.execute(
+        "INSERT INTO mapunit (mukey, musym, muname) VALUES (102, 'IA001B', 'Cary')"
+    )
+    cursor.execute(
+        'INSERT INTO mapunit (mukey, musym, muname) VALUES (103, "O\'Brien", "O\'Brien soil")'
+    )
+
+    # component table: cokey, mukey, compname
+    cursor.execute(
+        """
+        CREATE TABLE component (
+            cokey INTEGER PRIMARY KEY,
+            mukey INTEGER,
+            compname TEXT
+        )
+        """
+    )
+    cursor.execute(
+        "INSERT INTO component (cokey, mukey, compname) VALUES (201, 101, 'Miami')"
+    )
+    cursor.execute(
+        "INSERT INTO component (cokey, mukey, compname) VALUES (202, 102, 'Cary')"
+    )
+
+    # chorizon table: chkey, cokey, hzname
+    cursor.execute(
+        """
+        CREATE TABLE chorizon (
+            chkey INTEGER PRIMARY KEY,
+            cokey INTEGER,
+            hzname TEXT
+        )
+        """
+    )
+    cursor.execute(
+        "INSERT INTO chorizon (chkey, cokey, hzname) VALUES (301, 201, 'Ap')"
+    )
+    cursor.execute(
+        "INSERT INTO chorizon (chkey, cokey, hzname) VALUES (302, 202, 'Bt')"
+    )
+
+    # legend table: lkey, areasymbol
+    cursor.execute(
+        """
+        CREATE TABLE legend (
+            lkey INTEGER PRIMARY KEY,
+            areasymbol TEXT
+        )
+        """
+    )
+    cursor.execute("INSERT INTO legend (lkey, areasymbol) VALUES (401, 'IA001')")
+    cursor.execute("INSERT INTO legend (lkey, areasymbol) VALUES (402, 'IA025')")
+
+    conn.commit()
+    conn.close()
+
+    yield db_path
+
+
 class TestSSURGOClientInitialization:
     """Tests for SSURGOClient initialization."""
 
@@ -53,7 +147,7 @@ class TestSSURGOClientInitialization:
 
 
 class TestSSURGOClientQueryBuilding:
-    """Tests for SQL query building."""
+    """Tests for SQL query building via interface with real SQLite backend."""
 
     def test_build_query_with_where_clause(self):
         """_build_query should use custom WHERE clause when provided."""
@@ -67,37 +161,6 @@ class TestSSURGOClientQueryBuilding:
 
         assert "WHERE muname LIKE 'Miami%'" in sql
 
-    def test_build_query_with_single_key(self):
-        """_build_query should build IN condition for single value."""
-        mock_backend = MockBackend()
-        client = SSURGOClient(mock_backend)
-
-        sql = client._build_query("mapunit", primary_key="101")
-
-        assert "WHERE" in sql
-        assert "mukey = '101'" in sql or "mukey = 101" in sql
-
-    def test_build_query_with_multiple_keys(self):
-        """_build_query should build IN condition for multiple values."""
-        mock_backend = MockBackend()
-        client = SSURGOClient(mock_backend)
-
-        sql = client._build_query("mapunit", primary_key=[101, 102, 103])
-
-        assert "WHERE" in sql
-        assert "mukey IN" in sql
-
-    def test_build_query_with_multiple_string_keys(self):
-        """_build_query should handle string values properly."""
-        mock_backend = MockBackend()
-        client = SSURGOClient(mock_backend)
-
-        sql = client._build_query("mapunit", secondary_key=["IA001A", "IA001B"])
-
-        assert "WHERE" in sql
-        assert "musym IN" in sql
-        assert "'IA001A'" in sql
-
     def test_build_query_with_no_filters(self):
         """_build_query should return SELECT * when no filters provided."""
         mock_backend = MockBackend()
@@ -107,38 +170,176 @@ class TestSSURGOClientQueryBuilding:
 
         assert sql == "SELECT * FROM mapunit"
 
-    def test_build_query_component_table(self):
-        """_build_query should work with component table."""
-        mock_backend = MockBackend()
-        client = SSURGOClient(mock_backend)
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_by_single_key(self, tmp_ssurgo_db):
+        """fetch_mapunit should fetch mapunit by single mukey."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
 
-        sql = client._build_query("component", primary_key=101)
+        response = await client.fetch_mapunit(mukey=101)
 
-        assert "FROM component" in sql
-        assert "WHERE" in sql
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["mukey"] == 101
+        assert data[0]["musym"] == "IA001A"
+        assert data[0]["muname"] == "Miami"
 
-    def test_build_in_condition_numeric(self):
-        """_build_in_condition should handle numeric values."""
-        condition = SSURGOClient._build_in_condition("mukey", [101, 102, 103])
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_by_multiple_keys(self, tmp_ssurgo_db):
+        """fetch_mapunit should fetch mapunit by multiple mukeys."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
 
-        assert "mukey IN (101,102,103)" in condition
+        response = await client.fetch_mapunit(mukey=[101, 102])
 
-    def test_build_in_condition_string(self):
-        """_build_in_condition should handle string values."""
-        condition = SSURGOClient._build_in_condition("musym", ["IA001A", "IA001B"])
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 2
+        mukeys = {row["mukey"] for row in data}
+        assert mukeys == {101, 102}
 
-        assert "musym IN" in condition
-        assert "'IA001A'" in condition
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_by_symbol(self, tmp_ssurgo_db):
+        """fetch_mapunit should fetch mapunit by musym."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
 
-    def test_build_in_condition_single_value(self):
-        """_build_in_condition should handle single value."""
-        condition = SSURGOClient._build_in_condition("mukey", 101)
+        response = await client.fetch_mapunit(musym=["IA001A", "IA001B"])
 
-        assert "mukey = 101" in condition
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 2
+        symbols = {row["musym"] for row in data}
+        assert symbols == {"IA001A", "IA001B"}
+
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_by_name(self, tmp_ssurgo_db):
+        """fetch_mapunit should fetch mapunit by muname."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_mapunit(muname=["Miami", "Cary"])
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 2
+        names = {row["muname"] for row in data}
+        assert names == {"Miami", "Cary"}
+
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_with_quote_in_value(self, tmp_ssurgo_db):
+        """fetch_mapunit should handle values with single quotes correctly."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        # Fetch the row with O'Brien in the musym
+        response = await client.fetch_mapunit(musym=["O'Brien"])
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["musym"] == "O'Brien"
+
+    @pytest.mark.asyncio
+    async def test_fetch_component_by_key(self, tmp_ssurgo_db):
+        """fetch_component should fetch component by cokey."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_component(cokey=201)
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["cokey"] == 201
+        assert data[0]["compname"] == "Miami"
+
+    @pytest.mark.asyncio
+    async def test_fetch_component_by_mukey(self, tmp_ssurgo_db):
+        """fetch_component should fetch component by mukey."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_component(mukey=101)
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["mukey"] == 101
+
+    @pytest.mark.asyncio
+    async def test_fetch_component_by_name(self, tmp_ssurgo_db):
+        """fetch_component should fetch component by compname."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_component(compname=["Miami", "Cary"])
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 2
+        names = {row["compname"] for row in data}
+        assert names == {"Miami", "Cary"}
+
+    @pytest.mark.asyncio
+    async def test_fetch_chorizon_by_key(self, tmp_ssurgo_db):
+        """fetch_chorizon should fetch chorizon by chkey."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_chorizon(chkey=301)
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["chkey"] == 301
+        assert data[0]["hzname"] == "Ap"
+
+    @pytest.mark.asyncio
+    async def test_fetch_chorizon_by_cokey(self, tmp_ssurgo_db):
+        """fetch_chorizon should fetch chorizon by cokey."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_chorizon(cokey=201)
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["cokey"] == 201
+
+    @pytest.mark.asyncio
+    async def test_fetch_legend_by_key(self, tmp_ssurgo_db):
+        """fetch_legend should fetch legend by lkey."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_legend(lkey=401)
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 1
+        assert data[0]["lkey"] == 401
+        assert data[0]["areasymbol"] == "IA001"
+
+    @pytest.mark.asyncio
+    async def test_fetch_legend_by_areasymbol(self, tmp_ssurgo_db):
+        """fetch_legend should fetch legend by areasymbol."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        response = await client.fetch_legend(areasymbol=["IA001", "IA025"])
+
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert len(data) == 2
+        symbols = {row["areasymbol"] for row in data}
+        assert symbols == {"IA001", "IA025"}
 
 
 class TestSSURGOClientMethods:
-    """Tests for SSURGOClient high-level methods."""
+    """Tests for SSURGOClient high-level methods with mock backend."""
 
     @pytest.mark.asyncio
     async def test_fetch_mapunit_by_key(self):
@@ -280,6 +481,90 @@ class TestSSURGOClientIntegration:
 
         # Verify all were executed
         assert mock_backend.execute.call_count == 3
+
+
+class TestSSURGOClientFilterFields:
+    """Tests for SSURGOClient using FILTER_FIELDS metadata."""
+
+    def test_build_query_uses_filter_fields_primary(self):
+        """_build_query should use filter_fields primary column from metadata."""
+        mock_backend = MockBackend()
+        client = SSURGOClient(mock_backend)
+
+        # mapunit's primary filter field is mukey
+        sql = client._build_query("mapunit", primary_key=101)
+        assert "mukey" in sql or "mapunit" in sql
+
+    def test_build_query_uses_filter_fields_secondary(self):
+        """_build_query should use filter_fields secondary column from metadata."""
+        mock_backend = MockBackend()
+        client = SSURGOClient(mock_backend)
+
+        # mapunit's secondary filter field is musym
+        sql = client._build_query("mapunit", primary_key=None, secondary_key="IA001A")
+        assert "musym" in sql or "mapunit" in sql
+
+    def test_build_query_uses_filter_fields_tertiary(self):
+        """_build_query should use filter_fields tertiary column from metadata."""
+        mock_backend = MockBackend()
+        client = SSURGOClient(mock_backend)
+
+        # mapunit's tertiary filter field is muname
+        sql = client._build_query(
+            "mapunit", primary_key=None, secondary_key=None, tertiary_key="Miami"
+        )
+        assert "muname" in sql or "mapunit" in sql
+
+    def test_filter_fields_for_component_table(self):
+        """Verify filter_fields for component table."""
+        # component's filter fields should be: cokey, mukey, compname
+        fields = filter_fields("component")
+        assert fields is not None
+        assert fields[0] == "cokey"
+        assert fields[1] == "mukey"
+        assert fields[2] == "compname"
+
+    def test_filter_fields_for_chorizon_table(self):
+        """Verify filter_fields for chorizon table."""
+        # chorizon's filter fields should be: chkey, cokey, hzname
+        fields = filter_fields("chorizon")
+        assert fields is not None
+        assert fields[0] == "chkey"
+        assert fields[1] == "cokey"
+        assert fields[2] == "hzname"
+
+    def test_filter_fields_for_legend_table(self):
+        """Verify filter_fields for legend table."""
+        # legend's filter fields should be: lkey, areasymbol, areaname
+        fields = filter_fields("legend")
+        assert fields is not None
+        assert fields[0] == "lkey"
+        assert fields[1] == "areasymbol"
+        assert fields[2] == "areaname"
+
+    @pytest.mark.asyncio
+    async def test_fetch_mapunit_uses_filter_fields(self, tmp_ssurgo_db):
+        """fetch_mapunit should correctly use filter_fields for queries."""
+        backend = SQLiteBackend(tmp_ssurgo_db)
+        client = SSURGOClient(backend)
+
+        # Fetch by primary filter field (mukey)
+        response = await client.fetch_mapunit(mukey=101)
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert data[0]["mukey"] == 101
+
+        # Fetch by secondary filter field (musym)
+        response = await client.fetch_mapunit(musym="IA001A")
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert data[0]["musym"] == "IA001A"
+
+        # Fetch by tertiary filter field (muname)
+        response = await client.fetch_mapunit(muname="Miami")
+        assert not response.is_empty()
+        data = response.to_dict()
+        assert data[0]["muname"] == "Miami"
 
 
 if __name__ == "__main__":

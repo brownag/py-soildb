@@ -117,6 +117,60 @@ class TestGeoPackageBackend:
         assert "GeoPackageBackend" in repr_str
         assert "test.gpkg" in repr_str
 
+    def test_geopackage_build_spatial_query_valid_wkt(self, tmp_path):
+        """_build_spatial_query should accept valid WKT geometries."""
+        db_file = tmp_path / "test.gpkg"
+        db_file.touch()
+
+        backend = GeoPackageBackend(db_file)
+
+        # Valid WKT geometries
+        valid_wkts = [
+            "POINT(-93.5 42.0)",
+            "POLYGON((-93 42, -92 42, -92 43, -93 43, -93 42))",
+            "LINESTRING(-93 42, -92 43)",
+        ]
+
+        for wkt in valid_wkts:
+            query = backend._build_spatial_query("features", "geom", wkt, "intersects")
+            assert "ST_Intersects" in query
+            assert wkt in query
+
+    def test_geopackage_build_spatial_query_invalid_wkt(self, tmp_path):
+        """_build_spatial_query should reject invalid WKT."""
+        db_file = tmp_path / "test.gpkg"
+        db_file.touch()
+
+        backend = GeoPackageBackend(db_file)
+
+        # Invalid WKT - must not start with a recognized geometry type
+        invalid_wkts = [
+            "INVALID(-93 42)",
+            "'; DROP TABLE features--",
+            "SELECT * FROM table",
+        ]
+
+        for wkt in invalid_wkts:
+            with pytest.raises(ValueError, match="Invalid WKT geometry"):
+                backend._build_spatial_query("features", "geom", wkt, "intersects")
+
+    def test_geopackage_build_spatial_query_all_predicates(self, tmp_path):
+        """_build_spatial_query should support all spatial predicates."""
+        db_file = tmp_path / "test.gpkg"
+        db_file.touch()
+
+        backend = GeoPackageBackend(db_file)
+        wkt = "POINT(-93.5 42.0)"
+
+        # All three predicates should work
+        predicates = ["intersects", "contains", "within"]
+        for predicate in predicates:
+            query = backend._build_spatial_query("features", "geom", wkt, predicate)
+            assert (
+                f"ST_{predicate.capitalize()}" in query
+                or f"ST_{predicate.upper()}" in query
+            )
+
 
 class TestGeoPackageBackendIntegration:
     """Integration tests for GeoPackageBackend."""

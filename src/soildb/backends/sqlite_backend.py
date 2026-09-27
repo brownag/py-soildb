@@ -12,11 +12,10 @@ from typing import Any, Optional, Union
 import aiosqlite
 
 from soildb.response import SDAResponse
+from soildb.type_conversion import get_default_type_map
 
 from .base import BaseBackend
 from .exceptions import BackendConnectionError, BackendQueryError, BackendSchemaError
-from .response_adapter import ResponseAdapter
-from .type_mapper import TypeMapperFactory
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,6 @@ class SQLiteBackend(BaseBackend):
                 details=f"Expected file: {self.db_path.resolve()}",
             )
 
-        self._type_mapper = TypeMapperFactory.for_sqlite()
         self._connected = False
 
     async def connect(self) -> bool:
@@ -98,15 +96,18 @@ class SQLiteBackend(BaseBackend):
                         columns = [desc[0] for desc in cursor.description]
                         rows = list(await cursor.fetchall())
 
-                    # Convert aiosqlite.Row objects to tuples
-                    tuple_rows = [tuple(row) for row in rows]
+                    # Convert aiosqlite.Row objects to lists for SDAResponse
+                    list_rows = [list(row) for row in rows]
 
-                    # Use ResponseAdapter for consistent conversion
-                    # Note: TypeMapperFactory returns DatabaseTypeMapper which is compatible with TypeMap
-                    response = await ResponseAdapter.from_rows(
-                        tuple_rows,
+                    # Infer SDA types from first non-null value in each column
+                    type_map = get_default_type_map()
+                    sda_types = type_map.infer_sda_types(list_rows, len(columns))
+
+                    # Build response using SDAResponse.from_rows
+                    response = SDAResponse.from_rows(
+                        list_rows,
                         columns,
-                        self._type_mapper,  # type: ignore[arg-type]
+                        sda_types,
                     )
 
                     return response

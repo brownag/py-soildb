@@ -13,9 +13,10 @@ All backends return SDAResponse for consistency.
 import logging
 from typing import Optional, Union
 
+from soildb.backends import BaseBackend
+from soildb.query import Query
 from soildb.response import SDAResponse
-
-from .base import BaseBackend
+from soildb.ssurgo_tables import filter_fields
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ class SSURGOClient:
     all backends (SDA, SQLite, GeoPackage, PostgreSQL).
 
     Example:
-        >>> from soildb.backends import SDABackend, SSURGOClient
+        >>> from soildb.backends import SDABackend
+        >>> from soildb.ssurgo_client import SSURGOClient
         >>> backend = SDABackend()
         >>> client = SSURGOClient(backend)
         >>> response = await client.fetch_mapunit(['IA001', 'IA002'])
@@ -195,69 +197,40 @@ class SSURGOClient:
             # User provided WHERE clause
             return f"SELECT * FROM {table} WHERE {where_clause}"
 
-        # Build WHERE from provided keys
-        conditions = []
+        # Build query using Query builder
+        query = Query().from_(table)
 
-        # Default field names for common tables
-        field_defaults = {
-            "mapunit": ("mukey", "musym", "muname"),
-            "component": ("cokey", "mukey", "compname"),
-            "chorizon": ("chkey", "cokey", "hzname"),
-            "legend": ("lkey", "areasymbol", None),
-        }
-
-        fields = field_defaults.get(table, (None, None, None))
+        # Get filter field names (primary, secondary, alternate) from metadata
+        fields = filter_fields(table) or (None, None, None)
 
         # Resolve field names (prefer explicitly passed, then defaults)
         p_field = primary_field or fields[0]
         s_field = secondary_field or fields[1]
         t_field = alt_field or fields[2] if len(fields) > 2 else None
 
-        # Add conditions for non-None values
+        # Add conditions for non-None values using Query.where_in/where_eq
         if primary_key is not None and p_field is not None:
-            conditions.append(self._build_in_condition(p_field, primary_key))
+            if isinstance(primary_key, (list, tuple)):
+                if primary_key:  # Only add if non-empty
+                    query.where_in(p_field, primary_key)
+            else:
+                query.where_eq(p_field, primary_key)
+
         if secondary_key is not None and s_field is not None:
-            conditions.append(self._build_in_condition(s_field, secondary_key))
+            if isinstance(secondary_key, (list, tuple)):
+                if secondary_key:  # Only add if non-empty
+                    query.where_in(s_field, secondary_key)
+            else:
+                query.where_eq(s_field, secondary_key)
+
         if tertiary_key is not None and t_field is not None:
-            conditions.append(self._build_in_condition(t_field, tertiary_key))
-
-        if not conditions:
-            # No filter provided, return all rows
-            return f"SELECT * FROM {table}"
-
-        where_part = " AND ".join(conditions)
-        return f"SELECT * FROM {table} WHERE {where_part}"
-
-    @staticmethod
-    def _build_in_condition(field: str, values: Union[list, int, str]) -> str:
-        """Build SQL IN condition.
-
-        Args:
-            field: Field name
-            values: Single value or list of values
-
-        Returns:
-            SQL condition string
-        """
-        if isinstance(values, (list, tuple)):
-            # Multiple values - use IN
-            if not values:
-                return "1=0"  # Empty list
-
-            # Check if values are numeric or strings
-            if all(isinstance(v, (int, float)) for v in values):
-                values_str = ",".join(str(v) for v in values)
-                return f"{field} IN ({values_str})"
+            if isinstance(tertiary_key, (list, tuple)):
+                if tertiary_key:  # Only add if non-empty
+                    query.where_in(t_field, tertiary_key)
             else:
-                # String values - quote them
-                values_str = ",".join(f"'{v}'" for v in values)
-                return f"{field} IN ({values_str})"
-        else:
-            # Single value
-            if isinstance(values, (int, float)):
-                return f"{field} = {values}"
-            else:
-                return f"{field} = '{values}'"
+                query.where_eq(t_field, tertiary_key)
+
+        return query.to_sql()
 
     async def get_available_tables(self) -> list[str]:
         """Get list of available SSURGO tables from backend.
