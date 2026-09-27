@@ -7,11 +7,13 @@ from soildb.ssurgo_tables import (
     FILTER_FIELDS,
     GEOMETRY_COLUMNS,
     KEY_COLUMNS,
+    SPATIAL_TABLE_JOINS,
     TABLE_ALIASES,
     default_columns,
     filter_fields,
     geometry_column,
     key_column,
+    spatial_table_joins,
 )
 
 
@@ -353,3 +355,63 @@ class TestFilterFields:
             assert isinstance(result, tuple) and len(result) == 3, (
                 f"filter_fields('{table}') should return a 3-tuple"
             )
+
+
+class TestSpatialTableJoins:
+    """Test SPATIAL_TABLE_JOINS dictionary and spatial_table_joins() function."""
+
+    def test_spatial_table_joins_not_empty(self):
+        """Test that SPATIAL_TABLE_JOINS is populated."""
+        assert len(SPATIAL_TABLE_JOINS) > 0
+
+    def test_spatial_table_joins_structure(self):
+        """Test structure of SPATIAL_TABLE_JOINS entries."""
+        for table, joins in SPATIAL_TABLE_JOINS.items():
+            assert isinstance(joins, list), f"Joins for {table} should be a list"
+            assert len(joins) > 0, f"Joins for {table} should not be empty"
+            for join in joins:
+                assert isinstance(join, tuple), f"Join item {join} should be a tuple"
+                assert len(join) == 2, f"Join item {join} should be a 2-tuple"
+                target, on = join
+                assert isinstance(target, str) and len(target) > 0
+                assert isinstance(on, str) and len(on) > 0
+
+    def test_mupolygon_joins(self):
+        """Test spatial table joins for mupolygon."""
+        expected = [
+            ("mapunit m", "p.mukey = m.mukey"),
+            ("legend l", "m.lkey = l.lkey"),
+        ]
+        assert SPATIAL_TABLE_JOINS["mupolygon"] == expected
+        assert spatial_table_joins("mupolygon") == expected
+
+    def test_mupoint_joins(self):
+        """Test spatial table joins for mupoint."""
+        expected = [
+            ("mapunit m", "pt.mukey = m.mukey"),
+        ]
+        assert SPATIAL_TABLE_JOINS["mupoint"] == expected
+        assert spatial_table_joins("mupoint") == expected
+
+    def test_muline_joins(self):
+        """Test spatial table joins for muline."""
+        expected = [
+            ("mapunit m", "ln.mukey = m.mukey"),
+        ]
+        assert SPATIAL_TABLE_JOINS["muline"] == expected
+        assert spatial_table_joins("muline") == expected
+
+    def test_spatial_table_joins_case_insensitive(self):
+        """Test spatial_table_joins() is case-insensitive."""
+        assert spatial_table_joins("MUPOLYGON") == spatial_table_joins("mupolygon")
+        assert spatial_table_joins("MuPoint") == spatial_table_joins("mupoint")
+        assert spatial_table_joins("MuLine") == spatial_table_joins("muline")
+
+    def test_spatial_table_joins_unknown_or_no_joins(self):
+        """Test spatial_table_joins() returns empty list for tables with no joins or unknown."""
+        assert spatial_table_joins("sapolygon") == []
+        assert spatial_table_joins("featpoint") == []
+        assert spatial_table_joins("featline") == []
+        assert spatial_table_joins("unknown_table") == []
+        assert spatial_table_joins("nonexistent") == []
+        assert spatial_table_joins("") == []

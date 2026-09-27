@@ -18,7 +18,7 @@ from .client import SDAClient
 from .query import Query
 from .response import SDAResponse
 from .sanitization import validate_wkt_geometry
-from .ssurgo_tables import TABLE_ALIASES, geometry_column
+from .ssurgo_tables import TABLE_ALIASES, geometry_column, spatial_table_joins
 from .ssurgo_tables import default_columns as get_default_columns_bare
 from .utils import add_sync_version, require_client
 
@@ -163,25 +163,9 @@ class SpatialQueryBuilder:
             alias = TABLE_ALIASES[table]
             from_clause = f"{table} {alias}"
 
-            if table == "mupolygon":
-                query.from_("mupolygon p")
-                query.inner_join("mapunit m", "p.mukey = m.mukey")
-                query.inner_join("legend l", "m.lkey = l.lkey")
-            elif table == "sapolygon":
-                query.from_("sapolygon s")
-            elif table == "featpoint":
-                query.from_("featpoint fp")
-            elif table == "featline":
-                query.from_("featline fl")
-            elif table in ("mupoint", "muline"):
-                mapunit_alias = TABLE_ALIASES["mapunit"]
-                query.from_(from_clause)
-                query.inner_join(
-                    f"mapunit {mapunit_alias}",
-                    f"{alias}.mukey = {mapunit_alias}.mukey",
-                )
-            else:
-                query.from_(from_clause)
+            query.from_(from_clause)
+            for target, on in spatial_table_joins(table):
+                query.inner_join(target, on)
 
             # Add spatial filter
             if geom_column:

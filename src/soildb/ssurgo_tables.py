@@ -16,6 +16,8 @@ Public API:
   - geometry_column(table) -> Optional[str]: case-insensitive geometry column lookup
   - default_columns(table) -> Optional[list[str]]: case-insensitive default column lookup
   - filter_fields(table) -> Optional[tuple[Optional[str], Optional[str], Optional[str]]]: case-insensitive filter field lookup
+  - SPATIAL_TABLE_JOINS: dict mapping spatial tables to join definitions (used by spatial.py)
+  - spatial_table_joins(table) -> list[tuple[str, str]]: case-insensitive spatial table join lookup
 
 Internal:
   - TABLE_ALIASES: table name → alias mapping for spatial queries (used by spatial.py)
@@ -105,6 +107,20 @@ FILTER_FIELDS: dict[str, tuple[Optional[str], Optional[str], Optional[str]]] = {
     "muline": ("mukey", "musym", "muname"),
     "featpoint": ("featkey", "featsym", None),
     "featline": ("featkey", "featsym", None),
+}
+
+# Spatial table joins for complex queries (target_table_with_alias, on_clause)
+SPATIAL_TABLE_JOINS: dict[str, list[tuple[str, str]]] = {
+    "mupolygon": [
+        ("mapunit m", "p.mukey = m.mukey"),
+        ("legend l", "m.lkey = l.lkey"),
+    ],
+    "mupoint": [
+        ("mapunit m", "pt.mukey = m.mukey"),
+    ],
+    "muline": [
+        ("mapunit m", "ln.mukey = m.mukey"),
+    ],
 }
 
 
@@ -200,13 +216,36 @@ def filter_fields(
     return FILTER_FIELDS.get(table.lower())
 
 
+def spatial_table_joins(table: str) -> list[tuple[str, str]]:
+    """Return list of (target_table_with_alias, on_clause) joins for a spatial table.
+
+    Args:
+        table: Table name (e.g., 'mupolygon', 'mupoint'). Case-insensitive.
+
+    Returns:
+        List of (target_table_with_alias, on_clause) tuples, or empty list
+        if no joins are defined for the table.
+
+    Examples:
+        >>> spatial_table_joins("mupolygon")
+        [('mapunit m', 'p.mukey = m.mukey'), ('legend l', 'm.lkey = l.lkey')]
+        >>> spatial_table_joins("MUPOINT")
+        [('mapunit m', 'pt.mukey = m.mukey')]
+        >>> spatial_table_joins("sapolygon")
+        []
+    """
+    return SPATIAL_TABLE_JOINS.get(table.lower(), [])
+
+
 __all__ = [
     "KEY_COLUMNS",
     "GEOMETRY_COLUMNS",
     "DEFAULT_COLUMNS",
     "FILTER_FIELDS",
+    "SPATIAL_TABLE_JOINS",
     "key_column",
     "geometry_column",
     "default_columns",
     "filter_fields",
+    "spatial_table_joins",
 ]

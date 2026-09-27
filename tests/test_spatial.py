@@ -349,6 +349,38 @@ class TestSpatialQueryBuilder:
         ):
             builder.query("POINT(-94.68 42.03)", table="invalid_table")  # type: ignore[arg-type]
 
+    def test_query_spatial_table_joins_construction(self):
+        """Test that SpatialQueryBuilder.query builds expected joins from spatial_table_joins."""
+        builder = SpatialQueryBuilder()
+        point_wkt = "POINT(-94.68 42.03)"
+
+        # mupolygon should join mapunit and legend
+        poly_query = builder.query(point_wkt, table="mupolygon", return_type="spatial")
+        poly_sql = poly_query.to_sql()
+        assert "FROM mupolygon p" in poly_sql
+        assert "INNER JOIN mapunit m ON p.mukey = m.mukey" in poly_sql
+        assert "INNER JOIN legend l ON m.lkey = l.lkey" in poly_sql
+
+        # mupoint should join mapunit
+        point_query_obj = builder.query(
+            point_wkt, table="mupoint", return_type="spatial"
+        )
+        point_sql = point_query_obj.to_sql()
+        assert "FROM mupoint pt" in point_sql
+        assert "INNER JOIN mapunit m ON pt.mukey = m.mukey" in point_sql
+
+        # muline should join mapunit
+        line_query = builder.query(point_wkt, table="muline", return_type="spatial")
+        line_sql = line_query.to_sql()
+        assert "FROM muline ln" in line_sql
+        assert "INNER JOIN mapunit m ON ln.mukey = m.mukey" in line_sql
+
+        # sapolygon has no joins
+        sa_query = builder.query(point_wkt, table="sapolygon", return_type="spatial")
+        sa_sql = sa_query.to_sql()
+        assert "FROM sapolygon s" in sa_sql
+        assert "INNER JOIN" not in sa_sql
+
     def test_spatial_predicate_mapping(self):
         """Test spatial predicate mapping."""
         builder = SpatialQueryBuilder()
