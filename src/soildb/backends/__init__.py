@@ -44,6 +44,7 @@ Example:
 ```python
 from soildb.backends import BaseBackend, BackendConnectionError
 from soildb.response import SDAResponse
+from soildb.sanitization import validate_sql_identifier
 from soildb.type_conversion import get_default_type_map
 
 class MyDatabaseBackend(BaseBackend):
@@ -72,7 +73,8 @@ class MyDatabaseBackend(BaseBackend):
         rows = await self.connection.fetch("SELECT table_name FROM information_schema.tables")
         return [row['table_name'] for row in rows]
 
-    async def get_columns(self, table_name):
+    async def get_columns(self, table_name: str) -> dict[str, str]:
+        validate_sql_identifier(table_name)
         rows = await self.connection.fetch(
             f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table_name}'"
         )
