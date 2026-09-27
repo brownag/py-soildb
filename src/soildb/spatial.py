@@ -18,10 +18,15 @@ from .client import SDAClient
 from .query import Query
 from .response import SDAResponse
 from .sanitization import validate_wkt_geometry
+from .ssurgo_tables import TABLE_ALIASES, geometry_column
+from .ssurgo_tables import default_columns as get_default_columns_bare
+from .utils import add_sync_version, require_client
 
 if TYPE_CHECKING:
     try:
-        from shapely.geometry.base import BaseGeometry
+        from shapely.geometry.base import (  # type: ignore[import-untyped]
+            BaseGeometry,
+        )
     except ImportError:
         BaseGeometry = Any
 
@@ -95,6 +100,12 @@ class SpatialQueryBuilder:
             >>> query = builder.query(polygon_wkt, "sapolygon", "tabular",
             ...                      what="areasymbol, areaname, areaacres")
         """
+        # Validate table against TABLE_ALIASES
+        if table not in TABLE_ALIASES:
+            raise ValueError(
+                f"Unknown table: '{table}'. Supported spatial tables: {list(TABLE_ALIASES.keys())}"
+            )
+
         # Convert geometry to WKT if needed
         wkt_geom = self._geometry_to_wkt(geometry)
 
@@ -145,6 +156,13 @@ class SpatialQueryBuilder:
                 query.select(*select_columns)
 
             # Handle table aliases and joins for complex queries
+            if table not in TABLE_ALIASES:
+                raise ValueError(
+                    f"Unknown table: '{table}'. Supported spatial tables: {list(TABLE_ALIASES.keys())}"
+                )
+            alias = TABLE_ALIASES[table]
+            from_clause = f"{table} {alias}"
+
             if table == "mupolygon":
                 query.from_("mupolygon p")
                 query.inner_join("mapunit m", "p.mukey = m.mukey")
@@ -155,8 +173,15 @@ class SpatialQueryBuilder:
                 query.from_("featpoint fp")
             elif table == "featline":
                 query.from_("featline fl")
+            elif table in ("mupoint", "muline"):
+                mapunit_alias = TABLE_ALIASES["mapunit"]
+                query.from_(from_clause)
+                query.inner_join(
+                    f"mapunit {mapunit_alias}",
+                    f"{alias}.mukey = {mapunit_alias}.mukey",
+                )
             else:
-                query.from_(table)
+                query.from_(from_clause)
 
             # Add spatial filter
             if geom_column:
@@ -188,7 +213,7 @@ class SpatialQueryBuilder:
                     return str(geometry.wkt)  # type: ignore
                 elif hasattr(geometry, "__geo_interface__"):
                     # Convert from GeoJSON-like interface to WKT
-                    from shapely import geometry as geom
+                    from shapely import geometry as geom  # type: ignore[import-untyped]
 
                     shape = geom.shape(geometry.__geo_interface__)
                     return str(shape.wkt)  # type: ignore
@@ -200,45 +225,101 @@ class SpatialQueryBuilder:
                 ) from None
 
     def _get_default_columns(self, table: TableType, return_type: ReturnType) -> str:
-        """Get default column selection for a table and return type."""
+        """Get default column selection for a table and return type.
 
-        # Common columns for different tables with proper aliases
-        table_columns = {
-            "legend": "l.lkey, l.areasymbol, l.areaname, l.mlraoffice, l.areaacres",
-            "mapunit": "m.mukey, m.musym, m.muname, m.mukind, m.muacres",
-            "mupolygon": "p.mukey, m.musym, m.muname, m.mukind, l.areasymbol, l.areaname",
-            "sapolygon": "s.areasymbol, s.spatialversion, s.lkey",
-            "mupoint": "pt.mukey, m.musym, m.muname",
-            "muline": "ln.mukey, m.musym, m.muname",
-            "featpoint": "fp.featkey, fp.featsym",
-            "featline": "fl.featkey, fl.featsym",
+        Delegates to ssurgo_tables.default_columns() for bare column names,
+        then applies table aliases based on join logic.
+        """
+        # Map (table, column) → alias for applying to column names
+        # Alias strings come from ssurgo_tables.TABLE_ALIASES
+        column_alias_map = {
+            "legend": {
+                "lkey": TABLE_ALIASES["legend"],
+                "areasymbol": TABLE_ALIASES["legend"],
+                "areaname": TABLE_ALIASES["legend"],
+                "mlraoffice": TABLE_ALIASES["legend"],
+                "areaacres": TABLE_ALIASES["legend"],
+            },
+            "mapunit": {
+                "mukey": TABLE_ALIASES["mapunit"],
+                "musym": TABLE_ALIASES["mapunit"],
+                "muname": TABLE_ALIASES["mapunit"],
+                "mukind": TABLE_ALIASES["mapunit"],
+                "muacres": TABLE_ALIASES["mapunit"],
+            },
+            "mupolygon": {
+                "mukey": TABLE_ALIASES["mupolygon"],
+                "musym": TABLE_ALIASES["mapunit"],
+                "muname": TABLE_ALIASES["mapunit"],
+                "mukind": TABLE_ALIASES["mapunit"],
+                "areasymbol": TABLE_ALIASES["legend"],
+                "areaname": TABLE_ALIASES["legend"],
+            },
+            "sapolygon": {
+                "areasymbol": TABLE_ALIASES["sapolygon"],
+                "spatialversion": TABLE_ALIASES["sapolygon"],
+                "lkey": TABLE_ALIASES["sapolygon"],
+            },
+            "mupoint": {
+                "mukey": TABLE_ALIASES["mupoint"],
+                "musym": TABLE_ALIASES["mapunit"],
+                "muname": TABLE_ALIASES["mapunit"],
+            },
+            "muline": {
+                "mukey": TABLE_ALIASES["muline"],
+                "musym": TABLE_ALIASES["mapunit"],
+                "muname": TABLE_ALIASES["mapunit"],
+            },
+            "featpoint": {
+                "featkey": TABLE_ALIASES["featpoint"],
+                "featsym": TABLE_ALIASES["featpoint"],
+            },
+            "featline": {
+                "featkey": TABLE_ALIASES["featline"],
+                "featsym": TABLE_ALIASES["featline"],
+            },
         }
 
-        base_columns = table_columns.get(table, "*")
-        return base_columns
+        # Get bare column names from consolidated metadata
+        bare_cols = get_default_columns_bare(table)
+        if bare_cols is None:
+            return "*"
+
+        # Apply aliases based on join logic
+        alias_map = column_alias_map.get(table, {})
+        aliased_cols = []
+        for col in bare_cols:
+            alias = alias_map.get(col)
+            if alias:
+                aliased_cols.append(f"{alias}.{col}")
+            else:
+                # Fallback for columns without known alias (shouldn't happen)
+                aliased_cols.append(col)
+
+        return ", ".join(aliased_cols)
 
     def _get_geometry_column(self, table: TableType) -> str:
         """Get the geometry column name for a table."""
-        geometry_columns = {
-            "legend": None,  # No geometry in legend table
-            "mapunit": None,  # No geometry in mapunit table
-            "mupolygon": "p.mupolygongeo",
-            "sapolygon": "s.sapolygongeo",
-            "mupoint": "pt.mupointgeo",
-            "muline": "ln.mulinegeo",
-            "featpoint": "fp.featpointgeo",
-            "featline": "fl.featlinegeo",
-        }
-
-        geom_col = geometry_columns.get(table)
-        if geom_col is None and table in ["legend", "mapunit"]:
+        # legend and mapunit don't have geometry columns
+        if table in ["legend", "mapunit"]:
             raise ValueError(
                 f"Table '{table}' does not have spatial data. Use a spatial table like 'mupolygon' or 'sapolygon'."
             )
-        elif geom_col is None:
+
+        if table not in TABLE_ALIASES:
+            raise ValueError(
+                f"Unknown table: '{table}'. Supported spatial tables: {list(TABLE_ALIASES.keys())}"
+            )
+
+        # Get the bare geometry column name from ssurgo_tables
+        geom_col_bare = geometry_column(table)
+        if geom_col_bare is None:
             raise ValueError(f"Unknown table: {table}")
 
-        return geom_col
+        # Prefix with the table alias from TABLE_ALIASES
+        alias = TABLE_ALIASES[table]
+
+        return f"{alias}.{geom_col_bare}"
 
     def _can_use_udf(self, table: TableType, what: str) -> bool:
         """Check if we can use UDFs for efficient tabular queries."""
@@ -297,6 +378,7 @@ class SpatialQueryBuilder:
         return predicates.get(relation, "STIntersects")
 
 
+@add_sync_version
 async def spatial_query(
     geometry: GeometryInput,
     table: TableType = "mupolygon",
@@ -369,10 +451,11 @@ async def spatial_query(
               If None, uses sensible defaults based on table and return_type.
         geom_column: Custom geometry column name (e.g., "geometry", "the_geom").
                      If None, auto-detected based on table.
-        client: Optional SDA client instance. If not provided, a temporary client is created and closed automatically.
+        client: Optional SDA client instance. If not provided, one is created and closed
+                automatically. Use `.sync()` to call this function from synchronous code.
 
     Returns:
-        SDAResponse: Query results with methods like .to_pandas(), .to_geodataframe()
+        SDAResponse: Query results with methods like .to_pandas(), .to_geopandas()
 
     Raises:
         ValueError: If geometry cannot be parsed
@@ -390,7 +473,7 @@ async def spatial_query(
         ```python
         bbox = {"xmin": -94.7, "ymin": 42.0, "xmax": -94.6, "ymax": 42.1}
         response = await spatial_query(bbox, "mupolygon", "spatial")
-        gdf = response.to_geodataframe()
+        gdf = response.to_geopandas()
         gdf.plot()  # Visualize map units
         ```
 
@@ -412,7 +495,7 @@ async def spatial_query(
         # Example 5: Get feature points within area (archeological/historical sites)
         ```python
         response = await spatial_query(point_wkt, "featpoint", "spatial")
-        gdf = response.to_geodataframe()
+        gdf = response.to_geopandas()
         ```
 
         # Example 6: Custom columns and spatial relationship
@@ -441,8 +524,7 @@ async def spatial_query(
     - Query builder (query.py) - For non-spatial attribute queries
     - soilDB R package documentation - For additional spatial query patterns
     """
-    if client is None:
-        client = SDAClient()
+    client = require_client(client)
 
     builder = SpatialQueryBuilder(client)
     query = builder.query(
@@ -457,6 +539,7 @@ async def spatial_query(
 # ============================================================================
 
 
+@add_sync_version
 async def point_query(
     latitude: float,
     longitude: float,
@@ -495,15 +578,14 @@ async def point_query(
 
         # Get spatial features for mapping
         response = await point_query(42.0, -93.6, "mupolygon", "spatial")
-        gdf = response.to_geodataframe()
+        gdf = response.to_geopandas()
         ```
 
     See Also:
         spatial_query() - For full control over geometry and parameters
         bbox_query() - For bounding box queries
     """
-    if client is None:
-        client = SDAClient()
+    client = require_client(client)
 
     point_wkt = f"POINT({longitude} {latitude})"
     return await spatial_query(
@@ -511,6 +593,7 @@ async def point_query(
     )
 
 
+@add_sync_version
 async def bbox_query(
     xmin: float,
     ymin: float,
@@ -554,7 +637,7 @@ async def bbox_query(
 
         # Get spatial polygons for mapping
         response = await bbox_query(-94.7, 42.0, -94.6, 42.1, return_type="spatial")
-        gdf = response.to_geodataframe()
+        gdf = response.to_geopandas()
         gdf.plot()
         ```
 
@@ -562,8 +645,7 @@ async def bbox_query(
         spatial_query() - For full control over geometry and parameters
         point_query() - For point-based queries
     """
-    if client is None:
-        client = SDAClient()
+    client = require_client(client)
 
     bbox = {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     return await spatial_query(

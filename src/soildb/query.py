@@ -3,7 +3,153 @@ SQL query building classes for SDA queries.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from collections.abc import Iterable
+from typing import Optional, Union
+
+from . import ssurgo_tables
+from .sanitization import (
+    sanitize_sql_numeric,
+    sanitize_sql_string,
+    validate_sql_identifier,
+)
+
+
+def in_condition(
+    column: str,
+    values: Iterable[Union[str, int, float]],
+    case_insensitive: bool = False,
+) -> str:
+    """Build a WHERE IN condition with automatic escaping.
+
+    Validates the column identifier and safely formats all values,
+    automatically escaping strings to prevent SQL injection.
+
+    Args:
+        column: Column name (can be qualified like 'alias.column').
+            Validated as a SQL identifier.
+        values: Iterable of values to include in the IN clause
+            (strings, ints, or floats).
+        case_insensitive: If True, wraps column and string values
+            with LOWER() for case-insensitive comparison. Numeric
+            values are never wrapped in LOWER().
+
+    Returns:
+        str: The formatted SQL IN condition (e.g., "mukey IN (100, 200)"
+            or "LOWER(areasymbol) IN (LOWER('ia001'))").
+
+    Raises:
+        ValueError: If column is not a valid SQL identifier,
+            if values is empty, or if a value is not str, int, or float.
+
+    Examples:
+        >>> in_condition("mukey", [100, 200, 300])
+        'mukey IN (100, 200, 300)'
+
+        >>> in_condition("musym", ["IA001", "O'Brien"])
+        "musym IN ('IA001', 'O''Brien')"
+
+        >>> in_condition("areasymbol", ["ia001"], case_insensitive=True)
+        "LOWER(areasymbol) IN (LOWER('ia001'))"
+    """
+    # Validate column identifier
+    validate_sql_identifier(column)
+
+    # Convert to list to check length and iterate
+    values_list = list(values)
+    if not values_list:
+        raise ValueError("in_condition() requires at least one value")
+
+    # Format each value
+    formatted_values = []
+    for value in values_list:
+        if isinstance(value, str):
+            formatted_values.append(sanitize_sql_string(value))
+        elif isinstance(value, (int, float)):
+            formatted_values.append(sanitize_sql_numeric(value))
+        else:
+            raise ValueError(
+                f"in_condition() values must be str, int, or float, "
+                f"got {type(value).__name__}"
+            )
+
+    # Build the IN clause
+    if case_insensitive:
+        # Apply LOWER() to string values; leave numerics as-is
+        formatted_values_lower = []
+        for i, value in enumerate(values_list):
+            orig_formatted = formatted_values[i]
+            if isinstance(value, str):
+                # Already quoted; wrap with LOWER()
+                formatted_values_lower.append(f"LOWER({orig_formatted})")
+            else:
+                # Numeric; include as-is
+                formatted_values_lower.append(orig_formatted)
+        values_str = ", ".join(formatted_values_lower)
+        return f"LOWER({column}) IN ({values_str})"
+    else:
+        values_str = ", ".join(formatted_values)
+        return f"{column} IN ({values_str})"
+
+
+def eq_condition(
+    column: str,
+    value: Union[str, int, float],
+    case_insensitive: bool = False,
+) -> str:
+    """Build a WHERE equality condition with automatic escaping.
+
+    Validates the column identifier and safely formats the value,
+    automatically escaping strings to prevent SQL injection.
+
+    Args:
+        column: Column name (can be qualified like 'alias.column').
+            Validated as a SQL identifier.
+        value: Value for equality comparison (string, int, or float).
+        case_insensitive: If True, wraps column and string value
+            with LOWER() for case-insensitive comparison. Numeric
+            values are never wrapped in LOWER().
+
+    Returns:
+        str: The formatted SQL equality condition (e.g., "mukey = 100"
+            or "LOWER(areasymbol) = LOWER('ia109')").
+
+    Raises:
+        ValueError: If column is not a valid SQL identifier,
+            or if value is not str, int, or float.
+
+    Examples:
+        >>> eq_condition("mukey", 100)
+        'mukey = 100'
+
+        >>> eq_condition("areasymbol", "IA109")
+        "areasymbol = 'IA109'"
+
+        >>> eq_condition("areasymbol", "ia109", case_insensitive=True)
+        "LOWER(areasymbol) = LOWER('ia109')"
+    """
+    # Validate column identifier
+    validate_sql_identifier(column)
+
+    # Format value
+    if isinstance(value, str):
+        formatted_value = sanitize_sql_string(value)
+    elif isinstance(value, (int, float)):
+        formatted_value = sanitize_sql_numeric(value)
+    else:
+        raise ValueError(
+            f"eq_condition() value must be str, int, or float, "
+            f"got {type(value).__name__}"
+        )
+
+    # Build the equality condition
+    if case_insensitive:
+        if isinstance(value, str):
+            return f"LOWER({column}) = LOWER({formatted_value})"
+        else:
+            # Numeric; no LOWER needed
+            return f"{column} = {formatted_value}"
+    else:
+        return f"{column} = {formatted_value}"
 
 
 # Standard column sets for common query patterns
@@ -11,7 +157,7 @@ class ColumnSets:
     """Standardized column sets for common SDA query patterns."""
 
     # Map unit columns
-    MAPUNIT_BASIC = ["mukey", "musym", "muname", "mukind", "muacres"]
+    MAPUNIT_BASIC = list(ssurgo_tables.DEFAULT_COLUMNS["mapunit"])
     MAPUNIT_DETAILED = MAPUNIT_BASIC + [
         "mustatus",
         "muhelcl",
@@ -251,6 +397,108 @@ class Query(BaseQuery):
         Returns:
             Query: This Query instance for method chaining.
         """
+        self._where_conditions.append(condition)
+        return self
+
+    def where_in(
+        self,
+        column: str,
+        values: Iterable[Union[str, int, float]],
+        *,
+        case_insensitive: bool = False,
+    ) -> "Query":
+        """Add a WHERE IN condition with automatic escaping.
+
+        Validates the column identifier and safely formats all values,
+        automatically escaping strings to prevent SQL injection.
+
+        Args:
+            column: Column name (can be qualified like 'alias.column').
+                Validated as a SQL identifier.
+            values: Iterable of values to include in the IN clause
+                (strings, ints, or floats).
+            case_insensitive: If True, wraps column and string values
+                with LOWER() for case-insensitive comparison. Uses the
+                form `LOWER(col) IN (LOWER('a'), ...)`.
+
+        Returns:
+            Query: This Query instance for method chaining.
+
+        Raises:
+            ValueError: If column is not a valid SQL identifier,
+                or if values is empty.
+
+        Examples:
+            # Simple IN clause with mixed types
+            >>> query = Query().select("mukey").from_("mapunit")
+            >>> query.where_in("mukey", [100, 200, 300])
+            # Generates: WHERE mukey IN (100, 200, 300)
+
+            # String values with quotes are escaped
+            >>> query.where_in("musym", ["IA001", "O'Brien"])
+            # Generates: WHERE musym IN ('IA001', 'O''Brien')
+
+            # Case-insensitive match (used by LDM)
+            >>> query.where_in("areasymbol", ["IA001"], case_insensitive=True)
+            # Generates: WHERE LOWER(areasymbol) IN (LOWER('IA001'))
+
+            # Chaining with other conditions
+            >>> query.where_in("cokey", [1, 2]).where("majcompflag = 'Y'")
+            # Generates: WHERE cokey IN (1, 2) AND majcompflag = 'Y'
+        """
+        condition = in_condition(column, values, case_insensitive)
+        self._where_conditions.append(condition)
+        return self
+
+    def where_eq(
+        self,
+        column: str,
+        value: Union[str, int, float],
+        *,
+        case_insensitive: bool = False,
+    ) -> "Query":
+        """Add a WHERE equality condition with automatic escaping.
+
+        Validates the column identifier and safely formats the value,
+        automatically escaping strings to prevent SQL injection.
+
+        Args:
+            column: Column name (can be qualified like 'alias.column').
+                Validated as a SQL identifier.
+            value: Value for equality comparison (string, int, or float).
+            case_insensitive: If True, wraps column and value (if string)
+                with LOWER() for case-insensitive comparison. Uses the
+                form `LOWER(col) = LOWER('value')`.
+
+        Returns:
+            Query: This Query instance for method chaining.
+
+        Raises:
+            ValueError: If column is not a valid SQL identifier.
+
+        Examples:
+            # Simple equality with string
+            >>> query = Query().select("mukey").from_("mapunit")
+            >>> query.where_eq("areasymbol", "IA109")
+            # Generates: WHERE areasymbol = 'IA109'
+
+            # String with quote is escaped
+            >>> query.where_eq("musym", "O'Brien")
+            # Generates: WHERE musym = 'O''Brien'
+
+            # Numeric value
+            >>> query.where_eq("mukey", 100)
+            # Generates: WHERE mukey = 100
+
+            # Case-insensitive match
+            >>> query.where_eq("areasymbol", "ia109", case_insensitive=True)
+            # Generates: WHERE LOWER(areasymbol) = LOWER('ia109')
+
+            # Chaining
+            >>> query.where_eq("mukey", 100).where_eq("cokey", 200)
+            # Generates: WHERE mukey = 100 AND cokey = 200
+        """
+        condition = eq_condition(column, value, case_insensitive)
         self._where_conditions.append(condition)
         return self
 
