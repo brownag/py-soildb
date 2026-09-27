@@ -633,13 +633,57 @@ class TestFetchLDM:
             mock_close.assert_not_called()
         await client.close()
 
+    async def test_fetch_ldm_with_sda_client(self):
+        """Test real query execution using LDMClient with an SDAClient mock.
+
+        Verifies that when an SDAClient is passed without dsn, an ephemeral
+        LDMClient wraps it, backend.execute receives the SQL queries and delegates
+        to sda_client.execute_sql without raising TypeError, and the caller's
+        sda_client is not closed.
+        """
+        sda_client = AsyncMock(spec=SDAClient)
+        # Stage 1: site query returning pedon_key
+        site_response = SDAResponse.from_rows(
+            [[1, "85P0234"]],
+            ["pedon_key", "pedlabsampnum"],
+            ["int", "varchar"],
+        )
+        # Stage 2: layer query returning laboratory properties
+        layer_response = SDAResponse.from_rows(
+            [[1, "S001", "Miami"]],
+            ["pedon_key", "labsampnum", "corr_name"],
+            ["int", "varchar", "varchar"],
+        )
+        sda_client.execute_sql.side_effect = [site_response, layer_response]
+
+        response = await fetch_ldm(
+            x=["85P0234"],
+            what="pedlabsampnum",
+            client=sda_client,
+        )
+
+        assert isinstance(response, SDAResponse)
+        assert len(response.data) == 1
+        assert response.data[0][0] == 1
+        assert response.data[0][1] == "S001"
+
+        # Verify backend.execute() delegated raw SQL strings to sda_client.execute_sql
+        assert sda_client.execute_sql.call_count == 2
+        for call_args in sda_client.execute_sql.call_args_list:
+            sql = call_args[0][0]
+            assert isinstance(sql, str)
+
+        # Verify caller's sda_client is not closed by the ephemeral LDMClient
+        sda_client.close.assert_not_called()
+
     async def test_fetch_ldm_with_sda_client_wraps_without_closing_caller_client(
         self, temp_ldm_db
     ):
-        """Test that passing an SDAClient wraps it and does not close caller's client."""
+        """Test that passing both dsn and SDAClient prioritizes dsn without closing caller client."""
         sda_client = AsyncMock(spec=SDAClient)
         mock_response = SDAResponse.from_rows([], ["col"], ["varchar"])
         sda_client.execute.return_value = mock_response
+        sda_client.execute_sql.return_value = mock_response
 
         orig_init = LDMClient.__init__
         init_calls = []
@@ -655,6 +699,8 @@ class TestFetchLDM:
             assert isinstance(response, SDAResponse)
             assert len(init_calls) == 1
             assert init_calls[0][1].get("sda_client") is sda_client
+            # dsn takes precedence: SQLite backend used, so sda_client.execute_sql is not called
+            sda_client.execute_sql.assert_not_called()
             sda_client.close.assert_not_called()
 
     async def test_fetch_ldm_client_none_uses_context_manager_and_closes(

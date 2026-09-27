@@ -693,13 +693,18 @@ async def fetch_ldm(
                     - '0.1-0.25 mm', '0.25-0.5 mm', '0.5-1 mm', '1-2 mm'
                     - '0.02-2 mm', '0.05-2 mm', ''
         dsn: Path to SQLite database. If None, queries Soil Data Access web service.
-             Download SQLite snapshots from:
+             If provided alongside an SDAClient, 'dsn' takes precedence for the
+             SQLite backend. Download SQLite snapshots from:
              https://ncsslabdatamart.sc.egov.usda.gov/database_download.aspx
-        client: Optional LDMClient or SDAClient instance. If None, an LDMClient
-                is created as an async context manager (using dsn or SDA web service).
-                If an LDMClient is provided, it is used directly without closing.
-                If an SDAClient is provided, it is wrapped in an LDMClient without
-                closing the underlying SDAClient.
+        client: Optional LDMClient or SDAClient instance.
+                - If None, an ephemeral LDMClient is created as an async context
+                  manager (using dsn or SDA web service) and closed on completion.
+                - If an LDMClient is provided, it is used directly without closing,
+                  and 'dsn' is ignored (the client's configured backend is used).
+                - If an SDAClient is provided, its underlying HTTP connection is
+                  reused in an ephemeral LDMClient without closing the caller's
+                  client. If 'dsn' is also provided alongside an SDAClient, 'dsn'
+                  takes precedence and the local SQLite backend is used instead.
 
     Returns:
         SDAResponse: Query results with laboratory data
@@ -778,6 +783,12 @@ async def fetch_ldm(
             area_type=area_type,
             prep_code=prep_code,
             analyzed_size_frac=analyzed_size_frac,
+        )
+
+    if dsn is not None and client is not None:
+        logger.warning(
+            "Both 'dsn' and 'client' (SDAClient) were provided to fetch_ldm; "
+            "'dsn' takes precedence and the local SQLite backend will be used."
         )
 
     if client is None:
