@@ -22,7 +22,7 @@ Legacy function names are supported for backward compatibility but are deprecate
 
 from typing import Any, Optional
 
-from ..utils import add_sync_version
+from ..utils import add_sync_version, require_client
 from .client import AWDBClient
 from .exceptions import AWDBError
 
@@ -212,7 +212,7 @@ async def discover_stations_nearby(
         ...     42.0, -93.6, network_codes=['SNTL'], limit=5, include_sensor_metadata=True
         ... )
     """
-    assert client is not None, "Client must be provided or created by decorator"
+    client = require_client(client)
     stations_with_distance = await client.find_nearby_stations(
         latitude, longitude, max_distance_km, network_codes, limit
     )
@@ -293,7 +293,7 @@ async def discover_stations(
         ...     include_sensor_metadata=True
         ... )
     """
-    assert client is not None, "Client must be provided or created by decorator"
+    client = require_client(client)
     stations = await client.get_stations(
         network_codes=network_codes,
         state_codes=state_codes,
@@ -497,7 +497,7 @@ async def station_sensor_depths(
 
     element_code = PROPERTY_ELEMENT_MAP[property_name]
 
-    assert client is not None, "Client must be provided or created by decorator"
+    client = require_client(client)
 
     # Get all sensors for this element code
     sensors_by_property = await _build_element_to_sensor_dict(
@@ -569,6 +569,8 @@ async def get_soil_moisture_by_depth(
         ...     end_date='2024-12-31'
         ... )
     """
+    client = require_client(client)
+
     if not start_date or not end_date:
         # Default to recent data
         from datetime import datetime, timedelta
@@ -577,7 +579,9 @@ async def get_soil_moisture_by_depth(
         start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     # Get available depths
-    available_depths = await station_sensor_depths(station_triplet, "soil_moisture")
+    available_depths = await station_sensor_depths(
+        station_triplet, "soil_moisture", client=client
+    )
 
     if not available_depths:
         raise AWDBError(f"No soil moisture sensors found for station {station_triplet}")
@@ -600,8 +604,6 @@ async def get_soil_moisture_by_depth(
         )
 
     from datetime import datetime
-
-    assert client is not None, "Client must be provided or created by decorator"
 
     result: dict[str, Any] = {
         "station_triplet": station_triplet,
@@ -746,7 +748,7 @@ async def get_property_data_near(
     except ValueError as e:
         raise AWDBError(f"Invalid date format: {e}") from e
 
-    assert client is not None, "Client must be provided or created by decorator"
+    client = require_client(client)
 
     # Find nearby stations
     nearby_stations = await client.find_nearby_stations(
@@ -927,7 +929,7 @@ async def station_sensors(
         >>> for sensor in metadata['sensors'].get('soil_moisture', []):
         ...     print(f"Depth: {sensor['height_depth_inches']} inches")
     """
-    assert client is not None, "Client must be provided or created by decorator"
+    client = require_client(client)
 
     # Get station info (with elements)
     stations = await client.get_stations(
@@ -993,7 +995,8 @@ async def station_available_properties(
         >>> # Filter to only soil properties
         >>> soil_props = [p for p in props if 'soil' in p['property_name']]
     """
-    metadata = await station_sensors(station_triplet)
+    client = require_client(client)
+    metadata = await station_sensors(station_triplet, client=client)
 
     variables = []
     sensors_dict = metadata.get("sensors", {})

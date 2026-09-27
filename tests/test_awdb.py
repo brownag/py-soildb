@@ -965,3 +965,69 @@ class TestConvenienceFunctions:
         unknown_sensors = sensors_dict["unknown_UNKNOWN123"]
         assert len(unknown_sensors) == 1
         assert unknown_sensors[0]["element_code"] == "UNKNOWN123"
+
+    @pytest.mark.asyncio
+    async def test_discover_stations_nearby_requires_client(self):
+        """Test discover_stations_nearby raises TypeError when client is None."""
+        from soildb.awdb.convenience import discover_stations_nearby
+
+        with pytest.raises(TypeError, match="client is required"):
+            await discover_stations_nearby.__wrapped__(40.0, -110.0, client=None)
+
+    @pytest.mark.asyncio
+    async def test_discover_stations_requires_client(self):
+        """Test discover_stations raises TypeError when client is None."""
+        from soildb.awdb.convenience import discover_stations
+
+        with pytest.raises(TypeError, match="client is required"):
+            await discover_stations.__wrapped__(network_codes=["SCAN"], client=None)
+
+    @pytest.mark.asyncio
+    async def test_station_sensor_depths_requires_client(self):
+        """Test station_sensor_depths raises TypeError when client is None."""
+        from soildb.awdb.convenience import station_sensor_depths
+
+        with pytest.raises(TypeError, match="client is required"):
+            await station_sensor_depths.__wrapped__(
+                "SCAN:IA:2080", "soil_moisture", client=None
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_soil_moisture_by_depth_requires_client(self):
+        """Test get_soil_moisture_by_depth raises TypeError when client is None."""
+        from soildb.awdb.convenience import get_soil_moisture_by_depth
+
+        with pytest.raises(TypeError, match="client is required"):
+            await get_soil_moisture_by_depth.__wrapped__("SCAN:IA:2080", client=None)
+
+    @pytest.mark.asyncio
+    async def test_get_property_data_near_requires_client(self):
+        """Test get_property_data_near raises TypeError when client is None."""
+        from soildb.awdb.convenience import get_property_data_near
+
+        with pytest.raises(TypeError, match="client is required"):
+            await get_property_data_near.__wrapped__(
+                latitude=40.0,
+                longitude=-110.0,
+                property_name="soil_moisture",
+                start_date="2023-01-01",
+                end_date="2023-01-02",
+                height_depth_inches=-20,
+                client=None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_station_sensors_requires_client(self):
+        """Test station_sensors raises TypeError when client is None."""
+        from soildb.awdb.convenience import station_sensors
+
+        with pytest.raises(TypeError, match="client is required"):
+            await station_sensors.__wrapped__("SCAN:IA:2080", client=None)
+
+    @pytest.mark.asyncio
+    async def test_station_available_properties_requires_client(self):
+        """Test station_available_properties raises TypeError when client is None."""
+        from soildb.awdb.convenience import station_available_properties
+
+        with pytest.raises(TypeError, match="client is required"):
+            await station_available_properties.__wrapped__("SCAN:IA:2080", client=None)
