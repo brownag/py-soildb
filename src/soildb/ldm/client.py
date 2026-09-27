@@ -9,13 +9,15 @@ import asyncio
 import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Optional, Union
 
+from soildb.backends import SDABackend, SQLiteBackend
 from soildb.base_client import BaseDataAccessClient, ClientConfig
+from soildb.chunked import fetch_chunked
 from soildb.client import SDAClient
+from soildb.query import in_condition
 from soildb.response import SDAResponse
 
-from .backends import SDABackend, SQLiteBackend, create_backend
 from .exceptions import (
     LDMBackendSelectionError,
     LDMParameterError,
@@ -97,7 +99,9 @@ class LDMClient(BaseDataAccessClient):
 
         self.dsn = dsn
         self.sda_client = sda_client
-        self._backend: Optional[Union[SDABackend, SQLiteBackend]] = None
+        self._backend: Optional[Union[SDABackend, SQLiteBackend]] = (
+            None  # Generic backends
+        )
 
     async def connect(self) -> bool:
         """Test connection to the data source.
@@ -117,7 +121,7 @@ class LDMClient(BaseDataAccessClient):
                 return True
             else:
                 # For SQLite, try getting table list
-                await backend.get_available_tables()
+                await backend.get_tables()
                 return True
 
         except Exception as e:
@@ -134,6 +138,7 @@ class LDMClient(BaseDataAccessClient):
         WHERE: Optional[str] = None,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         max_retries: int = DEFAULT_MAX_RETRIES,
+        max_concurrency: int = 4,
         layer_type: Union[str, Sequence[str], None] = DEFAULT_LAYER_TYPES,
         area_type: Optional[str] = DEFAULT_AREA_TYPE,
         prep_code: Union[str, Sequence[str], None] = DEFAULT_PREP_CODES,
@@ -155,6 +160,7 @@ class LDMClient(BaseDataAccessClient):
             WHERE: Custom SQL WHERE clause (overrides x/what parameters)
             chunk_size: Number of records per query chunk (default: 1000)
             max_retries: Maximum retry attempts with halved chunk_size (default: 3)
+            max_concurrency: Maximum concurrent chunk requests (default: 4)
             layer_type: Filter by horizon type(s)
             area_type: Filter by geographic classification (default: 'ssa')
             prep_code: Sample preparation code(s) (default: ('S', ''))
@@ -184,15 +190,10 @@ class LDMClient(BaseDataAccessClient):
         # Build site WHERE clause if x and what provided
         site_where = None
         if x is not None and not WHERE:
-            # Escape string values
-            formatted_values = []
-            for val in x:
-                if isinstance(val, str):
-                    escaped = val.replace("'", "''")
-                    formatted_values.append(f"'{escaped}'")
-                else:
-                    formatted_values.append(str(val))
-            site_where = f"LOWER({what}) IN ({','.join([f'LOWER({v})' for v in formatted_values])})"
+            # Use case-insensitive matching only when all values are strings
+            # (numeric columns shouldn't have LOWER() for proper type handling)
+            all_strings = all(isinstance(v, str) for v in x)
+            site_where = in_condition(what, x, case_insensitive=all_strings)
         elif WHERE:
             site_where = WHERE
 
@@ -206,7 +207,7 @@ class LDMClient(BaseDataAccessClient):
             try:
                 site_query = build_ldm_site_query(WHERE=site_where)
                 logger.debug(f"Site query: {site_query}")
-                site_response = await backend.execute_query(site_query)
+                site_response = await backend.execute(site_query)
 
                 if not site_response.is_empty():
                     # Extract pedon_keys from response
@@ -239,16 +240,21 @@ class LDMClient(BaseDataAccessClient):
             raise LDMParameterError(f"Invalid query parameters: {str(e)}") from e
 
         # Use pedon_keys from site query, or the original x values
-        keys_for_layer = pedon_keys or x
+        # Ensure keys is a list for fetch_chunked type signature
+        keys_for_layer = list(pedon_keys) if pedon_keys is not None else list(x or [])
 
         # Execute layer query with chunking and retry logic
         if keys_for_layer and len(keys_for_layer) > chunk_size:
             # Need to chunk
-            return await self._query_chunked(
-                query_builder=query_builder,
+            backend = await self._get_backend()
+            return await fetch_chunked(
                 keys=keys_for_layer,
-                key_column=bycol,
+                build_query=lambda chunk: query_builder.build_query(
+                    keys=chunk, key_column=bycol
+                ),
+                execute=backend.execute,
                 chunk_size=chunk_size,
+                max_concurrency=max_concurrency,
                 max_retries=max_retries,
             )
         else:
@@ -266,7 +272,7 @@ class LDMClient(BaseDataAccessClient):
             LDMBackendSelectionError: If backend unavailable
         """
         backend = await self._get_backend()
-        return await backend.get_available_tables()
+        return await backend.get_tables()
 
     async def get_table_schema(self, table_name: str) -> dict[str, str]:
         """Get column names and types for an LDM table.
@@ -281,7 +287,7 @@ class LDMClient(BaseDataAccessClient):
             LDMBackendSelectionError: If backend unavailable
         """
         backend = await self._get_backend()
-        return await backend.get_table_schema(table_name)
+        return await backend.get_columns(table_name)
 
     async def close(self) -> None:
         """Close the client and clean up resources."""
@@ -298,6 +304,10 @@ class LDMClient(BaseDataAccessClient):
     ) -> Union[SDABackend, SQLiteBackend]:
         """Get or create backend instance.
 
+        Selects backend based on parameters:
+        - If dsn is provided: SQLiteBackend(path)
+        - Otherwise: SDABackend(sda_client)
+
         Returns:
             Backend instance (SDABackend or SQLiteBackend)
 
@@ -305,10 +315,20 @@ class LDMClient(BaseDataAccessClient):
             LDMBackendSelectionError: If backend cannot be initialized
         """
         if self._backend is None:
-            self._backend = await create_backend(
-                dsn=self.dsn,
-                sda_client=self.sda_client,
-            )
+            try:
+                if self.dsn is not None:
+                    # SQLite backend for local database
+                    self._backend = SQLiteBackend(self.dsn)
+                else:
+                    # SDA backend for web service
+                    backend = SDABackend(client=self.sda_client)
+                    # Ensure SDA client is initialized
+                    await backend.connect()
+                    self._backend = backend
+            except Exception as e:
+                raise LDMBackendSelectionError(
+                    f"Failed to initialize LDM backend: {str(e)}"
+                ) from e
         return self._backend
 
     async def _execute_query(
@@ -331,7 +351,7 @@ class LDMClient(BaseDataAccessClient):
         last_error = None
         for attempt in range(max_retries + 1):
             try:
-                response = await backend.execute_query(sql)
+                response = await backend.execute(sql)
                 return response
 
             except Exception as e:
@@ -351,138 +371,3 @@ class LDMClient(BaseDataAccessClient):
             f"Query failed after {max_retries + 1} attempts",
             details=f"Last error: {str(last_error)}",
         ) from last_error
-
-    async def _query_chunked(
-        self,
-        query_builder: LDMQueryBuilder,
-        keys: list[Union[str, int]],
-        key_column: str = "pedon_key",
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
-        max_retries: int = DEFAULT_MAX_RETRIES,
-    ) -> SDAResponse:
-        """Execute query with chunking and automatic retry with halved chunk sizes.
-
-        This implements the R fetchLDM pattern:
-        1. Split keys into chunks of chunk_size
-        2. Execute chunks concurrently
-        3. On failure, halve chunk_size and retry
-
-        Args:
-            query_builder: LDMQueryBuilder instance
-            keys: List of key values to query
-            key_column: Column to filter on
-            chunk_size: Size of each chunk
-            max_retries: Max retries with halved chunk sizes
-
-        Returns:
-            Combined SDAResponse from all chunks
-
-        Raises:
-            LDMQueryError: If query fails after all retries
-        """
-        current_chunk_size = chunk_size
-        last_error = None
-
-        for attempt in range(max_retries + 1):
-            try:
-                # Build queries for current chunk size
-                queries = query_builder.build_chunked_queries(
-                    keys=keys,
-                    key_column=key_column,
-                    chunk_size=current_chunk_size,
-                )
-
-                logger.info(
-                    f"Executing {len(queries)} chunks (size: {current_chunk_size}) "
-                    f"for {len(keys)} keys"
-                )
-
-                # Execute queries concurrently
-                backend = await self._get_backend()
-                tasks = [backend.execute_query(query) for query in queries]
-                responses = await asyncio.gather(*tasks, return_exceptions=True)
-
-                # Check for errors
-                valid_responses: list[SDAResponse] = []
-                for r in responses:
-                    if isinstance(r, BaseException):
-                        raise r
-                    valid_responses.append(cast(SDAResponse, r))
-
-                # Combine responses
-                combined = self._combine_responses(valid_responses)
-                logger.info(f"Successfully retrieved {len(combined.to_dict())} rows")
-                return combined
-
-            except Exception as e:
-                last_error = e
-                if attempt < max_retries:
-                    current_chunk_size = max(1, current_chunk_size // 2)
-                    logger.warning(
-                        f"Chunked query attempt {attempt + 1} failed: {str(e)}. "
-                        f"Retrying with smaller chunks (size: {current_chunk_size})..."
-                    )
-                    await asyncio.sleep(self._config.retry_delay * (attempt + 1))
-                    continue
-
-        # All retries exhausted
-        raise LDMQueryError(
-            f"Chunked query failed after {max_retries + 1} attempts",
-            details=f"Last error: {str(last_error)}. "
-            f"Final chunk size: {current_chunk_size}",
-        ) from last_error
-
-    def _combine_responses(self, responses: list[SDAResponse]) -> SDAResponse:
-        """Combine multiple SDAResponse objects into one.
-
-        Args:
-            responses: List of SDAResponse objects
-
-        Returns:
-            Combined SDAResponse
-
-        Raises:
-            LDMQueryError: If responses cannot be combined
-        """
-        if not responses:
-            return SDAResponse({"Table": [[], []]})
-
-        if len(responses) == 1:
-            return responses[0]
-
-        try:
-            # Get all data as dicts
-            combined_data = []
-            columns = None
-            metadata = None
-
-            for response in responses:
-                if response.is_empty():
-                    continue
-
-                # Use first response for column/metadata template
-                if columns is None:
-                    columns = response._columns
-                    metadata = response._metadata
-
-                # Add data rows
-                combined_data.extend(response.to_dict())
-
-            # Create new response with combined data
-            if columns is None:
-                # All responses were empty
-                return SDAResponse({"Table": [[], []]})
-
-            # Reconstruct as SDAResponse
-            raw_data = {
-                "Table": [columns, metadata]
-                + [[row.get(col) for col in columns] for row in combined_data]
-            }
-
-            return SDAResponse(raw_data)
-
-        except Exception as e:
-            raise LDMQueryError(
-                f"Failed to combine {len(responses)} query responses",
-                details=str(e),
-            ) from e

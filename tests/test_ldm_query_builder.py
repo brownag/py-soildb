@@ -118,19 +118,6 @@ class TestLDMQueryBuilder:
         assert "456" in query
         assert "IN" in query
 
-    def test_build_chunked_queries(self):
-        """Test building multiple chunked queries."""
-        builder = LDMQueryBuilder()
-        keys = list(range(1, 2500))  # 2500 keys
-        queries = builder.build_chunked_queries(keys, chunk_size=1000)
-
-        # Should have 3 queries (1000, 1000, 500)
-        assert len(queries) == 3
-        # All should be valid queries
-        for query in queries:
-            assert "SELECT" in query
-            assert "FROM" in query
-
     def test_build_query_with_filters(self):
         """Test query building with multiple filters."""
         builder = LDMQueryBuilder(
@@ -192,3 +179,71 @@ class TestLDMQueryBuilder:
 
         assert "ORDER BY" in query
         assert "pedon_key" in query
+
+    def test_string_key_escaping_with_quotes(self):
+        """Test that string keys containing quotes are properly escaped."""
+        builder = LDMQueryBuilder()
+        query = builder.build_query(
+            keys=["O'Brien", "Smith's"], key_column="pedlabsampnum"
+        )
+
+        # Quotes should be escaped (doubled)
+        assert "'O''Brien'" in query
+        assert "'Smith''s'" in query
+        # Should be in IN clause
+        assert "IN" in query
+
+    def test_mixed_string_and_numeric_keys(self):
+        """Test that mixed string and numeric keys are handled correctly."""
+        builder = LDMQueryBuilder()
+        query = builder.build_query(
+            keys=["85P0234", 123, "O'Brien", 456], key_column="pedon_key"
+        )
+
+        # String keys should be quoted and escaped
+        assert "'85P0234'" in query
+        assert "'O''Brien'" in query
+        # Numeric keys should be unquoted
+        assert "123" in query
+        assert "456" in query
+        # Should have IN clause
+        assert "IN" in query
+
+    def test_build_query_single_layer_type_equality(self):
+        """Test that single layer_type produces equality condition."""
+        builder = LDMQueryBuilder(
+            layer_type="horizon", prep_code=None, analyzed_size_frac=None
+        )
+        query = builder.build_query(keys=["85P0234"])
+        assert (
+            "WHERE lab_layer.pedon_key IN ('85P0234') AND lab_layer.layer_type = 'horizon'"
+            in query
+        )
+
+    def test_build_query_multiple_layer_types_in_clause(self):
+        """Test that multiple layer_types produce IN condition."""
+        builder = LDMQueryBuilder(
+            layer_type=["horizon", "layer"],
+            prep_code=None,
+            analyzed_size_frac=None,
+        )
+        query = builder.build_query(keys=["85P0234"])
+        assert (
+            "WHERE lab_layer.pedon_key IN ('85P0234') AND lab_layer.layer_type IN ('horizon', 'layer')"
+            in query
+        )
+
+    def test_build_query_prep_and_fraction_bracket_grouping(self):
+        """Test that bracket grouping and escaping for prep_code and fractions are preserved."""
+        builder = LDMQueryBuilder(
+            layer_type="horizon",
+            prep_code=["S", "HM"],
+            analyzed_size_frac=["<2 mm", ""],
+            tables=["lab_physical_properties", "lab_xrd_and_thermal"],
+        )
+        query = builder.build_query(keys=[100])
+        assert "ISNULL(lab_physical_properties.prep_code, '') IN ('S', 'HM')" in query
+        assert (
+            "(ISNULL(lab_xrd_and_thermal.analyzed_size_frac, '') IN ('<2 mm', ''))"
+            in query
+        )

@@ -514,9 +514,8 @@ class TestAWDBClient:
 class TestConvenienceFunctions:
     """Test convenience functions."""
 
-    @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
-    async def test_discover_stations_nearby(self, mock_client_class):
+    async def test_discover_stations_nearby(self):
         """Test discover_stations_nearby convenience function."""
         from soildb.awdb.convenience import discover_stations_nearby
 
@@ -533,19 +532,18 @@ class TestConvenienceFunctions:
             "Salt Lake",
         )
         mock_client.find_nearby_stations.return_value = [(mock_station, 10.5)]
-        mock_client_class.return_value.__aenter__.return_value = mock_client
-        mock_client_class.return_value.__aexit__.return_value = None
 
-        result = await discover_stations_nearby(40.0, -110.0, max_distance_km=50)
+        result = await discover_stations_nearby(
+            40.0, -110.0, max_distance_km=50, client=mock_client
+        )
 
         assert len(result) == 1
         assert result[0]["station_triplet"] == "1234:UT:SNTL"
         assert result[0]["name"] == "Test Station"
         assert result[0]["distance_km"] == 10.5
 
-    @patch("soildb.awdb.convenience.AWDBClient")
     @pytest.mark.asyncio
-    async def test_get_property_data_near(self, mock_client_class):
+    async def test_get_property_data_near(self):
         """Test get_property_data_near convenience function."""
         from soildb.awdb.convenience import get_property_data_near
 
@@ -573,9 +571,6 @@ class TestConvenienceFunctions:
             TimeSeriesDataPoint(timestamp=datetime(2023, 1, 2), value=26.0, flags=[]),
         ]
 
-        mock_client_class.return_value.__aenter__.return_value = mock_client
-        mock_client_class.return_value.__aexit__.return_value = None
-
         result = await get_property_data_near(
             latitude=40.0,
             longitude=-110.0,
@@ -583,6 +578,7 @@ class TestConvenienceFunctions:
             start_date="2023-01-01",
             end_date="2023-01-02",
             height_depth_inches=-20,  # Required for soil properties
+            client=mock_client,
         )
 
         assert result["site_id"] == "1234:UT:SNTL"
@@ -733,3 +729,239 @@ class TestConvenienceFunctions:
         # Test element code tracking
         element_codes = {dp.element_code for dp in data_points if dp.element_code}
         assert "SMS:-2:1" in element_codes
+
+    @pytest.mark.asyncio
+    async def test_station_sensor_depths_baseline(self):
+        """
+        Baseline test: pin current output of station_sensor_depths.
+
+        Tests that the function correctly filters by element code,
+        builds sensor info with element_string, and sorts by height_depth.
+        """
+        from soildb.awdb.convenience import station_sensor_depths
+
+        # Mock client with station elements
+        mock_client = AsyncMock()
+        mock_station = StationInfo(
+            station_triplet="SCAN:IA:2080",
+            name="Test SCAN Station",
+            latitude=42.0,
+            longitude=-93.6,
+            elevation=1000,
+            network_code="SCAN",
+            state="IA",
+            county="Story",
+        )
+        # Add station_elements attribute with raw element dicts
+        mock_station.station_elements = [
+            {
+                "elementCode": "SMS",  # Soil Moisture
+                "heightDepth": -20,
+                "ordinal": 1,
+                "beginDate": "2010-01-01",
+                "endDate": None,
+                "dataPrecision": 1,
+            },
+            {
+                "elementCode": "SMS",
+                "heightDepth": -8,
+                "ordinal": 1,
+                "beginDate": "2015-06-15",
+                "endDate": None,
+                "dataPrecision": 1,
+            },
+            {
+                "elementCode": "SMS",
+                "heightDepth": -2,
+                "ordinal": 1,
+                "beginDate": "2015-06-15",
+                "endDate": None,
+                "dataPrecision": 1,
+            },
+            # Non-matching element (should be filtered out)
+            {
+                "elementCode": "STO",  # Soil Temperature
+                "heightDepth": -20,
+                "ordinal": 1,
+                "beginDate": "2010-01-01",
+                "endDate": None,
+                "dataPrecision": 1,
+            },
+        ]
+
+        mock_client.get_stations.return_value = [mock_station]
+
+        # Call function
+        result = await station_sensor_depths(
+            "SCAN:IA:2080", "soil_moisture", client=mock_client
+        )
+
+        # Verify result structure and values
+        assert isinstance(result, list)
+        assert len(result) == 3  # Only SMS elements, sorted by depth
+
+        # Verify sorting by height_depth (most negative first)
+        depths = [s["height_depth_inches"] for s in result]
+        assert depths == [-20, -8, -2]
+
+        # Verify each sensor has required fields
+        for sensor in result:
+            assert "height_depth_inches" in sensor
+            assert "ordinal" in sensor
+            assert "element_string" in sensor
+            assert "begin_date" in sensor
+            assert "end_date" in sensor
+            assert "data_precision" in sensor
+
+        # Verify element_string format
+        assert result[0]["element_string"] == "SMS:-20:1"
+        assert result[1]["element_string"] == "SMS:-8:1"
+        assert result[2]["element_string"] == "SMS:-2:1"
+
+        # Verify metadata
+        assert result[0]["begin_date"] == "2010-01-01"
+        assert result[1]["data_precision"] == 1
+
+    @pytest.mark.asyncio
+    async def test_station_sensors_baseline(self):
+        """
+        Baseline test: pin current output of station_sensors.
+
+        Tests that the function correctly groups all sensors by property_name,
+        maps element codes, and returns complete metadata.
+        """
+        from soildb.awdb.convenience import station_sensors
+
+        # Mock client with station elements
+        mock_client = AsyncMock()
+        mock_station = StationInfo(
+            station_triplet="SCAN:IA:2080",
+            name="Test SCAN Station",
+            latitude=42.0,
+            longitude=-93.6,
+            elevation=1000,
+            network_code="SCAN",
+            state="IA",
+            county="Story",
+        )
+        # Add station_elements with various properties
+        mock_station.station_elements = [
+            {
+                "elementCode": "SMS",  # Soil Moisture
+                "heightDepth": -20,
+                "ordinal": 1,
+                "beginDate": "2010-01-01",
+                "endDate": None,
+                "dataPrecision": 1,
+                "storedUnitCode": "pct",
+                "originalUnitCode": "pct",
+                "derivedData": False,
+            },
+            {
+                "elementCode": "SMS",
+                "heightDepth": -2,
+                "ordinal": 1,
+                "beginDate": "2015-06-15",
+                "endDate": None,
+                "dataPrecision": 1,
+                "storedUnitCode": "pct",
+                "originalUnitCode": "pct",
+                "derivedData": False,
+            },
+            {
+                "elementCode": "STO",  # Soil Temperature
+                "heightDepth": -20,
+                "ordinal": 1,
+                "beginDate": "2010-01-01",
+                "endDate": None,
+                "dataPrecision": 1,
+                "storedUnitCode": "degF",
+                "originalUnitCode": "degF",
+                "derivedData": False,
+            },
+            {
+                "elementCode": "TOBS",  # Air Temperature
+                "heightDepth": 0,
+                "ordinal": 1,
+                "beginDate": "2010-01-01",
+                "endDate": None,
+                "dataPrecision": 1,
+                "storedUnitCode": "degF",
+                "originalUnitCode": "degF",
+                "derivedData": False,
+            },
+            {
+                "elementCode": "UNKNOWN123",  # Unknown element
+                "heightDepth": None,
+                "ordinal": 1,
+                "beginDate": "2020-01-01",
+                "endDate": None,
+                "dataPrecision": 1,
+                "storedUnitCode": "",
+                "originalUnitCode": "",
+                "derivedData": False,
+            },
+        ]
+
+        mock_client.get_stations.return_value = [mock_station]
+
+        # Call function
+        result = await station_sensors("SCAN:IA:2080", client=mock_client)
+
+        # Verify top-level structure
+        assert isinstance(result, dict)
+        assert "station_triplet" in result
+        assert "station_name" in result
+        assert "network" in result
+        assert "sensors" in result
+
+        assert result["station_triplet"] == "SCAN:IA:2080"
+        assert result["station_name"] == "Test SCAN Station"
+        assert result["network"] == "SCAN"
+
+        # Verify sensors dict
+        sensors_dict = result["sensors"]
+        assert isinstance(sensors_dict, dict)
+
+        # Check for expected property names (keys)
+        assert "soil_moisture" in sensors_dict
+        assert "soil_temp" in sensors_dict
+        assert "air_temp" in sensors_dict
+        assert "unknown_UNKNOWN123" in sensors_dict
+
+        # Verify soil_moisture has 2 sensors
+        soil_moisture_sensors = sensors_dict["soil_moisture"]
+        assert len(soil_moisture_sensors) == 2
+        assert all(isinstance(s, dict) for s in soil_moisture_sensors)
+
+        # Verify sensor fields include all expected keys
+        for sensor in soil_moisture_sensors:
+            assert "element_code" in sensor
+            assert "ordinal" in sensor
+            assert "height_depth_inches" in sensor
+            assert "begin_date" in sensor
+            assert "end_date" in sensor
+            assert "data_precision" in sensor
+            assert "stored_unit_code" in sensor
+            assert "original_unit_code" in sensor
+            assert "derived_data" in sensor
+
+        # Verify specific values
+        assert soil_moisture_sensors[0]["element_code"] == "SMS"
+        assert soil_moisture_sensors[0]["height_depth_inches"] == -20
+        assert soil_moisture_sensors[0]["stored_unit_code"] == "pct"
+
+        # Verify soil_temp has 1 sensor
+        soil_temp_sensors = sensors_dict["soil_temp"]
+        assert len(soil_temp_sensors) == 1
+        assert soil_temp_sensors[0]["element_code"] == "STO"
+
+        # Verify air_temp has 1 sensor
+        air_temp_sensors = sensors_dict["air_temp"]
+        assert len(air_temp_sensors) == 1
+        assert air_temp_sensors[0]["element_code"] == "TOBS"
+
+        # Verify unknown element is prefixed correctly
+        unknown_sensors = sensors_dict["unknown_UNKNOWN123"]
+        assert len(unknown_sensors) == 1
+        assert unknown_sensors[0]["element_code"] == "UNKNOWN123"

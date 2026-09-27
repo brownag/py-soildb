@@ -157,8 +157,8 @@ AREA_TYPES = {
 
 # Pedon and site identifier columns
 ID_COLUMNS = {
-    "pedlabsampnum": "Laboratory Pedon ID",
-    "upedonid": "User Pedon ID",
+    "pedlabsampnum": "Lab Pedon Number",
+    "upedonid": "Pedon ID",
     "pedon_key": "Pedon Key (internal)",
     "site_key": "Site Key (internal)",
     "siteiid": "Site Interpretation ID",

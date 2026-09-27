@@ -9,6 +9,12 @@ import logging
 from collections.abc import Sequence
 from typing import Optional, Union
 
+from soildb.query import in_condition
+from soildb.sanitization import (
+    sanitize_sql_string,
+    sanitize_sql_string_list,
+)
+
 from .exceptions import (
     LDMParameterError,
     LDMQueryError,
@@ -221,29 +227,6 @@ class LDMQueryBuilder:
                 f"Failed to build LDM query: {str(e)}",
             ) from e
 
-    def build_chunked_queries(
-        self,
-        keys: list[Union[str, int]],
-        key_column: str = "pedon_key",
-        chunk_size: int = 1000,
-    ) -> list[str]:
-        """Build multiple queries for chunked key processing.
-
-        Args:
-            keys: List of key values
-            key_column: Column name to filter on
-            chunk_size: Size of each chunk
-
-        Returns:
-            List of SQL query strings, one per chunk
-        """
-        queries = []
-        for i in range(0, len(keys), chunk_size):
-            chunk = keys[i : i + chunk_size]
-            query = self.build_query(keys=chunk, key_column=key_column)
-            queries.append(query)
-        return queries
-
     def _build_select(self) -> str:
         """Build SELECT clause with all columns from selected tables.
 
@@ -327,36 +310,23 @@ class LDMQueryBuilder:
 
         # Add key filter
         if keys:
-            # Escape string keys, use numeric keys as-is
-            formatted_keys = []
-            for key in keys:
-                if isinstance(key, str):
-                    # Escape single quotes
-                    escaped = key.replace("'", "''")
-                    formatted_keys.append(f"'{escaped}'")
-                else:
-                    formatted_keys.append(str(key))
-
-            key_list = ", ".join(formatted_keys)
-            conditions.append(f"{LAB_LAYER_TABLE}.{key_column} IN ({key_list})")
+            conditions.append(in_condition(f"{LAB_LAYER_TABLE}.{key_column}", keys))
 
         # Add layer_type filter
         if self.layer_types:
             if len(self.layer_types) == 1:
-                conditions.append(
-                    f"{LAB_LAYER_TABLE}.layer_type = '{self.layer_types[0]}'"
-                )
+                layer_type_quoted = sanitize_sql_string(self.layer_types[0])
+                conditions.append(f"{LAB_LAYER_TABLE}.layer_type = {layer_type_quoted}")
             else:
-                layer_type_list = ", ".join(f"'{value}'" for value in self.layer_types)
                 conditions.append(
-                    f"{LAB_LAYER_TABLE}.layer_type IN ({layer_type_list})"
+                    in_condition(f"{LAB_LAYER_TABLE}.layer_type", self.layer_types)
                 )
 
         # Add prep_code filter for selected tables that support this field.
         # Use AND across selected tables to match the reference implementation.
         if self.prep_codes and self.tables:
             prep_conditions = []
-            prep_code_list = ", ".join(f"'{code}'" for code in self.prep_codes)
+            prep_code_list = ", ".join(sanitize_sql_string_list(self.prep_codes))
             for table in self.tables:
                 if table in PREP_FILTER_TABLES:
                     coalesce = self._coalesce(f"{table}.prep_code", "''")
@@ -368,7 +338,7 @@ class LDMQueryBuilder:
         # This prevents invalid column errors on non-fractionated tables.
         if self.analyzed_size_fracs and self.tables:
             frac_conditions = []
-            frac_list = ", ".join(f"'{frac}'" for frac in self.analyzed_size_fracs)
+            frac_list = ", ".join(sanitize_sql_string_list(self.analyzed_size_fracs))
             for table in self.tables:
                 if table in FRACTION_FILTER_TABLES:
                     coalesce = self._coalesce(f"{table}.analyzed_size_frac", "''")

@@ -189,6 +189,7 @@ async def discover_stations_nearby(
     network_codes: Optional[list[str]] = None,
     limit: int = 10,
     include_sensor_metadata: bool = False,
+    client: Optional[AWDBClient] = None,
 ) -> list[dict]:
     """
     Discover AWDB stations near a geographic location.
@@ -200,6 +201,7 @@ async def discover_stations_nearby(
         network_codes: Network codes to include (e.g., 'SCAN', 'SNTL')
         limit: Maximum number of stations to return
         include_sensor_metadata: Include detailed sensor information for each station
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         List of station dictionaries with distance information and optional sensor metadata
@@ -210,36 +212,36 @@ async def discover_stations_nearby(
         ...     42.0, -93.6, network_codes=['SNTL'], limit=5, include_sensor_metadata=True
         ... )
     """
-    async with AWDBClient() as client:
-        stations_with_distance = await client.find_nearby_stations(
-            latitude, longitude, max_distance_km, network_codes, limit
-        )
+    assert client is not None, "Client must be provided or created by decorator"
+    stations_with_distance = await client.find_nearby_stations(
+        latitude, longitude, max_distance_km, network_codes, limit
+    )
 
-        result = []
-        for station, distance in stations_with_distance:
-            station_dict = {
-                "station_triplet": station.station_triplet,
-                "name": station.name,
-                "latitude": station.latitude,
-                "longitude": station.longitude,
-                "elevation": station.elevation,
-                "network_code": station.network_code,
-                "state": station.state,
-                "county": station.county,
-                "distance_km": round(distance, 2),
-            }
+    result = []
+    for station, distance in stations_with_distance:
+        station_dict = {
+            "station_triplet": station.station_triplet,
+            "name": station.name,
+            "latitude": station.latitude,
+            "longitude": station.longitude,
+            "elevation": station.elevation,
+            "network_code": station.network_code,
+            "state": station.state,
+            "county": station.county,
+            "distance_km": round(distance, 2),
+        }
 
-            # Add sensor metadata if requested
-            if include_sensor_metadata:
-                try:
-                    sensor_metadata = await station_sensors(station.station_triplet)
-                    station_dict["sensor_metadata"] = sensor_metadata["sensors"]
-                except Exception as e:
-                    station_dict["sensor_metadata"] = {"error": str(e)}
+        # Add sensor metadata if requested
+        if include_sensor_metadata:
+            try:
+                sensor_metadata = await station_sensors(station.station_triplet)
+                station_dict["sensor_metadata"] = sensor_metadata["sensors"]
+            except Exception as e:
+                station_dict["sensor_metadata"] = {"error": str(e)}
 
-            result.append(station_dict)
+        result.append(station_dict)
 
-        return result
+    return result
 
 
 @add_sync_version
@@ -252,6 +254,7 @@ async def discover_stations(
     active_only: bool = True,
     limit: Optional[int] = None,
     include_sensor_metadata: bool = False,
+    client: Optional[AWDBClient] = None,
 ) -> list[dict]:
     """
     Discover stations using advanced filtering criteria with wildcard support.
@@ -269,6 +272,7 @@ async def discover_stations(
         active_only: Return only active stations
         limit: Maximum number of stations to return
         include_sensor_metadata: Include detailed sensor information for each station
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         List of station dictionaries with optional sensor metadata
@@ -289,79 +293,79 @@ async def discover_stations(
         ...     include_sensor_metadata=True
         ... )
     """
-    async with AWDBClient() as client:
-        stations = await client.get_stations(
-            network_codes=network_codes,
-            state_codes=state_codes,
-            station_triplets=station_triplets,
-            station_names=station_names,
-            elements=elements,
-            active_only=active_only,
-            return_station_elements=include_sensor_metadata,  # Enable sensor metadata
-        )
+    assert client is not None, "Client must be provided or created by decorator"
+    stations = await client.get_stations(
+        network_codes=network_codes,
+        state_codes=state_codes,
+        station_triplets=station_triplets,
+        station_names=station_names,
+        elements=elements,
+        active_only=active_only,
+        return_station_elements=include_sensor_metadata,  # Enable sensor metadata
+    )
 
-        if limit:
-            stations = stations[:limit]
+    if limit:
+        stations = stations[:limit]
 
-        result = []
-        for station in stations:
-            station_dict = {
-                "station_triplet": station.station_triplet,
-                "name": station.name,
-                "latitude": station.latitude,
-                "longitude": station.longitude,
-                "elevation": station.elevation,
-                "network_code": station.network_code,
-                "state": station.state,
-                "county": station.county,
-                "station_id": station.station_id,
-                "dco_code": station.dco_code,
-                "huc": station.huc,
-            }
+    result = []
+    for station in stations:
+        station_dict = {
+            "station_triplet": station.station_triplet,
+            "name": station.name,
+            "latitude": station.latitude,
+            "longitude": station.longitude,
+            "elevation": station.elevation,
+            "network_code": station.network_code,
+            "state": station.state,
+            "county": station.county,
+            "station_id": station.station_id,
+            "dco_code": station.dco_code,
+            "huc": station.huc,
+        }
 
-            # Add sensor metadata if requested
-            if include_sensor_metadata:
-                if station.station_elements:
-                    try:
-                        # Convert raw station elements to organized sensor metadata
-                        sensors_by_property: dict[str, list[dict[str, Any]]] = {}
-                        for elem in station.station_elements:  # type: ignore
-                            element_code = elem.get("elementCode", "")
-                            property_name = None
+        # Add sensor metadata if requested
+        if include_sensor_metadata:
+            if station.station_elements:
+                try:
+                    # Convert raw station elements to organized sensor metadata
+                    sensors_by_property: dict[str, list[dict[str, Any]]] = {}
+                    for elem in station.station_elements:  # type: ignore
+                        element_code = elem.get("elementCode", "")
+                        property_name = None
 
-                            # Map element code to property name
-                            for prop_name, elem_code in PROPERTY_ELEMENT_MAP.items():
-                                if elem_code == element_code:
-                                    property_name = prop_name
-                                    break
+                        # Map element code to property name
+                        for prop_name, elem_code in PROPERTY_ELEMENT_MAP.items():
+                            if elem_code == element_code:
+                                property_name = prop_name
+                                break
 
-                            if not property_name:
-                                property_name = f"unknown_{element_code}"
+                        if not property_name:
+                            property_name = f"unknown_{element_code}"
 
-                            if property_name not in sensors_by_property:
-                                sensors_by_property[property_name] = []
+                        if property_name not in sensors_by_property:
+                            sensors_by_property[property_name] = []
 
-                            sensor_info = {
-                                "element_code": element_code,
-                                "ordinal": elem.get("ordinal", 1),
-                                "height_depth_inches": elem.get("heightDepth"),
-                                "begin_date": elem.get("beginDate"),
-                                "end_date": elem.get("endDate"),
-                                "data_precision": elem.get("dataPrecision"),
-                                "stored_unit_code": elem.get("storedUnitCode"),
-                                "original_unit_code": elem.get("originalUnitCode"),
-                                "derived_data": elem.get("derivedData", False),
-                            }
+                        sensor_info = {
+                            "element_code": element_code,
+                            "ordinal": elem.get("ordinal", 1),
+                            "height_depth_inches": elem.get("heightDepth"),
+                            "begin_date": elem.get("beginDate"),
+                            "end_date": elem.get("endDate"),
+                            "data_precision": elem.get("dataPrecision"),
+                            "stored_unit_code": elem.get("storedUnitCode"),
+                            "original_unit_code": elem.get("originalUnitCode"),
+                            "derived_data": elem.get("derivedData", False),
+                        }
 
-                            sensors_by_property[property_name].append(sensor_info)
+                        sensors_by_property[property_name].append(sensor_info)
 
-                        station_dict["sensor_metadata"] = sensors_by_property
-                    except Exception as e:
-                        station_dict["sensor_metadata"] = {"error": str(e)}
+                    station_dict["sensor_metadata"] = sensors_by_property
+                except Exception as e:
+                    station_dict["sensor_metadata"] = {"error": str(e)}
 
-            result.append(station_dict)
+        result.append(station_dict)
 
-        return result
+    return result
 
 
 def build_soil_element_string(
@@ -381,8 +385,85 @@ def build_soil_element_string(
     return f"{element_code}:{height_depth_inches}:{ordinal}"
 
 
+async def _build_element_to_sensor_dict(
+    client: AWDBClient,
+    station_triplet: str,
+    element_code_filter: Optional[str] = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Build a dict of sensors organized by property name from station elements.
+
+    Private helper shared by station_sensor_depths() and station_sensors().
+    Fetches station with elements, maps element codes to property names,
+    and builds sensor info dicts for all (or filtered) elements.
+
+    Args:
+        client: AWDBClient instance (should not be None)
+        station_triplet: Station identifier (network:state:code format)
+        element_code_filter: Optional element code to filter by (e.g., 'SMS')
+                           If provided, only elements matching this code are included.
+
+    Returns:
+        Dict mapping property_name -> list of sensor_info dicts.
+        Each sensor_info includes: element_code, ordinal, height_depth_inches,
+        begin_date, end_date, data_precision, stored_unit_code,
+        original_unit_code, derived_data.
+        Returns empty dict if no stations or elements found.
+    """
+    # Get station with element details
+    stations = await client.get_stations(
+        station_triplets=[station_triplet], return_station_elements=True
+    )
+
+    if not stations or not stations[0].station_elements:
+        return {}
+
+    sensors_by_property: dict[str, list[dict[str, Any]]] = {}
+
+    for elem in stations[0].station_elements:  # type: ignore
+        element_code = elem.get("elementCode", "")
+
+        # Filter by element_code if specified
+        if element_code_filter and element_code != element_code_filter:
+            continue
+
+        property_name = None
+
+        # Map element code to property name
+        for prop_name, elem_code in PROPERTY_ELEMENT_MAP.items():
+            if elem_code == element_code:
+                property_name = prop_name
+                break
+
+        if not property_name:
+            property_name = f"unknown_{element_code}"
+
+        if property_name not in sensors_by_property:
+            sensors_by_property[property_name] = []
+
+        sensor_info = {
+            "element_code": element_code,
+            "ordinal": elem.get("ordinal", 1),
+            "height_depth_inches": elem.get("heightDepth"),
+            "begin_date": elem.get("beginDate"),
+            "end_date": elem.get("endDate"),
+            "data_precision": elem.get("dataPrecision"),
+            "stored_unit_code": elem.get("storedUnitCode"),
+            "original_unit_code": elem.get("originalUnitCode"),
+            "derived_data": elem.get("derivedData", False),
+        }
+
+        sensors_by_property[property_name].append(sensor_info)
+
+    return sensors_by_property
+
+
 @add_sync_version
-async def station_sensor_depths(station_triplet: str, property_name: str) -> list[dict]:
+async def station_sensor_depths(
+    station_triplet: str,
+    property_name: str,
+    client: Optional[AWDBClient] = None,
+) -> list[dict]:
     """
     Get available sensor depths/heights for a specific station and property.
 
@@ -393,6 +474,7 @@ async def station_sensor_depths(station_triplet: str, property_name: str) -> lis
         station_triplet: Station identifier (network:state:code format)
         property_name: Property name (e.g., 'soil_moisture', 'air_temp')
                       See PROPERTY_ELEMENT_MAP keys for complete list
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         List of sensor configurations with metadata (height/depth, ordinal, dates, precision)
@@ -415,39 +497,38 @@ async def station_sensor_depths(station_triplet: str, property_name: str) -> lis
 
     element_code = PROPERTY_ELEMENT_MAP[property_name]
 
-    async with AWDBClient() as client:
-        stations = await client.get_stations(
-            station_triplets=[station_triplet], return_station_elements=True
-        )
+    assert client is not None, "Client must be provided or created by decorator"
 
-        if not stations or not stations[0].station_elements:
-            return []
+    # Get all sensors for this element code
+    sensors_by_property = await _build_element_to_sensor_dict(
+        client, station_triplet, element_code_filter=element_code
+    )
 
-        # Find all elements matching the base element code
-        sensor_elements = [
-            elem
-            for elem in stations[0].station_elements
-            if elem.get("elementCode") == element_code
-        ]
+    # Extract sensors for this property and format for output
+    if property_name not in sensors_by_property:
+        return []
 
-        sensors = []
-        for elem in sensor_elements:
-            sensor_info = {
-                "height_depth_inches": elem.get("heightDepth", 0),
-                "ordinal": elem.get("ordinal", 1),
-                "element_string": build_soil_element_string(
-                    element_code, elem.get("heightDepth", 0), elem.get("ordinal", 1)
-                ),
-                "begin_date": elem.get("beginDate"),
-                "end_date": elem.get("endDate"),
-                "data_precision": elem.get("dataPrecision"),
-            }
-            sensors.append(sensor_info)
+    sensors = []
+    for sensor_info in sensors_by_property[property_name]:
+        # Add element_string field (not in helper output)
+        sensor_dict = {
+            "height_depth_inches": sensor_info["height_depth_inches"] or 0,
+            "ordinal": sensor_info["ordinal"],
+            "element_string": build_soil_element_string(
+                sensor_info["element_code"],
+                sensor_info["height_depth_inches"] or 0,
+                sensor_info["ordinal"],
+            ),
+            "begin_date": sensor_info["begin_date"],
+            "end_date": sensor_info["end_date"],
+            "data_precision": sensor_info["data_precision"],
+        }
+        sensors.append(sensor_dict)
 
-        # Sort by height/depth (most negative first for depths, then by height)
-        sensors.sort(key=lambda x: x["height_depth_inches"])
+    # Sort by height/depth (most negative first for depths, then by height)
+    sensors.sort(key=lambda x: x["height_depth_inches"])
 
-        return sensors
+    return sensors
 
 
 @add_sync_version
@@ -456,6 +537,7 @@ async def get_soil_moisture_by_depth(
     depths_inches: Optional[list[int]] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    client: Optional[AWDBClient] = None,
 ) -> dict:
     """
     Get soil moisture data for multiple depths at a station.
@@ -469,6 +551,7 @@ async def get_soil_moisture_by_depth(
                       If None, queries all available depths at the station.
         start_date: Start date in YYYY-MM-DD format. Defaults to 30 days before today.
         end_date: End date in YYYY-MM-DD format. Defaults to today.
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         Dictionary with soil moisture data for each depth, including timestamps with
@@ -516,56 +599,57 @@ async def get_soil_moisture_by_depth(
             f"None of the requested depths are available at station {station_triplet}"
         )
 
-    async with AWDBClient() as client:
-        from datetime import datetime
+    from datetime import datetime
 
-        result: dict[str, Any] = {
-            "station_triplet": station_triplet,
-            "depths": {},
-            "metadata": {
-                "query_date": datetime.now().isoformat(),
-                "date_range": {"start": start_date, "end": end_date},
-            },
-        }
+    assert client is not None, "Client must be provided or created by decorator"
 
-        # Query each depth
-        for depth_info in target_depths:
-            element_string = depth_info["element_string"]
-            depth_inches = depth_info["height_depth_inches"]
+    result: dict[str, Any] = {
+        "station_triplet": station_triplet,
+        "depths": {},
+        "metadata": {
+            "query_date": datetime.now().isoformat(),
+            "date_range": {"start": start_date, "end": end_date},
+        },
+    }
 
-            try:
-                data_points = await client.get_station_data(
-                    station_triplet, element_string, start_date, end_date
-                )
+    # Query each depth
+    for depth_info in target_depths:
+        element_string = depth_info["element_string"]
+        depth_inches = depth_info["height_depth_inches"]
 
-                result["depths"][depth_inches] = {
-                    "element_string": element_string,
-                    "data_points": [
-                        {
-                            "timestamp": pt.timestamp.isoformat(),
-                            "value": pt.value,
-                            "flags": pt.flags,
-                            "qc_flag": pt.qc_flag,
-                            "qa_flag": pt.qa_flag,
-                            "orig_value": pt.orig_value,
-                            "average": pt.average,
-                            "median": pt.median,
-                            "station_timezone_offset_hours": pt.station_timezone_offset,
-                        }
-                        for pt in data_points
-                    ],
-                    "n_data_points": len(data_points),
-                }
+        try:
+            data_points = await client.get_station_data(
+                station_triplet, element_string, start_date, end_date
+            )
 
-            except Exception as e:
-                result["depths"][depth_inches] = {
-                    "element_string": element_string,
-                    "error": str(e),
-                    "data_points": [],
-                    "n_data_points": 0,
-                }
+            result["depths"][depth_inches] = {
+                "element_string": element_string,
+                "data_points": [
+                    {
+                        "timestamp": pt.timestamp.isoformat(),
+                        "value": pt.value,
+                        "flags": pt.flags,
+                        "qc_flag": pt.qc_flag,
+                        "qa_flag": pt.qa_flag,
+                        "orig_value": pt.orig_value,
+                        "average": pt.average,
+                        "median": pt.median,
+                        "station_timezone_offset_hours": pt.station_timezone_offset,
+                    }
+                    for pt in data_points
+                ],
+                "n_data_points": len(data_points),
+            }
 
-        return result
+        except Exception as e:
+            result["depths"][depth_inches] = {
+                "element_string": element_string,
+                "error": str(e),
+                "data_points": [],
+                "n_data_points": 0,
+            }
+
+    return result
 
 
 @add_sync_version
@@ -579,6 +663,7 @@ async def get_property_data_near(
     height_depth_inches: Optional[int] = None,
     network_codes: Optional[list[str]] = None,
     auto_select_sensor: bool = True,
+    client: Optional[AWDBClient] = None,
 ) -> dict:
     """
     Get time-series data for a property from the nearest monitoring station.
@@ -604,6 +689,7 @@ async def get_property_data_near(
                             Leave None to auto-select the primary sensor.
         network_codes: Network codes to filter by (e.g., ['SCAN', 'SNTL'])
         auto_select_sensor: Automatically select best available sensor (recommended: True)
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         Dictionary with time-series data, including:
@@ -660,116 +746,114 @@ async def get_property_data_near(
     except ValueError as e:
         raise AWDBError(f"Invalid date format: {e}") from e
 
-    async with AWDBClient() as client:
-        # Find nearby stations
-        nearby_stations = await client.find_nearby_stations(
-            latitude, longitude, max_distance_km, network_codes=network_codes
-        )
+    assert client is not None, "Client must be provided or created by decorator"
 
-        if not nearby_stations:
-            raise AWDBError(f"No monitoring stations found within {max_distance_km} km")
+    # Find nearby stations
+    nearby_stations = await client.find_nearby_stations(
+        latitude, longitude, max_distance_km, network_codes=network_codes
+    )
 
-        # Try to get data from the nearest station
-        nearest_station, distance = nearby_stations[0]
-        element_code = PROPERTY_ELEMENT_MAP[property_name]
+    if not nearby_stations:
+        raise AWDBError(f"No monitoring stations found within {max_distance_km} km")
 
-        # Auto-select best sensor if enabled and height/depth specification is needed
-        if auto_select_sensor and property_name in HEIGHT_DEPTH_PROPERTIES:
-            if height_depth_inches is not None:
-                # User specified specific height/depth - use it
-                element_string = build_soil_element_string(
-                    element_code, height_depth_inches, ordinal=1
+    # Try to get data from the nearest station
+    nearest_station, distance = nearby_stations[0]
+    element_code = PROPERTY_ELEMENT_MAP[property_name]
+
+    # Auto-select best sensor if enabled and height/depth specification is needed
+    if auto_select_sensor and property_name in HEIGHT_DEPTH_PROPERTIES:
+        if height_depth_inches is not None:
+            # User specified specific height/depth - use it
+            element_string = build_soil_element_string(
+                element_code, height_depth_inches, ordinal=1
+            )
+            ordinal = 1
+        else:
+            # Auto-select: query station metadata to find available sensors
+            try:
+                available_sensors = await station_sensor_depths(
+                    nearest_station.station_triplet, property_name
                 )
-                ordinal = 1
-            else:
-                # Auto-select: query station metadata to find available sensors
-                try:
-                    available_sensors = await station_sensor_depths(
-                        nearest_station.station_triplet, property_name
-                    )
-                    if available_sensors:
-                        # Select the first available sensor (typically the primary one)
-                        best_sensor = available_sensors[0]
-                        element_string = best_sensor["element_string"]
-                        ordinal = best_sensor["ordinal"]
-                        height_depth_inches = best_sensor["height_depth_inches"]
-                    else:
-                        # Fallback to default if no sensors found
-                        element_string = element_code
-                        ordinal = 1
-                except Exception:
-                    # Fallback on metadata query failure
+                if available_sensors:
+                    # Select the first available sensor (typically the primary one)
+                    best_sensor = available_sensors[0]
+                    element_string = best_sensor["element_string"]
+                    ordinal = best_sensor["ordinal"]
+                    height_depth_inches = best_sensor["height_depth_inches"]
+                else:
+                    # Fallback to default if no sensors found
                     element_string = element_code
                     ordinal = 1
-        else:
-            # Manual sensor selection or no height/depth needed
-            if (
-                property_name in HEIGHT_DEPTH_PROPERTIES
-                and height_depth_inches is not None
-            ):
-                element_string = build_soil_element_string(
-                    element_code, height_depth_inches, ordinal=1
-                )
-                ordinal = 1
-            else:
+            except Exception:
+                # Fallback on metadata query failure
                 element_string = element_code
                 ordinal = 1
+    else:
+        # Manual sensor selection or no height/depth needed
+        if property_name in HEIGHT_DEPTH_PROPERTIES and height_depth_inches is not None:
+            element_string = build_soil_element_string(
+                element_code, height_depth_inches, ordinal=1
+            )
+            ordinal = 1
+        else:
+            element_string = element_code
+            ordinal = 1
 
-        # Fetch data
-        raw_data = await client.get_station_data(
-            nearest_station.station_triplet,
-            element_string,
-            start_date,
-            end_date,
-        )
+    # Fetch data
+    raw_data = await client.get_station_data(
+        nearest_station.station_triplet,
+        element_string,
+        start_date,
+        end_date,
+    )
 
-        # Convert to TimeSeriesDataPoint objects
-        data_points = []
-        for point in raw_data:
-            if point.value is not None:  # Skip null values
-                data_points.append(point)
+    # Convert to TimeSeriesDataPoint objects
+    data_points = []
+    for point in raw_data:
+        if point.value is not None:  # Skip null values
+            data_points.append(point)
 
-        # Sort by timestamp
-        data_points.sort(key=lambda x: x.timestamp)
+    # Sort by timestamp
+    data_points.sort(key=lambda x: x.timestamp)
 
-        # Create result
-        result = {
-            "site_id": nearest_station.station_triplet,
-            "site_name": nearest_station.name,
-            "latitude": nearest_station.latitude,
-            "longitude": nearest_station.longitude,
-            "property_name": property_name,
-            "data_points": [
-                {
-                    "timestamp": point.timestamp.isoformat(),
-                    "value": point.value,
-                    "flags": point.flags,
-                    "qc_flag": point.qc_flag,
-                    "qa_flag": point.qa_flag,
-                    "orig_value": point.orig_value,
-                    "average": point.average,
-                    "median": point.median,
-                    "station_timezone_offset_hours": point.station_timezone_offset,
-                }
-                for point in data_points
-            ],
-            "unit": await get_property_unit_from_api(client, element_code)
-            or PROPERTY_UNITS.get(property_name, ""),
-            "metadata": {
-                "distance_km": round(distance, 2),
-                "network": nearest_station.network_code,
-                "elevation": nearest_station.elevation,
-                "height_depth_inches": height_depth_inches,
-                "element_string": element_string,
-                "ordinal": ordinal,
-                "n_data_points": len(data_points),
-                "station_timezone_offset_hours": nearest_station.data_time_zone,
-                "query_date": datetime.now().isoformat(),
-                "date_range": {"start": start_date, "end": end_date},
-            },
-        }
+    # Create result
+    result = {
+        "site_id": nearest_station.station_triplet,
+        "site_name": nearest_station.name,
+        "latitude": nearest_station.latitude,
+        "longitude": nearest_station.longitude,
+        "property_name": property_name,
+        "data_points": [
+            {
+                "timestamp": point.timestamp.isoformat(),
+                "value": point.value,
+                "flags": point.flags,
+                "qc_flag": point.qc_flag,
+                "qa_flag": point.qa_flag,
+                "orig_value": point.orig_value,
+                "average": point.average,
+                "median": point.median,
+                "station_timezone_offset_hours": point.station_timezone_offset,
+            }
+            for point in data_points
+        ],
+        "unit": await get_property_unit_from_api(client, element_code)
+        or PROPERTY_UNITS.get(property_name, ""),
+        "metadata": {
+            "distance_km": round(distance, 2),
+            "network": nearest_station.network_code,
+            "elevation": nearest_station.elevation,
+            "height_depth_inches": height_depth_inches,
+            "element_string": element_string,
+            "ordinal": ordinal,
+            "n_data_points": len(data_points),
+            "station_timezone_offset_hours": nearest_station.data_time_zone,
+            "query_date": datetime.now().isoformat(),
+            "date_range": {"start": start_date, "end": end_date},
+        },
+    }
 
-        return result
+    return result
 
 
 @add_sync_version
@@ -798,7 +882,10 @@ async def get_property_unit_from_api(client: AWDBClient, element_code: str) -> s
 
 
 @add_sync_version
-async def station_sensors(station_triplet: str) -> dict[str, Any]:
+async def station_sensors(
+    station_triplet: str,
+    client: Optional[AWDBClient] = None,
+) -> dict[str, Any]:
     """
     Get comprehensive sensor metadata for a station.
 
@@ -807,6 +894,7 @@ async def station_sensors(station_triplet: str) -> dict[str, Any]:
 
     Args:
         station_triplet: Station identifier (network:state:code format)
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         Dictionary with sensor metadata organized by property name:
@@ -839,58 +927,34 @@ async def station_sensors(station_triplet: str) -> dict[str, Any]:
         >>> for sensor in metadata['sensors'].get('soil_moisture', []):
         ...     print(f"Depth: {sensor['height_depth_inches']} inches")
     """
-    async with AWDBClient() as client:
-        # Get station with element details
-        stations = await client.get_stations(
-            station_triplets=[station_triplet], return_station_elements=True
-        )
+    assert client is not None, "Client must be provided or created by decorator"
 
-        if not stations or not stations[0].station_elements:
-            return {"station_triplet": station_triplet, "sensors": {}}
+    # Get station info (with elements)
+    stations = await client.get_stations(
+        station_triplets=[station_triplet], return_station_elements=True
+    )
 
-        station = stations[0]
-        sensors_by_property: dict[str, list[dict[str, Any]]] = {}
+    if not stations:
+        return {"station_triplet": station_triplet, "sensors": {}}
 
-        for elem in station.station_elements:  # type: ignore
-            element_code = elem.get("elementCode", "")
-            property_name = None
+    station = stations[0]
 
-            # Map element code to property name
-            for prop_name, elem_code in PROPERTY_ELEMENT_MAP.items():
-                if elem_code == element_code:
-                    property_name = prop_name
-                    break
+    # Get sensors organized by property name
+    sensors_by_property = await _build_element_to_sensor_dict(client, station_triplet)
 
-            if not property_name:
-                property_name = f"unknown_{element_code}"
-
-            if property_name not in sensors_by_property:
-                sensors_by_property[property_name] = []
-
-            sensor_info = {
-                "element_code": element_code,
-                "ordinal": elem.get("ordinal", 1),
-                "height_depth_inches": elem.get("heightDepth"),
-                "begin_date": elem.get("beginDate"),
-                "end_date": elem.get("endDate"),
-                "data_precision": elem.get("dataPrecision"),
-                "stored_unit_code": elem.get("storedUnitCode"),
-                "original_unit_code": elem.get("originalUnitCode"),
-                "derived_data": elem.get("derivedData", False),
-            }
-
-            sensors_by_property[property_name].append(sensor_info)
-
-        return {
-            "station_triplet": station_triplet,
-            "station_name": station.name,
-            "network": station.network_code,
-            "sensors": sensors_by_property,
-        }
+    return {
+        "station_triplet": station_triplet,
+        "station_name": station.name,
+        "network": station.network_code,
+        "sensors": sensors_by_property,
+    }
 
 
 @add_sync_version
-async def station_available_properties(station_triplet: str) -> list[dict]:
+async def station_available_properties(
+    station_triplet: str,
+    client: Optional[AWDBClient] = None,
+) -> list[dict]:
     """
     List available measured properties/variables for a specific station.
 
@@ -899,6 +963,7 @@ async def station_available_properties(station_triplet: str) -> list[dict]:
 
     Args:
         station_triplet: Station identifier (network:state:code format)
+        client: Optional AWDBClient instance. If not provided, one will be created and managed.
 
     Returns:
         List of available properties with metadata:
@@ -952,9 +1017,7 @@ async def station_available_properties(station_triplet: str) -> list[dict]:
                 else:
                     # Known properties
                     element_code = PROPERTY_ELEMENT_MAP.get(property_name, "")
-                    api_unit = await get_property_unit_from_api(
-                        AWDBClient(), element_code
-                    )
+                    api_unit = await get_property_unit_from_api(client, element_code)
                     unit = (
                         str(api_unit)
                         if api_unit

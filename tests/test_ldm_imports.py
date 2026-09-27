@@ -86,14 +86,6 @@ class TestLDMImports:
         assert LDMQueryBuilder is not None
         assert build_ldm_query is not None
 
-    def test_ldm_backends_importable(self):
-        """Test that backends can be imported."""
-        from soildb.ldm.backends import LDMBackend, SDABackend, SQLiteBackend
-
-        assert SDABackend is not None
-        assert SQLiteBackend is not None
-        assert LDMBackend is not None
-
     def test_ldm_in_main_init_all(self):
         """Test that LDMClient and fetch_ldm are in soildb.__all__."""
         import soildb
