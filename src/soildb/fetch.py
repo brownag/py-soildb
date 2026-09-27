@@ -28,14 +28,12 @@ ARCHITECTURE DIAGRAM:
         ↓
     ┌─────────────────────────────────────┐
     │ fetch_by_keys()                     │ ← PRIMARY (use this)
-    │ (handles all SSURGO tables)         │
+    │ (handles all SSURGO tables)         │ ↓ uses fetch_chunked internally
     └─────────────────────────────────────┘
-        ↑                    ↑
-        │                    └── _fetch_chunk() [internal]
-        │                         ↑
-        ├── fetch_mapunit_polygon()     │
-        ├── fetch_component_by_mukey()  │ ← TIER 2 (deprecated, wrap
-        ├── fetch_chorizon_by_cokey()   │   fetch_by_keys)
+        ↑
+        ├── fetch_mapunit_polygon()     │ ← TIER 2 (deprecated, wrap
+        ├── fetch_component_by_mukey()  │   fetch_by_keys)
+        ├── fetch_chorizon_by_cokey()   │
         └── fetch_survey_area_polygon() │
 
     ┌─────────────────────────────────────┐
@@ -66,49 +64,27 @@ RECOMMENDED USAGE PATTERNS:
    >>> horizons_df = result["horizons"].to_pandas()
 """
 
-import asyncio
 import logging
-import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, Optional, Union, cast
 
+from .chunked import fetch_chunked
 from .client import SDAClient
 from .exceptions import SoilDBError
+from .ldm.client import LDMClient
 from .query import Query
+from .query_templates import (
+    query_pedon_horizons_by_pedon_keys,
+    query_pedons_intersecting_bbox,
+)
 from .response import SDAResponse
 from .sanitization import sanitize_sql_numeric, sanitize_sql_string_list
-from .utils import add_sync_version, get_geometry_column_for_table
+from .ssurgo_tables import KEY_COLUMNS, geometry_column
+from .ssurgo_tables import key_column as get_key_column
+from .utils import add_sync_version, require_client
 
 logger = logging.getLogger(__name__)
-
-# Common SSURGO tables and their typical key columns
-TABLE_KEY_MAPPING = {
-    # Core tables
-    "legend": "lkey",
-    "mapunit": "mukey",
-    "component": "cokey",
-    "chorizon": "chkey",
-    "chfrags": "chfragkey",
-    "chtexturegrp": "chtgkey",
-    "chtexture": "chtkey",
-    # Spatial tables
-    "mupolygon": "mukey",
-    "sapolygon": "areasymbol",  # or lkey
-    "mupoint": "mukey",
-    "muline": "mukey",
-    "featpoint": "featkey",
-    "featline": "featkey",
-    # Interpretation tables
-    "cointerp": "cokey",
-    "chinterp": "chkey",
-    "copmgrp": "copmgrpkey",
-    "corestrictions": "reskeyid",
-    # Administrative
-    "sacatalog": "areasymbol",
-    "laoverlap": "lkey",
-    "legendtext": "lkey",
-}
 
 
 class FetchError(SoilDBError):
@@ -117,7 +93,7 @@ class FetchError(SoilDBError):
     def __str__(self) -> str:
         """Return helpful fetch error message."""
         if "Unknown table" in self.message:
-            return f"{self.message} Supported tables include: {', '.join(TABLE_KEY_MAPPING.keys())}"
+            return f"{self.message} Supported tables include: {', '.join(KEY_COLUMNS.keys())}"
         elif "No responses to combine" in self.message:
             return "No data was returned from the fetch operation. This may indicate invalid keys or an empty result set."
         return self.message
@@ -330,6 +306,7 @@ async def fetch_by_keys(
     key_column: Optional[str] = None,
     columns: Optional[Union[str, list[str]]] = None,
     chunk_size: int = 1000,
+    max_concurrency: int = 4,
     include_geometry: bool = False,
     client: Optional[SDAClient] = None,
 ) -> SDAResponse:
@@ -369,6 +346,7 @@ async def fetch_by_keys(
     - key_column: Column to match keys against (auto-detected from table if None)
     - columns: Specific columns to retrieve (all columns if None)
     - chunk_size: Keys per query (default 1000, try 500-2000)
+    - max_concurrency: Maximum concurrent queries (default 4, 1-16 typical)
     - include_geometry: Add WKT geometry for spatial tables
     - client: Optional SDAClient instance (creates one if None)
 
@@ -379,7 +357,7 @@ async def fetch_by_keys(
     - mupolygon → mukey
     - sapolygon → areasymbol
     - featpoint → featkey
-    - And many others (see TABLE_KEY_MAPPING)
+    - And many others (see ssurgo_tables.KEY_COLUMNS)
 
     **COLUMN SELECTION STRATEGIES**:
     - Default (None): Uses schema-defined default columns for table
@@ -392,6 +370,7 @@ async def fetch_by_keys(
         key_column: Column name for the key (auto-detected if None)
         columns: Columns to select (default: all columns from schema, or key columns if no schema)
         chunk_size: Number of keys to process per query (default: 1000, recommended: 500-2000)
+        max_concurrency: Maximum concurrent queries to execute (default: 4)
         include_geometry: Whether to include geometry as WKT for spatial tables
         client: Optional SDA client instance (creates temporary client if None)
 
@@ -438,7 +417,7 @@ async def fetch_by_keys(
         ...     key_column="areasymbol",
         ...     include_geometry=True
         ... )
-        >>> gdf = response.to_geodataframe()  # Convert to GeoDataFrame
+        >>> gdf = response.to_geopandas()  # Convert to GeoDataFrame
         >>> gdf.plot()  # Map the survey area boundaries
 
     **MIGRATION FROM DEPRECATED FUNCTIONS**:
@@ -461,6 +440,7 @@ async def fetch_by_keys(
         get_cokey_by_mukey() - Discover keys before fetching
         get_mukey_by_areasymbol() - Discover keys before fetching
     """
+    client = require_client(client)
     if isinstance(keys, (str, int)):
         keys = cast(list[Union[str, int]], [keys])
 
@@ -469,12 +449,9 @@ async def fetch_by_keys(
     if not keys_list:
         raise FetchError("The 'keys' parameter cannot be an empty list.")
 
-    if client is None:
-        client = SDAClient()
-
     # Auto-detect key column if not provided
     if key_column is None:
-        key_column = TABLE_KEY_MAPPING.get(table.lower())
+        key_column = get_key_column(table)
         if key_column is None:
             raise FetchError(
                 f"Unknown table '{table}'. Please specify key_column parameter."
@@ -489,7 +466,7 @@ async def fetch_by_keys(
 
     # Add geometry column for spatial tables if requested
     if include_geometry:
-        geom_column = get_geometry_column_for_table(table)
+        geom_column = geometry_column(table)
         if geom_column:
             if select_columns == "*":
                 select_columns = f"*, {geom_column}.STAsText() as geometry"
@@ -498,445 +475,27 @@ async def fetch_by_keys(
                     f"{select_columns}, {geom_column}.STAsText() as geometry"
                 )
 
-    key_strings = [_format_key_for_sql(key) for key in keys_list]
-
-    num_chunks = math.ceil(len(key_strings) / chunk_size)
-
-    if num_chunks == 1:
-        # Single query for small key lists
-        return await _fetch_chunk(
-            key_strings, table, key_column, select_columns, client
-        )
-    else:
-        # Multiple queries for large key lists
-        logger.debug(
-            f"Fetching {len(keys_list)} keys in {num_chunks} chunks of {chunk_size}"
+    def build_query(chunk_keys: Sequence[Union[str, int]]) -> Query:
+        """Build a Query for a chunk of keys."""
+        return (
+            Query()
+            .select(*[col.strip() for col in select_columns.split(",")])
+            .from_(table)
+            .where_in(key_column, chunk_keys)
         )
 
-        # Create chunks
-        chunks = [
-            key_strings[i : (i + chunk_size)]
-            for i in range(0, len(key_strings), chunk_size)
-        ]
-
-        # Execute all chunks concurrently
-        chunk_tasks = [
-            _fetch_chunk(chunk_keys, table, key_column, select_columns, client)
-            for chunk_keys in chunks
-        ]
-
-        chunk_responses = await asyncio.gather(*chunk_tasks)
-
-        # Combine all responses
-        return _combine_responses(chunk_responses)
-
-
-async def _fetch_chunk(
-    key_strings: list[str],
-    table: str,
-    key_column: str,
-    select_columns: str,
-    client: SDAClient,
-) -> SDAResponse:
-    """Fetch a single chunk of keys."""
-    # Build IN clause
-    keys_in_clause = ", ".join(key_strings)
-    where_clause = f"{key_column} IN ({keys_in_clause})"
-
-    # Build and execute query
-    query = (
-        Query()
-        .select(*[col.strip() for col in select_columns.split(",")])
-        .from_(table)
-        .where(where_clause)
+    logger.debug(
+        f"Fetching {len(keys_list)} keys with chunk_size={chunk_size}, "
+        f"max_concurrency={max_concurrency}"
     )
 
-    return await client.execute(query)
-
-
-def _combine_responses(
-    responses: list[SDAResponse], deduplicate: bool = False
-) -> SDAResponse:
-    """
-    Combine multiple SDAResponse objects into a single unified response.
-
-    This function consolidates paginated query results from concurrent requests
-    into a single response object. It handles schema consistency, deduplication,
-    and validation to ensure data integrity.
-
-    **HOW RESPONSES ARE COMBINED**:
-
-    Responses are merged by concatenating data rows while preserving column order
-    and metadata from the first response. The process assumes all responses share
-    the same schema (same columns in same order). The combined response maintains
-    the SDA table format with header row, metadata row, and data rows.
-
-    Structure:
-    ```
-    Combined Response:
-    - Row 0: Column names (e.g., ["mukey", "muname", "clay"])
-    - Row 1: Column metadata/types (e.g., ["Int", "NVarChar", "Float"])
-    - Rows 2+: Data rows from all input responses (combined and optionally deduped)
-    ```
-
-    **METADATA HANDLING**:
-
-    - Column definitions taken from first response (assumed consistent)
-    - All validation states from input responses are combined:
-      - Errors: If any response has errors, combined response includes them
-      - Warnings: All warnings from all responses are collected
-      - Data quality score: Average of all response quality scores
-    - Response timestamps and request IDs are preserved from first response
-
-    **DEDUPLICATION LOGIC**:
-
-    When deduplicate=True, duplicate rows are detected and removed based on the
-    primary key column (first column, typically). Behavior:
-
-    - First occurrence of each key value is preserved
-    - Subsequent occurrences are marked as duplicates and removed
-    - Deduplication occurs BEFORE validation
-    - Statistics logged: "Deduped K rows from N total rows"
-    - Use case: When fetching overlapping key ranges, some rows appear in multiple chunks
-
-    Note: Deduplication is based on row equality, not just key columns. If the
-    same key has different values in other columns, both are kept (data conflict).
-
-    **CONFLICT RESOLUTION**:
-
-    Conflicts occur when the same key appears with different values in other
-    columns. Behavior:
-
-    - No automatic conflict resolution (data is kept as-is)
-    - Conflict detection during validation (logged as warning)
-    - User must decide: merge manually or reject response
-    - Consider: How did conflicting data originate? (data quality issue)
-    - Typical cause: Concurrent fetches overlapped, or source data inconsistency
-
-    **DECISION TREE - COMBINING RESPONSES**:
-
-    When combining responses, assume:
-    1. All responses are from the same SSURGO table (same schema)
-    2. All responses have identical column definitions (order and types)
-    3. Keys come from sequential chunks (no intentional overlap unless using deduplicate=True)
-    4. Metadata (column types) are consistent across all responses
-    5. Validation state can be merged (errors accumulated, score averaged)
-
-    Combining responses will FAIL if:
-    - Responses have different column counts or names
-    - Responses have different metadata/type information
-    - Responses are None or empty (internal handling only)
-
-    **VALIDATION AFTER COMBINING**:
-
-    After combining, the response is validated:
-    1. Schema consistency check: All columns match first response
-    2. Type consistency check: Data types match declared types
-    3. Row integrity check: All rows have same number of columns
-    4. Deduplication check: Report any duplicates detected
-    5. Conflict detection: Report any key-value conflicts
-
-    Validation errors block combining (exception raised).
-    Validation warnings are logged but don't block combining.
-
-    **PERFORMANCE NOTES**:
-
-    - Time complexity: O(n) where n = total rows across all responses
-    - Space complexity: O(n) for combined data storage
-    - Deduplication: O(n) with hash table for seen keys
-    - Validation: O(n) for full data check
-    - For 1M+ rows: Consider streaming or incremental processing
-
-    Args:
-        responses: List of SDAResponse objects to combine.
-                   Must contain at least one response.
-                   All responses should be from the same query/table.
-        deduplicate: If True, remove duplicate rows (default: False).
-                     Uses first column as deduplication key.
-                     Preserves first occurrence of each key value.
-
-    Returns:
-        SDAResponse: Combined response with all data merged.
-                     Validation state includes all input responses.
-
-    Raises:
-        FetchError: If responses list is empty
-        FetchError: If schema mismatch detected (different columns/types)
-        FetchError: If row integrity check fails (inconsistent column counts)
-        FetchError: If response format is invalid (missing headers/metadata)
-
-    Examples:
-        # Basic combination of two responses
-        >>> response1 = await fetch_by_keys([1, 2, 3], "mapunit", client=client)
-        >>> response2 = await fetch_by_keys([4, 5, 6], "mapunit", client=client)
-        >>> combined = _combine_responses([response1, response2])
-        >>> print(f"Combined {len([response1, response2])} responses, "
-        ...       f"{len(combined.data)} rows total")
-
-        # Combine with deduplication (handles overlapping key ranges)
-        >>> overlapping_responses = [...]  # Multiple responses with possible overlaps
-        >>> combined = _combine_responses(overlapping_responses, deduplicate=True)
-        >>> df = combined.to_pandas()
-
-        # Access combined validation state
-        >>> combined = _combine_responses([r1, r2, r3])
-        >>> validation_result = combined.validation_result
-        >>> if validation_result.has_errors:
-        ...     print(f"Validation errors: {validation_result.errors}")
-
-    See Also:
-        fetch_by_keys() - Public function that uses this internally
-        SDAResponse - Response object format and structure
-        _validate_schema_consistency() - Helper for schema validation
-        _validate_row_integrity() - Helper for data validation
-    """
-    import time
-
-    start_time = time.time()
-
-    # Validate inputs
-    if not responses:
-        raise FetchError("No responses to combine")
-
-    if len(responses) == 1:
-        logger.debug("Single response, returning as-is")
-        return responses[0]
-
-    logger.debug(f"Combining {len(responses)} responses, deduplicate={deduplicate}")
-
-    # Validate schema consistency across all responses
-    try:
-        _validate_schema_consistency(responses)
-    except FetchError as e:
-        logger.error(f"Schema validation failed: {e}")
-        raise
-
-    # Collect data from all responses with deduplication if requested
-    combined_data = []
-    seen_keys: dict[Any, bool] = {}  # Track seen keys for deduplication
-    deduped_count = 0
-
-    first_response = responses[0]
-
-    for response_idx, response in enumerate(responses):
-        if response.is_empty():
-            logger.debug(f"Response {response_idx} is empty, skipping")
-            continue
-
-        for _row_idx, row in enumerate(response.data):
-            # Extract first column value as key for deduplication
-            if deduplicate and row:
-                row_key = next(iter(row.values())) if isinstance(row, dict) else row[0]
-
-                if row_key in seen_keys:
-                    deduped_count += 1
-                    logger.debug(
-                        f"Deduplicating: {row_key} (seen before in earlier chunk)"
-                    )
-                    continue  # Skip duplicate
-
-                seen_keys[row_key] = True
-
-            combined_data.append(row)
-
-    # Validate row integrity
-    try:
-        _validate_row_integrity(combined_data, first_response.columns)
-    except FetchError as e:
-        logger.warning(f"Row integrity warning (continuing anyway): {e}")
-
-    # Build the combined table in SDA format
-    combined_table: list[Any] = []
-
-    # Add the header row (column names)
-    combined_table.append(first_response.columns)
-
-    # Add the metadata row (column types)
-    combined_table.append(first_response.metadata)
-
-    # Add all the combined data rows
-    combined_table.extend(combined_data)
-
-    # Create new raw data structure
-    combined_raw_data: dict[str, Any] = {"Table": combined_table}
-
-    # Create new SDAResponse
-    combined_response = SDAResponse(combined_raw_data)
-
-    # Combine validation state from all responses
-    try:
-        _merge_validation_state(combined_response, responses)
-    except Exception as e:
-        logger.warning(f"Could not merge validation state: {e}")
-
-    # Log combining statistics
-    elapsed_time = time.time() - start_time
-    total_input_rows = sum(len(r.data) for r in responses)
-    logger.info(
-        f"Combined {len(responses)} responses: "
-        f"{len(combined_data)} rows total (deduped: {deduped_count}), "
-        f"elapsed: {elapsed_time:.3f}s"
+    return await fetch_chunked(
+        keys_list,
+        build_query,
+        client.execute,
+        chunk_size=chunk_size,
+        max_concurrency=max_concurrency,
     )
-
-    if deduplicate and deduped_count > 0:
-        logger.warning(
-            f"Deduplication removed {deduped_count} duplicate rows "
-            f"({100 * deduped_count / total_input_rows:.1f}% reduction). "
-            f"Check if chunking strategy is causing overlaps."
-        )
-
-    return combined_response
-
-
-def _validate_schema_consistency(responses: list[SDAResponse]) -> None:
-    """
-    Validate that all responses have consistent schemas.
-
-    Checks that all responses have the same columns in the same order
-    and same metadata/type information.
-
-    Args:
-        responses: List of responses to validate
-
-    Raises:
-        FetchError: If schema mismatch detected
-    """
-    if not responses:
-        return
-
-    first_columns = responses[0].columns
-    first_metadata = responses[0].metadata
-
-    for idx, response in enumerate(responses[1:], start=1):
-        if response.columns != first_columns:
-            raise FetchError(
-                f"Schema mismatch: Response {idx} has different columns. "
-                f"Expected: {first_columns}, Got: {response.columns}"
-            )
-
-        if response.metadata != first_metadata:
-            logger.warning(
-                f"Metadata mismatch in response {idx}: "
-                f"Expected: {first_metadata}, Got: {response.metadata}. "
-                f"Using first response metadata."
-            )
-
-
-def _validate_row_integrity(rows: list[Any], expected_columns: list[str]) -> None:
-    """
-    Validate that all rows have consistent structure.
-
-    Checks that all rows have the same number of columns as the schema,
-    and that columns are in the expected order.
-
-    Args:
-        rows: List of data rows
-        expected_columns: Expected column list from schema
-
-    Raises:
-        FetchError: If row integrity issues detected
-    """
-    if not rows:
-        return
-
-    expected_col_count = len(expected_columns)
-
-    for row_idx, row in enumerate(rows):
-        if isinstance(row, dict):
-            if len(row) != expected_col_count:
-                raise FetchError(
-                    f"Row {row_idx} has {len(row)} columns, "
-                    f"expected {expected_col_count}. "
-                    f"Expected columns: {expected_columns}"
-                )
-        elif isinstance(row, (list, tuple)):
-            if len(row) != expected_col_count:
-                raise FetchError(
-                    f"Row {row_idx} has {len(row)} columns, "
-                    f"expected {expected_col_count}"
-                )
-        else:
-            raise FetchError(f"Row {row_idx} has unexpected type: {type(row)}")
-
-
-def _merge_validation_state(
-    combined_response: SDAResponse, input_responses: list[SDAResponse]
-) -> None:
-    """
-    Merge validation state from all input responses into combined response.
-
-    Combines validation state by:
-    1. Collecting all errors and warnings
-    2. Averaging data quality scores
-    3. Recording merge timestamp
-
-    Args:
-        combined_response: The newly combined response object
-        input_responses: List of original responses being combined
-
-    Note:
-        This function modifies combined_response in-place if validation
-        state attributes exist. If attributes don't exist, continues silently.
-    """
-    try:
-        # Check if responses have validation_result attribute
-        validation_results = [
-            r.validation_result
-            for r in input_responses
-            if hasattr(r, "validation_result") and r.validation_result is not None
-        ]
-
-        if not validation_results:
-            logger.debug("No validation state to merge")
-            return
-
-        # Collect all errors and warnings
-        all_errors = []
-        all_warnings = []
-        quality_scores = []
-
-        for vr in validation_results:
-            if hasattr(vr, "errors") and vr.errors:
-                all_errors.extend(vr.errors)
-            if hasattr(vr, "warnings") and vr.warnings:
-                all_warnings.extend(vr.warnings)
-            if hasattr(vr, "data_quality_score"):
-                quality_scores.append(vr.data_quality_score)
-
-        # Update combined response validation state
-        if hasattr(combined_response, "validation_result"):
-            vr = combined_response.validation_result
-            if vr and hasattr(vr, "errors"):
-                vr.errors = all_errors
-            if vr and hasattr(vr, "warnings"):
-                vr.warnings = all_warnings
-
-            # Average quality score
-            if quality_scores and hasattr(vr, "data_quality_score"):
-                avg_score = sum(quality_scores) / len(quality_scores)
-                vr.data_quality_score = avg_score
-
-            logger.debug(
-                f"Merged validation state: {len(all_errors)} errors, "
-                f"{len(all_warnings)} warnings, "
-                f"avg quality score: {avg_score:.2f}"
-                if quality_scores
-                else ""
-            )
-
-    except Exception as e:
-        logger.debug(f"Could not merge validation state (non-critical): {e}")
-
-
-def _format_key_for_sql(key: Union[str, int]) -> str:
-    """Format a key value for use in SQL IN clause."""
-    if isinstance(key, str):
-        # Escape single quotes and wrap in quotes
-        escaped_key = key.replace("'", "''")
-        return f"'{escaped_key}'"
-    else:
-        # Numeric keys don't need quotes
-        return str(key)
 
 
 @add_sync_version
@@ -988,6 +547,7 @@ async def fetch_pedons_by_bbox(
         >>> pedon_keys = site_response.to_pandas()["pedon_key"].unique().tolist()
         >>> horizons = await fetch_pedon_horizons(pedon_keys, client=client)
     """
+    client = require_client(client)
     if return_type not in ["sitedata", "combined"]:
         raise ValueError(
             f"Invalid return_type: {return_type!r}. Must be one of: "
@@ -996,15 +556,8 @@ async def fetch_pedons_by_bbox(
 
     min_lon, min_lat, max_lon, max_lat = bbox
 
-    if client is None:
-        client = SDAClient()
-
     # Fetch site data
-    from . import query_templates
-
-    query = query_templates.query_pedons_intersecting_bbox(
-        min_lon, min_lat, max_lon, max_lat, columns
-    )
+    query = query_pedons_intersecting_bbox(min_lon, min_lat, max_lon, max_lat, columns)
     site_response = await client.execute(query)
 
     # If only site data is requested or response is empty, return early
@@ -1016,45 +569,21 @@ async def fetch_pedons_by_bbox(
     site_df = site_response.to_pandas()
     pedon_keys = site_df["pedon_key"].unique().tolist()
 
-    # Fetch horizons in chunks if needed
-    all_horizons = []
-    sample_cols = None
-    sample_meta = None
-    if len(pedon_keys) <= chunk_size:
-        # Single query for small pedon lists
-        horizons_response = await fetch_pedon_horizons(pedon_keys, client=client)
-        if not horizons_response.is_empty():
-            # Capture columns and metadata from the response
-            sample_cols = horizons_response.columns
-            sample_meta = horizons_response.metadata
-            all_horizons.extend(horizons_response.data)
-    else:
-        # Multiple queries for large pedon lists
-        logger.debug(
-            f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}"
-        )
-        for i in range(0, len(pedon_keys), chunk_size):
-            chunk_keys = pedon_keys[i : i + chunk_size]
-            chunk_response = await fetch_pedon_horizons(chunk_keys, client=client)
-            if not chunk_response.is_empty():
-                # Capture columns and metadata from first non-empty chunk
-                if sample_cols is None:
-                    sample_cols = chunk_response.columns
-                    sample_meta = chunk_response.metadata
-                all_horizons.extend(chunk_response.data)
+    # Fetch horizons in chunks with bounded concurrency
+    def build_horizon_query(chunk_keys: Sequence[str]) -> Query:
+        """Build a horizon query for a chunk of pedon keys."""
+        return query_pedon_horizons_by_pedon_keys(list(chunk_keys))
 
-    # Build horizons response object from combined data
-    if all_horizons:
-        # Reconstruct the raw data format that SDAResponse expects
-        horizons_table = []
-        horizons_table.append(sample_cols)
-        horizons_table.append(sample_meta)
-        horizons_table.extend(all_horizons)
-        horizons_raw_data = {"Table": horizons_table}
-        horizons_response = SDAResponse(horizons_raw_data)
-    else:
-        # Empty horizons response
-        horizons_response = SDAResponse({})
+    logger.debug(
+        f"Fetching horizons for {len(pedon_keys)} pedons in chunks of {chunk_size}"
+    )
+
+    horizons_response = await fetch_chunked(
+        pedon_keys,
+        build_horizon_query,
+        client.execute,
+        chunk_size=chunk_size,
+    )
 
     # return_type == "combined"
     return {"site": site_response, "horizons": horizons_response}
@@ -1075,15 +604,11 @@ async def fetch_pedon_horizons(
     Returns:
         SDAResponse containing horizon data
     """
+    client = require_client(client)
     if isinstance(pedon_keys, str):
         pedon_keys = [pedon_keys]
 
-    if client is None:
-        client = SDAClient()
-
-    from . import query_templates
-
-    query = query_templates.query_pedon_horizons_by_pedon_keys(pedon_keys)
+    query = query_pedon_horizons_by_pedon_keys(pedon_keys)
     return await client.execute(query)
 
 
@@ -1105,7 +630,7 @@ async def fetch_ldm(
     prep_code: Union[str, Sequence[str], None] = ("S", ""),
     analyzed_size_frac: Union[str, Sequence[str], None] = ("<2 mm", ""),
     dsn: Optional[Union[str, Path]] = None,
-    client: Optional[Union[SDAClient, Any]] = None,
+    client: Optional[Union[LDMClient, SDAClient]] = None,
 ) -> SDAResponse:
     """
     Query Kellogg Soil Survey Laboratory Data Mart via SDA or SQLite snapshot.
@@ -1121,8 +646,8 @@ async def fetch_ldm(
         x: Values to search for in column specified by 'what'. Can be single value
            or list. If both 'x' and 'WHERE' are None, returns empty result.
         what: Column name for filtering. Common values:
-            - 'pedlabsampnum': Laboratory Pedon ID
-            - 'upedonid': User Pedon ID
+            - 'pedlabsampnum': Lab pedon number
+            - 'upedonid': Pedon ID (assigned by describer, not unique)
             - 'corr_name': Correlated Taxon Name
             - 'samp_name': Sampled As Taxon Name
             - 'pedon_key': Pedon internal key
@@ -1170,9 +695,11 @@ async def fetch_ldm(
         dsn: Path to SQLite database. If None, queries Soil Data Access web service.
              Download SQLite snapshots from:
              https://ncsslabdatamart.sc.egov.usda.gov/database_download.aspx
-        client: Optional LDMClient instance for connection reuse. If LDMClient
-                is not provided and dsn is None, a temporary SDAClient will be
-                created for the query.
+        client: Optional LDMClient or SDAClient instance. If None, an LDMClient
+                is created as an async context manager (using dsn or SDA web service).
+                If an LDMClient is provided, it is used directly without closing.
+                If an SDAClient is provided, it is wrapped in an LDMClient without
+                closing the underlying SDAClient.
 
     Returns:
         SDAResponse: Query results with laboratory data
@@ -1228,7 +755,7 @@ async def fetch_ldm(
 
             >>> response = await fetch_ldm(x=['85P0234'], what='pedlabsampnum')
             >>> df = response.to_pandas()  # pandas DataFrame
-            >>> gdf = response.to_geodataframe()  # geopandas GeoDataFrame
+            >>> gdf = response.to_geopandas()  # geopandas GeoDataFrame
 
     See Also:
         - LDMClient: Lower-level client for advanced use cases
@@ -1238,63 +765,40 @@ async def fetch_ldm(
         - Lab Data Mart: https://ncsslabdatamart.sc.egov.usda.gov
     """
 
-    from .ldm import LDMClient
+    if isinstance(client, LDMClient):
+        return await client.query(
+            x=x,
+            what=what,
+            bycol=bycol,
+            tables=tables,
+            WHERE=WHERE,
+            chunk_size=chunk_size,
+            max_retries=max_retries,
+            layer_type=layer_type,
+            area_type=area_type,
+            prep_code=prep_code,
+            analyzed_size_frac=analyzed_size_frac,
+        )
 
-    # Determine which backend to use
     if client is None:
-        # Create temporary client
-        ldm_client = LDMClient(dsn=dsn)
-        try:
-            return await ldm_client.query(
-                x=x,
-                what=what,
-                bycol=bycol,
-                tables=tables,
-                WHERE=WHERE,
-                chunk_size=chunk_size,
-                max_retries=max_retries,
-                layer_type=layer_type,
-                area_type=area_type,
-                prep_code=prep_code,
-                analyzed_size_frac=analyzed_size_frac,
-            )
-        finally:
-            await ldm_client.close()
+        ctx = LDMClient(dsn=dsn)
     else:
-        # Use provided client
-        if isinstance(client, LDMClient):
-            return await client.query(
-                x=x,
-                what=what,
-                bycol=bycol,
-                tables=tables,
-                WHERE=WHERE,
-                chunk_size=chunk_size,
-                max_retries=max_retries,
-                layer_type=layer_type,
-                area_type=area_type,
-                prep_code=prep_code,
-                analyzed_size_frac=analyzed_size_frac,
-            )
-        else:
-            # Client is SDAClient, wrap it
-            ldm_client = LDMClient(dsn=dsn, sda_client=client)
-            try:
-                return await ldm_client.query(
-                    x=x,
-                    what=what,
-                    bycol=bycol,
-                    tables=tables,
-                    WHERE=WHERE,
-                    chunk_size=chunk_size,
-                    max_retries=max_retries,
-                    layer_type=layer_type,
-                    area_type=area_type,
-                    prep_code=prep_code,
-                    analyzed_size_frac=analyzed_size_frac,
-                )
-            finally:
-                await ldm_client.close()
+        ctx = LDMClient(dsn=dsn, sda_client=client)
+
+    async with ctx:
+        return await ctx.query(
+            x=x,
+            what=what,
+            bycol=bycol,
+            tables=tables,
+            WHERE=WHERE,
+            chunk_size=chunk_size,
+            max_retries=max_retries,
+            layer_type=layer_type,
+            area_type=area_type,
+            prep_code=prep_code,
+            analyzed_size_frac=analyzed_size_frac,
+        )
 
 
 # ============================================================================
@@ -1343,9 +847,7 @@ async def get_mukey_by_areasymbol(
         get_cokey_by_mukey() - Discover cokeys from mukeys
         fetch_by_keys() - Use discovered keys to fetch data
     """
-    if client is None:
-        client = SDAClient()
-
+    client = require_client(client)
     # Use the existing get_mapunits_by_legend pattern but for multiple areas
     key_strings = sanitize_sql_string_list(areasymbols)
     where_clause = f"l.areasymbol IN ({', '.join(key_strings)})"

@@ -2,64 +2,25 @@
 Tests for the fetch module (key-based bulk data retrieval).
 """
 
-from unittest.mock import AsyncMock, patch
+import sqlite3
+from collections.abc import AsyncGenerator
+from pathlib import Path
+from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
+import pytest_asyncio
 
 from soildb.client import SDAClient
 from soildb.fetch import (
-    TABLE_KEY_MAPPING,
     FetchError,
-    _format_key_for_sql,
     fetch_by_keys,
+    fetch_ldm,
     fetch_pedons_by_bbox,
     get_cokey_by_mukey,
     get_mukey_by_areasymbol,
 )
+from soildb.ldm import LDMClient
 from soildb.response import SDAResponse
-from soildb.utils import get_geometry_column_for_table
-
-
-class TestKeyFormatting:
-    """Test key formatting for SQL."""
-
-    def test_format_string_key(self):
-        """Test formatting string keys."""
-        assert _format_key_for_sql("CA630") == "'CA630'"
-        assert _format_key_for_sql("test'quote") == "'test''quote'"
-
-    def test_format_numeric_key(self):
-        """Test formatting numeric keys."""
-        assert _format_key_for_sql(123456) == "123456"
-        assert _format_key_for_sql(123456.0) == "123456.0"
-
-
-class TestGeometryColumns:
-    """Test geometry column mapping."""
-
-    def test_known_tables(self):
-        """Test geometry column detection for known tables."""
-        assert get_geometry_column_for_table("mupolygon") == "mupolygongeo"
-        assert get_geometry_column_for_table("sapolygon") == "sapolygongeo"
-
-    def test_unknown_table(self):
-        """Test geometry column detection for unknown tables."""
-        assert get_geometry_column_for_table("unknown") is None
-
-
-class TestTableKeyMapping:
-    """Test the table-key mapping."""
-
-    def test_core_tables(self):
-        """Test key mapping for core tables."""
-        assert TABLE_KEY_MAPPING["mapunit"] == "mukey"
-        assert TABLE_KEY_MAPPING["component"] == "cokey"
-        assert TABLE_KEY_MAPPING["chorizon"] == "chkey"
-
-    def test_spatial_tables(self):
-        """Test key mapping for spatial tables."""
-        assert TABLE_KEY_MAPPING["mupolygon"] == "mukey"
-        assert TABLE_KEY_MAPPING["sapolygon"] == "areasymbol"
 
 
 @pytest.mark.asyncio
@@ -84,33 +45,34 @@ class TestFetchByKeys:
         """Test fetch with keys that fit in single chunk."""
         # Mock client and response
         mock_client = AsyncMock(spec=SDAClient)
-        mock_response = AsyncMock(spec=SDAResponse)
-        mock_response.data = [{"mukey": 123456, "muname": "Test Unit"}]
+        mock_response = SDAResponse.from_rows(
+            [[123456, "Test Unit"]],
+            ["mukey", "muname"],
+            ["int", "varchar"],
+        )
 
         mock_client.execute.return_value = mock_response
 
         result = await fetch_by_keys([123456], "mapunit", client=mock_client)
 
-        assert result == mock_response
+        assert len(result.data) == 1
+        assert result.data[0][0] == 123456
         mock_client.execute.assert_called_once()
 
     async def test_multiple_chunks(self):
         """Test fetch with keys requiring multiple chunks."""
         # Mock client and responses
         mock_client = AsyncMock(spec=SDAClient)
-        mock_response1 = AsyncMock(spec=SDAResponse)
-        mock_response1.data = [{"mukey": 1, "muname": "Unit 1"}]
-        mock_response1.columns = ["mukey", "muname"]
-        mock_response1.metadata = ["Int", "NVarChar"]
-        mock_response1.is_empty.return_value = False
-        mock_response1.validation_result = None
-
-        mock_response2 = AsyncMock(spec=SDAResponse)
-        mock_response2.data = [{"mukey": 2, "muname": "Unit 2"}]
-        mock_response2.columns = ["mukey", "muname"]  # Same schema!
-        mock_response2.metadata = ["Int", "NVarChar"]
-        mock_response2.is_empty.return_value = False
-        mock_response2.validation_result = None
+        mock_response1 = SDAResponse.from_rows(
+            [[1, "Unit 1"]],
+            ["mukey", "muname"],
+            ["int", "varchar"],
+        )
+        mock_response2 = SDAResponse.from_rows(
+            [[2, "Unit 2"]],
+            ["mukey", "muname"],
+            ["int", "varchar"],
+        )
 
         mock_client.execute.side_effect = [mock_response1, mock_response2]
 
@@ -120,8 +82,8 @@ class TestFetchByKeys:
         )
 
         assert len(result.data) == 2
-        assert result.data[0]["mukey"] == 1
-        assert result.data[1]["mukey"] == 2
+        assert result.data[0][0] == 1
+        assert result.data[1][0] == 2
 
     async def test_custom_columns(self):
         """Test fetch with custom column selection."""
@@ -149,6 +111,40 @@ class TestFetchByKeys:
         )
 
         assert mock_client.execute.called
+
+    async def test_chunked_fetch_2500_keys(self):
+        """Test that 2500 keys with chunk_size=1000 makes exactly 3 queries.
+
+        This verifies the chunked fetching behavior: 2500 keys with chunk_size=1000
+        should result in 3 chunks: [1000, 1000, 500], making 3 calls to execute.
+        """
+        # Create mock responses for each chunk
+        mock_client = AsyncMock(spec=SDAClient)
+
+        # Create 3 mock responses (one per chunk, each with 1 row)
+        mock_responses = []
+        for i in range(3):
+            mock_resp = SDAResponse.from_rows(
+                [[i, f"Unit {i}"]],
+                ["mukey", "muname"],
+                ["int", "varchar"],
+            )
+            mock_responses.append(mock_resp)
+
+        # Set the side_effect to return one response per call
+        mock_client.execute.side_effect = mock_responses
+
+        # Create 2500 keys to ensure 3 chunks with chunk_size=1000
+        keys = list(range(1, 2501))
+
+        result = await fetch_by_keys(
+            keys, "mapunit", chunk_size=1000, client=mock_client
+        )
+
+        # Verify that execute was called exactly 3 times
+        assert mock_client.execute.call_count == 3
+        # Verify that we got a result with 3 rows (one per chunk)
+        assert len(result.data) == 3
 
 
 @pytest.mark.asyncio
@@ -195,7 +191,7 @@ class TestKeyExtractionHelpers:
 
         assert result == ["123456:1", "123456:2"]
         mock_fetch.assert_called_once_with(
-            [123456], "component", "mukey", "cokey", client=None
+            [123456], "component", "mukey", "cokey", client=ANY
         )
 
 
@@ -243,7 +239,12 @@ class TestFetchPedonsByBbox:
             {"layer_key": 2, "hzn_top": 10, "hzn_bot": 20, "pedon_key": "1003"},
         ]
         data_chunk_response.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
-        data_chunk_response.metadata = ["meta1", "meta2"]
+        data_chunk_response.metadata = [
+            "DataTypeName=int",
+            "DataTypeName=int",
+            "DataTypeName=int",
+            "DataTypeName=varchar",
+        ]
 
         # Third chunk: has data
         data_chunk_response2 = AsyncMock(spec=SDAResponse)
@@ -252,7 +253,12 @@ class TestFetchPedonsByBbox:
             {"layer_key": 3, "hzn_top": 0, "hzn_bot": 15, "pedon_key": "1004"},
         ]
         data_chunk_response2.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
-        data_chunk_response2.metadata = ["meta1", "meta2"]
+        data_chunk_response2.metadata = [
+            "DataTypeName=int",
+            "DataTypeName=int",
+            "DataTypeName=int",
+            "DataTypeName=varchar",
+        ]
 
         # Set up the side effects: site query, then horizon chunks
         mock_client.execute.side_effect = [
@@ -283,7 +289,8 @@ class TestFetchPedonsByBbox:
             "hzn_bot",
             "pedon_key",
         ]
-        assert horizons_response.metadata == ["meta1", "meta2"]
+        # Metadata should have proper SDA format from concat
+        assert len(horizons_response.metadata) == 4
 
     async def test_fetch_pedons_single_chunk(self):
         """Test fetch_pedons_by_bbox with single chunk (no chunking)."""
@@ -307,7 +314,12 @@ class TestFetchPedonsByBbox:
             {"layer_key": 1, "hzn_top": 0, "hzn_bot": 10, "pedon_key": "1001"},
         ]
         horizons_response.columns = ["layer_key", "hzn_top", "hzn_bot", "pedon_key"]
-        horizons_response.metadata = ["meta1", "meta2"]
+        horizons_response.metadata = [
+            "DataTypeName=int",
+            "DataTypeName=int",
+            "DataTypeName=int",
+            "DataTypeName=varchar",
+        ]
 
         mock_client.execute.side_effect = [site_response, horizons_response]
 
@@ -331,343 +343,8 @@ class TestFetchPedonsByBbox:
             "hzn_bot",
             "pedon_key",
         ]
-        assert reconstructed_horizons.metadata == ["meta1", "meta2"]
-
-
-class TestResponseCombining:
-    """Test the _combine_responses function and helper functions."""
-
-    def test_combine_empty_list_error(self):
-        """Test that empty responses list raises error."""
-        from soildb.fetch import _combine_responses
-
-        with pytest.raises(FetchError):
-            _combine_responses([])
-
-    def test_combine_single_response(self):
-        """Test that single response is returned as-is."""
-        from soildb.fetch import _combine_responses
-
-        mock_response = AsyncMock(spec=SDAResponse)
-        result = _combine_responses([mock_response])
-
-        assert result == mock_response
-
-    def test_combine_two_responses(self):
-        """Test combining two responses with different data."""
-        from soildb.fetch import _combine_responses
-
-        # Create mock responses with different data
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [{"mukey": 1, "muname": "Unit 1"}]
-        response1.is_empty.return_value = False
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "NVarChar"]
-        response2.data = [{"mukey": 2, "muname": "Unit 2"}]
-        response2.is_empty.return_value = False
-
-        # Don't set validation_result to avoid complications
-        for r in [response1, response2]:
-            if not hasattr(r, "validation_result"):
-                r.validation_result = None
-
-        combined = _combine_responses([response1, response2])
-
-        assert combined is not None
-        assert len(combined.data) == 2
-        assert combined.data[0] == {"mukey": 1, "muname": "Unit 1"}
-        assert combined.data[1] == {"mukey": 2, "muname": "Unit 2"}
-
-    def test_combine_many_responses(self):
-        """Test combining many responses."""
-        from soildb.fetch import _combine_responses
-
-        # Create 5 mock responses
-        responses = []
-        for i in range(5):
-            response = AsyncMock(spec=SDAResponse)
-            response.columns = ["mukey", "muname"]
-            response.metadata = ["Int", "NVarChar"]
-            response.data = [{"mukey": i + 1, "muname": f"Unit {i + 1}"}]
-            response.is_empty.return_value = False
-            response.validation_result = None
-            responses.append(response)
-
-        combined = _combine_responses(responses)
-
-        assert combined is not None
-        assert len(combined.data) == 5
-
-    def test_combine_with_empty_responses_skip(self):
-        """Test that empty responses in the list are skipped."""
-        from soildb.fetch import _combine_responses
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [{"mukey": 1, "muname": "Unit 1"}]
-        response1.is_empty.return_value = False
-        response1.validation_result = None
-
-        # Empty response
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "NVarChar"]
-        response2.data = []
-        response2.is_empty.return_value = True
-        response2.validation_result = None
-
-        response3 = AsyncMock(spec=SDAResponse)
-        response3.columns = ["mukey", "muname"]
-        response3.metadata = ["Int", "NVarChar"]
-        response3.data = [{"mukey": 3, "muname": "Unit 3"}]
-        response3.is_empty.return_value = False
-        response3.validation_result = None
-
-        combined = _combine_responses([response1, response2, response3])
-
-        assert combined is not None
-        assert len(combined.data) == 2
-        assert combined.data[0] == {"mukey": 1, "muname": "Unit 1"}
-        assert combined.data[1] == {"mukey": 3, "muname": "Unit 3"}
-
-    def test_combine_schema_mismatch_columns(self):
-        """Test that schema mismatch on columns raises error."""
-        from soildb.fetch import _combine_responses
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [{"mukey": 1, "muname": "Unit 1"}]
-        response1.is_empty.return_value = False
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname", "clay"]  # Different columns!
-        response2.metadata = ["Int", "NVarChar", "Float"]
-        response2.data = [{"mukey": 2, "muname": "Unit 2", "clay": 25.5}]
-        response2.is_empty.return_value = False
-
-        with pytest.raises(FetchError, match="Schema mismatch"):
-            _combine_responses([response1, response2])
-
-    def test_combine_schema_mismatch_metadata(self):
-        """Test that schema mismatch on metadata logs warning."""
-        from soildb.fetch import _combine_responses
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [{"mukey": 1, "muname": "Unit 1"}]
-        response1.is_empty.return_value = False
-        response1.validation_result = None
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "Varchar"]  # Different metadata!
-        response2.data = [{"mukey": 2, "muname": "Unit 2"}]
-        response2.is_empty.return_value = False
-        response2.validation_result = None
-
-        # Should not raise, but log warning
-        combined = _combine_responses([response1, response2])
-
-        assert combined is not None
-
-    def test_combine_with_deduplication(self):
-        """Test combining responses with deduplication."""
-        from soildb.fetch import _combine_responses
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [
-            {"mukey": 1, "muname": "Unit 1"},
-            {"mukey": 2, "muname": "Unit 2"},
-        ]
-        response1.is_empty.return_value = False
-        response1.validation_result = None
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "NVarChar"]
-        response2.data = [
-            {"mukey": 2, "muname": "Unit 2"},  # Duplicate!
-            {"mukey": 3, "muname": "Unit 3"},
-        ]
-        response2.is_empty.return_value = False
-        response2.validation_result = None
-
-        # Combine without deduplication
-        combined = _combine_responses([response1, response2], deduplicate=False)
-        assert len(combined.data) == 4  # All rows kept
-
-        # Combine with deduplication
-        combined = _combine_responses([response1, response2], deduplicate=True)
-        assert len(combined.data) == 3  # Duplicate removed
-
-        # Check that first occurrence is kept
-        mukeys = [row["mukey"] for row in combined.data]
-        assert mukeys.count(2) == 1  # Only one instance of key 2
-
-    def test_combine_preserves_column_order(self):
-        """Test that combining preserves column order."""
-        from soildb.fetch import _combine_responses
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname", "muacres"]
-        response1.metadata = ["Int", "NVarChar", "Float"]
-        response1.data = [
-            {"mukey": 1, "muname": "Unit 1", "muacres": 1000.0},
-        ]
-        response1.is_empty.return_value = False
-        response1.validation_result = None
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname", "muacres"]
-        response2.metadata = ["Int", "NVarChar", "Float"]
-        response2.data = [
-            {"mukey": 2, "muname": "Unit 2", "muacres": 2000.0},
-        ]
-        response2.is_empty.return_value = False
-        response2.validation_result = None
-
-        combined = _combine_responses([response1, response2])
-
-        # Check structure
-        assert combined.columns == ["mukey", "muname", "muacres"]
-        assert combined.metadata == ["Int", "NVarChar", "Float"]
-
-    def test_combine_large_dataset(self):
-        """Test combining responses with large datasets."""
-        from soildb.fetch import _combine_responses
-
-        # Create responses with many rows (simulating chunked fetches)
-        responses = []
-        for chunk_idx in range(3):
-            response = AsyncMock(spec=SDAResponse)
-            response.columns = ["mukey", "muname"]
-            response.metadata = ["Int", "NVarChar"]
-
-            # Each chunk has 1000 rows
-            response.data = [
-                {
-                    "mukey": chunk_idx * 1000 + i,
-                    "muname": f"Unit {chunk_idx * 1000 + i}",
-                }
-                for i in range(1000)
-            ]
-            response.is_empty.return_value = False
-            response.validation_result = None
-            responses.append(response)
-
-        combined = _combine_responses(responses)
-
-        assert len(combined.data) == 3000
-
-    def test_validate_schema_consistency_pass(self):
-        """Test that schema validation passes for consistent schemas."""
-        from soildb.fetch import _validate_schema_consistency
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "NVarChar"]
-
-        # Should not raise
-        _validate_schema_consistency([response1, response2])
-
-    def test_validate_row_integrity_pass(self):
-        """Test that row integrity validation passes for valid rows."""
-        from soildb.fetch import _validate_row_integrity
-
-        rows = [
-            {"mukey": 1, "muname": "Unit 1"},
-            {"mukey": 2, "muname": "Unit 2"},
-        ]
-        expected_columns = ["mukey", "muname"]
-
-        # Should not raise
-        _validate_row_integrity(rows, expected_columns)
-
-    def test_validate_row_integrity_fail_column_count(self):
-        """Test that row integrity validation fails for wrong column count."""
-        from soildb.fetch import _validate_row_integrity
-
-        rows = [
-            {"mukey": 1, "muname": "Unit 1"},
-            {"mukey": 2},  # Missing muname!
-        ]
-        expected_columns = ["mukey", "muname"]
-
-        with pytest.raises(FetchError, match="Row .* has .* columns"):
-            _validate_row_integrity(rows, expected_columns)
-
-    def test_combine_logging(self, caplog):
-        """Test that combining produces appropriate log messages."""
-        import logging
-
-        from soildb.fetch import _combine_responses
-
-        logging.getLogger("soildb.fetch").setLevel(logging.DEBUG)
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [{"mukey": 1, "muname": "Unit 1"}]
-        response1.is_empty.return_value = False
-        response1.validation_result = None
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "NVarChar"]
-        response2.data = [{"mukey": 2, "muname": "Unit 2"}]
-        response2.is_empty.return_value = False
-        response2.validation_result = None
-
-        _combine_responses([response1, response2])
-
-        # Check that appropriate log messages were generated
-        assert any("Combining" in record.message for record in caplog.records)
-
-    def test_combine_deduplication_logging(self, caplog):
-        """Test that deduplication is logged appropriately."""
-        import logging
-
-        from soildb.fetch import _combine_responses
-
-        logging.getLogger("soildb.fetch").setLevel(logging.WARNING)
-
-        response1 = AsyncMock(spec=SDAResponse)
-        response1.columns = ["mukey", "muname"]
-        response1.metadata = ["Int", "NVarChar"]
-        response1.data = [
-            {"mukey": 1, "muname": "Unit 1"},
-            {"mukey": 2, "muname": "Unit 2"},
-        ]
-        response1.is_empty.return_value = False
-        response1.validation_result = None
-
-        response2 = AsyncMock(spec=SDAResponse)
-        response2.columns = ["mukey", "muname"]
-        response2.metadata = ["Int", "NVarChar"]
-        response2.data = [
-            {"mukey": 2, "muname": "Unit 2"},
-            {"mukey": 3, "muname": "Unit 3"},
-        ]
-        response2.is_empty.return_value = False
-        response2.validation_result = None
-
-        _combine_responses([response1, response2], deduplicate=True)
-
-        # Check that deduplication warning was logged
-        assert any("Deduplication" in record.message for record in caplog.records)
+        # Metadata should have proper SDA format from concat
+        assert len(reconstructed_horizons.metadata) == 4
 
 
 # Integration tests (require network access)
@@ -752,6 +429,259 @@ class TestFetchIntegration:
                     geom_type in geom_sample.upper()
                     for geom_type in ["POLYGON", "MULTIPOLYGON"]
                 )
+
+
+@pytest_asyncio.fixture
+async def temp_ldm_db(tmp_path) -> AsyncGenerator[Path, None]:
+    """Create a minimal temp SQLite LDM database with core tables.
+
+    Creates:
+    - lab_combine_nasis_ncss: pedon_key (PK), pedlabsampnum, corr_name
+    - lab_pedon: pedon_key (PK), upedonid, corr_name
+    - lab_layer: lab_layer_key (PK), pedon_key (FK), layer_type
+    - Property tables for filtering
+
+    Yields:
+        Path to the temporary SQLite database file
+    """
+    db_path = tmp_path / "test_ldm.db"
+
+    # Create database and schema synchronously
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cursor = conn.cursor()
+
+        # Create lab_combine_nasis_ncss table
+        cursor.execute("""
+            CREATE TABLE lab_combine_nasis_ncss (
+                pedon_key INTEGER PRIMARY KEY,
+                site_key INTEGER,
+                pedlabsampnum TEXT,
+                corr_name TEXT
+            )
+        """)
+
+        # Create lab_pedon table
+        cursor.execute("""
+            CREATE TABLE lab_pedon (
+                pedon_key INTEGER PRIMARY KEY,
+                site_key INTEGER,
+                upedonid TEXT,
+                corr_name TEXT
+            )
+        """)
+
+        # Create lab_layer table
+        cursor.execute("""
+            CREATE TABLE lab_layer (
+                lab_layer_key INTEGER PRIMARY KEY,
+                layer_key INTEGER,
+                pedon_key INTEGER,
+                labsampnum TEXT,
+                layer_type TEXT
+            )
+        """)
+
+        # Create default property tables (required for full query path)
+        cursor.execute("""
+            CREATE TABLE lab_physical_properties (
+                labsampnum TEXT,
+                pedon_key INTEGER,
+                prep_code TEXT,
+                analyzed_size_fraction TEXT
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE lab_chemical_properties (
+                labsampnum TEXT,
+                pedon_key INTEGER,
+                prep_code TEXT,
+                analyzed_size_fraction TEXT
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE lab_calculations_including_estimates_and_default_values (
+                labsampnum TEXT,
+                pedon_key INTEGER,
+                prep_code TEXT,
+                analyzed_size_fraction TEXT
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE lab_rosetta_Key (
+                layer_key INTEGER,
+                pedon_key INTEGER,
+                prep_code TEXT,
+                analyzed_size_fraction TEXT
+            )
+        """)
+
+        # Insert test data into lab_combine_nasis_ncss
+        test_data = [
+            (1, 101, "S001", "Miami"),
+            (2, 102, "S002", "Clarion"),
+            (3, 103, "S003", "Mollisol"),
+            (4, 104, "S004", "Vertisol"),
+            (5, 105, "S005", "Alfisol"),
+        ]
+
+        cursor.executemany(
+            """
+            INSERT INTO lab_combine_nasis_ncss (pedon_key, site_key, pedlabsampnum, corr_name)
+            VALUES (?, ?, ?, ?)
+            """,
+            test_data,
+        )
+
+        # Also insert into lab_pedon (without pedlabsampnum)
+        pedon_data = [
+            (1, 101, "P001", "Miami"),
+            (2, 102, "1'0'2", "Clarion"),
+            (3, 103, "P003", "Mollisol"),
+            (4, 104, "P004", "Vertisol"),
+            (5, 105, "P005", "Alfisol"),
+        ]
+        cursor.executemany(
+            """
+            INSERT INTO lab_pedon (pedon_key, site_key, upedonid, corr_name)
+            VALUES (?, ?, ?, ?)
+            """,
+            pedon_data,
+        )
+
+        # Insert corresponding lab_layer records
+        for pedon_key in range(1, 6):
+            lab_layer_key = pedon_key * 10
+            cursor.execute(
+                """
+                INSERT INTO lab_layer (lab_layer_key, layer_key, pedon_key, labsampnum, layer_type)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (lab_layer_key, pedon_key, pedon_key, f"S{pedon_key:03d}", "horizon"),
+            )
+
+        # Insert into property tables
+        for pedon_key in range(1, 6):
+            labsampnum = f"S{pedon_key:03d}"
+            # lab_physical_properties
+            cursor.execute(
+                """
+                INSERT INTO lab_physical_properties (labsampnum, pedon_key, prep_code, analyzed_size_fraction)
+                VALUES (?, ?, ?, ?)
+                """,
+                (labsampnum, pedon_key, "S", "<2 mm"),
+            )
+            # lab_chemical_properties
+            cursor.execute(
+                """
+                INSERT INTO lab_chemical_properties (labsampnum, pedon_key, prep_code, analyzed_size_fraction)
+                VALUES (?, ?, ?, ?)
+                """,
+                (labsampnum, pedon_key, "S", "<2 mm"),
+            )
+            # lab_calculations_including_estimates_and_default_values
+            cursor.execute(
+                """
+                INSERT INTO lab_calculations_including_estimates_and_default_values (labsampnum, pedon_key, prep_code, analyzed_size_fraction)
+                VALUES (?, ?, ?, ?)
+                """,
+                (labsampnum, pedon_key, "S", "<2 mm"),
+            )
+
+        conn.commit()
+        yield db_path
+    finally:
+        conn.close()
+
+
+@pytest.mark.asyncio
+class TestFetchLDM:
+    """Test the fetch_ldm function with SQLite database backend."""
+
+    async def test_fetch_ldm_with_dsn_creates_no_sdaclient(self, temp_ldm_db):
+        """Test that decorator creates no SDAClient when dsn is provided."""
+        with patch.object(SDAClient, "__init__", return_value=None) as mock_init:
+            # Call fetch_ldm with dsn parameter
+            response = await fetch_ldm(x=1, what="pedlabsampnum", dsn=temp_ldm_db)
+
+            # Verify SDAClient.__init__ was never called
+            # (decorator creates nothing for Optional[Union[...]] annotation)
+            mock_init.assert_not_called()
+
+            # Verify response is returned (even if empty, since test data is minimal)
+            assert response is not None
+
+    async def test_fetch_ldm_with_dsn_returns_response(self, temp_ldm_db):
+        """Test that fetch_ldm with dsn returns a response object."""
+        response = await fetch_ldm(x=1, what="pedlabsampnum", dsn=temp_ldm_db)
+
+        # Verify response is returned
+        assert response is not None
+        assert isinstance(response, SDAResponse)
+
+    async def test_fetch_ldm_with_explicit_ldm_client_does_not_close(self, temp_ldm_db):
+        """Test that passing an explicit LDMClient uses it directly without closing."""
+        client = LDMClient(dsn=temp_ldm_db)
+        with patch.object(client, "close", wraps=client.close) as mock_close:
+            response = await fetch_ldm(
+                x=1, what="pedlabsampnum", dsn=temp_ldm_db, client=client
+            )
+            assert isinstance(response, SDAResponse)
+            mock_close.assert_not_called()
+        await client.close()
+
+    async def test_fetch_ldm_with_sda_client_wraps_without_closing_caller_client(
+        self, temp_ldm_db
+    ):
+        """Test that passing an SDAClient wraps it and does not close caller's client."""
+        sda_client = AsyncMock(spec=SDAClient)
+        mock_response = SDAResponse.from_rows([], ["col"], ["varchar"])
+        sda_client.execute.return_value = mock_response
+
+        orig_init = LDMClient.__init__
+        init_calls = []
+
+        def tracking_init(self_obj, *args, **kwargs):
+            init_calls.append((args, kwargs))
+            return orig_init(self_obj, *args, **kwargs)
+
+        with patch.object(LDMClient, "__init__", tracking_init):
+            response = await fetch_ldm(
+                x=1, what="pedlabsampnum", dsn=temp_ldm_db, client=sda_client
+            )
+            assert isinstance(response, SDAResponse)
+            assert len(init_calls) == 1
+            assert init_calls[0][1].get("sda_client") is sda_client
+            sda_client.close.assert_not_called()
+
+    async def test_fetch_ldm_client_none_uses_context_manager_and_closes(
+        self, temp_ldm_db
+    ):
+        """Test that fetch_ldm with client=None uses async context manager and closes."""
+        close_called = []
+        original_aexit = LDMClient.__aexit__
+
+        async def tracking_aexit(self_obj, exc_type, exc_val, exc_tb):
+            close_called.append("closed")
+            return await original_aexit(self_obj, exc_type, exc_val, exc_tb)
+
+        with patch.object(LDMClient, "__aexit__", tracking_aexit):
+            response = await fetch_ldm(x=1, what="pedlabsampnum", dsn=temp_ldm_db)
+            assert isinstance(response, SDAResponse)
+            assert len(close_called) == 1
+
+
+class TestFetchLDMSync:
+    """Test synchronous execution of fetch_ldm via .sync."""
+
+    def test_fetch_ldm_sync_execution(self, temp_ldm_db):
+        """Test that fetch_ldm.sync(...) executes synchronously and returns SDAResponse."""
+        response = fetch_ldm.sync(x=1, what="pedlabsampnum", dsn=temp_ldm_db)
+        assert response is not None
+        assert isinstance(response, SDAResponse)
 
 
 if __name__ == "__main__":
