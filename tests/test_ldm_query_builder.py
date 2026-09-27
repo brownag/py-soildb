@@ -247,3 +247,41 @@ class TestLDMQueryBuilder:
             "(ISNULL(lab_xrd_and_thermal.analyzed_size_frac, '') IN ('<2 mm', ''))"
             in query
         )
+
+    def test_build_query_prep_and_fraction_sqlite_dialect(self):
+        """Test that sqlite dialect uses IFNULL in coalesced IN conditions."""
+        builder = LDMQueryBuilder(
+            layer_type="horizon",
+            prep_code=["S", "HM"],
+            analyzed_size_frac=["<2 mm", ""],
+            tables=["lab_physical_properties", "lab_xrd_and_thermal"],
+            dialect="sqlite",
+        )
+        query = builder.build_query(keys=[100])
+        assert "IFNULL(lab_physical_properties.prep_code, '') IN ('S', 'HM')" in query
+        assert (
+            "(IFNULL(lab_xrd_and_thermal.analyzed_size_frac, '') IN ('<2 mm', ''))"
+            in query
+        )
+
+    def test_build_coalesced_in_filter_none_or_empty(self):
+        """Test that _build_coalesced_in_filter returns None when no conditions apply."""
+        builder = LDMQueryBuilder(tables=["lab_physical_properties"])
+        assert (
+            builder._build_coalesced_in_filter(
+                None, "prep_code", {"lab_physical_properties"}
+            )
+            is None
+        )
+        assert (
+            builder._build_coalesced_in_filter(
+                [], "prep_code", {"lab_physical_properties"}
+            )
+            is None
+        )
+        assert (
+            builder._build_coalesced_in_filter(
+                ["S"], "prep_code", {"non_matching_table"}
+            )
+            is None
+        )

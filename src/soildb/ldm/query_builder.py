@@ -176,6 +176,36 @@ class LDMQueryBuilder:
         else:  # sql_server
             return f"ISNULL({column}, {default})"
 
+    def _build_coalesced_in_filter(
+        self,
+        values: Optional[Sequence[str]],
+        column_name: str,
+        target_tables: set[str],
+    ) -> Optional[str]:
+        """Build parenthesized AND condition of coalesced IN-clauses across target tables.
+
+        Args:
+            values: Filter values (strings) to match against
+            column_name: Column name in target tables
+            target_tables: Set of table names supporting the column
+
+        Returns:
+            Grouped condition string, or None if no conditions match
+        """
+        if not values or not self.tables:
+            return None
+
+        in_list = ", ".join(sanitize_sql_string_list(list(values)))
+        sub_conditions = []
+        for table in self.tables:
+            if table in target_tables:
+                coalesce = self._coalesce(f"{table}.{column_name}", "''")
+                sub_conditions.append(f"{coalesce} IN ({in_list})")
+
+        if sub_conditions:
+            return f"({' AND '.join(sub_conditions)})"
+        return None
+
     def build_query(
         self,
         keys: Optional[list[Union[str, int]]] = None,
@@ -324,27 +354,19 @@ class LDMQueryBuilder:
 
         # Add prep_code filter for selected tables that support this field.
         # Use AND across selected tables to match the reference implementation.
-        if self.prep_codes and self.tables:
-            prep_conditions = []
-            prep_code_list = ", ".join(sanitize_sql_string_list(self.prep_codes))
-            for table in self.tables:
-                if table in PREP_FILTER_TABLES:
-                    coalesce = self._coalesce(f"{table}.prep_code", "''")
-                    prep_conditions.append(f"{coalesce} IN ({prep_code_list})")
-            if prep_conditions:
-                conditions.append(f"({' AND '.join(prep_conditions)})")
+        prep_filter = self._build_coalesced_in_filter(
+            self.prep_codes, "prep_code", PREP_FILTER_TABLES
+        )
+        if prep_filter:
+            conditions.append(prep_filter)
 
         # Add analyzed_size_frac filter only for fractionated tables.
         # This prevents invalid column errors on non-fractionated tables.
-        if self.analyzed_size_fracs and self.tables:
-            frac_conditions = []
-            frac_list = ", ".join(sanitize_sql_string_list(self.analyzed_size_fracs))
-            for table in self.tables:
-                if table in FRACTION_FILTER_TABLES:
-                    coalesce = self._coalesce(f"{table}.analyzed_size_frac", "''")
-                    frac_conditions.append(f"{coalesce} IN ({frac_list})")
-            if frac_conditions:
-                conditions.append(f"({' AND '.join(frac_conditions)})")
+        frac_filter = self._build_coalesced_in_filter(
+            self.analyzed_size_fracs, "analyzed_size_frac", FRACTION_FILTER_TABLES
+        )
+        if frac_filter:
+            conditions.append(frac_filter)
 
         if not conditions:
             return ""
