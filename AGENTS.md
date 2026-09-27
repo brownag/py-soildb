@@ -46,6 +46,7 @@ src/soildb/
 ├── __init__.py              # Public API re-exports (__all__ list)
 ├── base_client.py           # BaseDataAccessClient and ClientConfig
 ├── client.py                # SDAClient (async HTTP to NRCS web service)
+├── chunked.py               # Paginated query execution with batching (internal)
 ├── query.py                 # Query builder (fluent interface for SQL)
 ├── query_templates.py       # Pre-built query templates for common tasks
 ├── response.py              # SDAResponse (DataFrame/dict/GeoDataFrame export)
@@ -54,17 +55,16 @@ src/soildb/
 ├── convenience.py           # Single/simple queries
 ├── high_level.py            # Complex workflows returning nested dataclasses
 ├── type_conversion.py       # Type mapping (SQL → Python)
-├── type_processors.py       # Type processor implementations
 ├── schema_system.py         # Schema metadata system
 ├── metadata.py              # Survey metadata parsing and filtering
 ├── sanitization.py          # Input validation and SQL injection prevention
 ├── utils.py                 # Shared utility functions
 ├── wss.py                   # Web Soil Survey data download
-├── _awdb_integration.py     # AWDB/SDA integration (internal)
+├── ssurgo_client.py         # SSURGO data client (queries and metadata)
+├── ssurgo_tables.py         # SSURGO table schemas
 ├── exceptions.py            # SoilDBError hierarchy
 ├── ldm/                     # Lab Data Model (KSSL pedon data)
 │   ├── client.py            # LDMClient (multi-backend support)
-│   ├── backends.py          # LDM backend implementations
 │   ├── query_builder.py     # SQL query builder for lab data
 │   ├── tables.py            # Lab data table schemas
 │   ├── exceptions.py        # LDMError hierarchy
@@ -87,10 +87,7 @@ src/soildb/
 │   ├── sda_backend.py       # SDA web service backend
 │   ├── sqlite_backend.py    # SQLite file backend
 │   ├── geopackage_backend.py # GeoPackage vector backend
-│   ├── ssurgo_client.py     # SSURGO data client
 │   ├── schema.py            # Backend schema utilities
-│   ├── response_adapter.py  # Response adapter for multi-backend
-│   ├── type_mapper.py       # Type mapping for backends
 │   ├── exceptions.py        # BackendError hierarchy
 │   └── __init__.py
 ├── schemas/                 # Table schemas with type metadata
@@ -115,7 +112,8 @@ Key files by task:
 | Add query templates | `query_templates.py` |
 | Spatial queries | `spatial.py` |
 | Bulk fetch logic | `fetch.py` |
-| Type conversion | `type_conversion.py`, `type_processors.py` |
+| Chunked queries | `chunked.py` |
+| Type conversion | `type_conversion.py` |
 | Schema system | `schema_system.py`, `schemas/*.py` |
 | Input validation | `sanitization.py` |
 | Response export | `response.py` |
@@ -125,6 +123,7 @@ Key files by task:
 | LDM workflows | `ldm/*.py` |
 | AWDB workflows | `awdb/*.py` |
 | Henry workflows | `henry/*.py` |
+| SSURGO data access | `ssurgo_client.py`, `ssurgo_tables.py` |
 | Backend support | `backends/*.py` |
 | Web Soil Survey | `wss.py` |
 | Utilities | `utils.py` |
@@ -135,28 +134,34 @@ Key files by task:
 tests/
 ├── conftest.py                        # pytest fixtures and configuration
 ├── test_query.py                      # Query builder tests
-├── test_query_templates.py            # (See test_fetch.py for query template coverage)
+├── test_query_templates.py            # Query template interface tests
 ├── test_fetch.py                      # Bulk fetch and QueryPresets tests
+├── test_chunked.py                    # Paginated query execution tests
+├── test_spatial.py                    # Spatial query interface tests
 ├── test_spatial_and_responses.py      # Spatial queries and response exports
+├── test_spatial_integration.py        # Spatial integration tests (marked @pytest.mark.integration)
 ├── test_response.py                   # SDAResponse export tests
+├── test_response_concat.py            # Response concatenation tests
 ├── test_public_api.py                 # Public API exports (__all__ list)
 ├── test_client.py                     # SDAClient tests
 ├── test_type_conversion.py            # Type mapping tests
-├── test_type_processors.py            # (Coverage in test_type_conversion.py)
 ├── test_metadata.py                   # Survey metadata parsing tests
 ├── test_sanitization.py               # Input validation tests
 ├── test_sync.py                       # Sync wrapper decorator tests
 ├── test_integration.py                # Integration tests (marked @pytest.mark.integration)
-├── test_ssurgo_client.py              # SSURGO backend client tests
+├── test_ssurgo_client.py              # SSURGO client tests
+├── test_ssurgo_tables.py              # SSURGO table schema tests
 ├── test_wss.py                        # Web Soil Survey download tests
 ├── test_ldm_imports.py                # LDM module import tests
+├── test_ldm_client.py                 # LDMClient tests
 ├── test_ldm_exceptions.py             # LDM exception handling
 ├── test_ldm_query_builder.py          # LDM SQL query builder tests
 ├── test_ldm_tables.py                 # LDM table schema tests
 ├── test_ldm_backend_execution.py      # LDM backend execution tests
+├── test_lab_pedon_lookup.py           # Lab pedon lookup tests
 ├── test_awdb.py                       # AWDB client tests
-├── test_awdb_integration.py           # AWDB integration tests (requires network)
 ├── test_henry.py                      # Henry climate database tests
+├── test_high_level.py                 # High-level workflow tests (marked @pytest.mark.integration)
 ├── test_backends_infrastructure.py    # Multi-backend infrastructure tests
 ├── test_backends_sda_sqlite.py        # SDA/SQLite backend tests
 └── test_geopackage_backend.py         # GeoPackage backend tests
@@ -296,7 +301,7 @@ All follow the same async context manager pattern as SDAClient.
 ### Code Style
 
 - **Type hints**: Full PEP 484 (target Python ≥3.9, run mypy)
-- **Docstrings**: NumPy-style with Examples section (see existing code for patterns)
+- **Docstrings**: Google style (`Args:` / `Returns:` / `Raises:` / `Example:`)
 - **Line length**: 88 characters (ruff)
 - **Linting**: `ruff check` + `mypy` (run via `make lint-fix`)
 - **Formatting**: `ruff format` (run via `make format`)

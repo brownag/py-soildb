@@ -100,7 +100,7 @@ polygon = "POLYGON((-93.7 42.0, -93.6 42.0, -93.6 42.1, -93.7 42.1, -93.7 42.0))
 response = spatial_query.sync(polygon, table="mupolygon", return_type="spatial")
 
 # Convert to GeoDataFrame (requires geopandas)
-gdf = response.to_geodataframe()
+gdf = response.to_geopandas()
 gdf.plot(column="musym", legend=True)
 ```
 
@@ -175,7 +175,7 @@ response = fetch_by_keys.sync(
     include_geometry=True
 )
 
-gdf = response.to_geodataframe()
+gdf = response.to_geopandas()
 print(f"Loaded {len(gdf)} spatial polygon records")
 ```
 
@@ -388,7 +388,7 @@ pl_df = response.to_polars()
 data = response.to_dict()
 
 # GeoPandas GeoDataFrame (requires geopandas)
-gdf = response.to_geodataframe()
+gdf = response.to_geopandas()
 
 # SoilProfileCollection (requires soilprofilecollection)
 spc = response.to_soilprofilecollection()
@@ -396,7 +396,7 @@ spc = response.to_soilprofilecollection()
 
 ### GeoPandas CRS and Geometry Detection
 
-`to_geodataframe()` (or `to_geopandas()`) auto-detects geometry columns and sets coordinate reference systems (CRS):
+`to_geopandas()` auto-detects geometry columns and sets coordinate reference systems (CRS):
 
 ```python
 from soildb import fetch_by_keys
@@ -404,7 +404,7 @@ from soildb import fetch_by_keys
 mukeys = [481608, 481600]
 response = fetch_by_keys.sync(mukeys, "mupolygon", include_geometry=True)
 
-gdf = response.to_geodataframe()
+gdf = response.to_geopandas()
 print(gdf.crs)  # EPSG:4326
 gdf.plot(column="muname", legend=True)
 ```
@@ -418,7 +418,7 @@ Override defaults with explicit parameters:
 
 ```python
 # Custom geometry column and CRS
-gdf = response.to_geodataframe(geometry_col="custom_geom", crs="EPSG:5070")
+gdf = response.to_geopandas(geometry_col="custom_geom", crs="EPSG:5070")
 ```
 
 ---

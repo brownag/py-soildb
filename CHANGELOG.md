@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.9.0] - Unreleased
+
+### Added
+
+* `get_lab_pedon(x, what=...)` and `fetch_labpedon(x, what=...)` look up a lab pedon by one explicit identifier: `"pedon_key"` (default), `"pedoniid"` (NASIS `peiid`), `"upedonid"` or `"pedlabsampnum"`
+* `AmbiguousPedonError`, raised by `fetch_labpedon()` when the identifier matches more than one pedon
+* `require_client()` helper in `utils` to validate and enforce active client instances
+
+### Deprecated
+
+* `get_lab_pedon_by_id()` and `fetch_labpedon_by_id()`. They try the value as a pedon key and then fall back to pedon ID, which can return the wrong pedon
+
+### Changed
+
+* Folded `type_processors` module into `type_conversion`, consolidating all type mapping, validation, and conversion logic
+* Replaced `SDA_TYPE_MAPPING` constant with `TypeMap` and `get_default_type_map()`
+* Streamlined multi-backend architecture: backends directly use `TypeMap` for type inference with `SDAResponse.from_rows()`, eliminating intermediate adapter and mapper classes
+* Standardized client lifecycle management: functions decorated with `@add_sync_version` now consistently accept `client` and manage lifecycle via decorator or `require_client`
+* Added synchronous execution via `.sync` property to spatial functions (`spatial_query`, `point_query`, `bbox_query`)
+* Updated `LDMClient` to format IN-conditions with comma-space separators and retain un-lowered numeric values via `query.in_condition(..., case_insensitive=True)` (decision 10)
+* Moved `SSURGOClient` import path from `backends` to top-level `soildb.ssurgo_client`
+
+### Removed
+
+* `ResponseAdapter` class — backend response handling now built directly into SDAResponse
+* `DatabaseTypeMapper` and `TypeMapperFactory` classes — database-specific type conversion handled by TypeMap
+* `_awdb_integration` module — internal AWDB/SDA integration module deleted
+* Functions removed from legacy integration workflows: `estimate_water_availability`, `get_water_stress_categories`, and `get_recommended_awdb_depths_for_soil`
+* `get_geometry_column_for_table` function — removed from utils; use ssurgo_tables.geometry_column instead
+* `to_geodataframe` method — removed from SDAResponse; use .to_dataframe("geopandas") or .to_geopandas() instead
+* `ldm.backends` module — backend logic consolidated into LDMClient
+
+### Fixed
+
+* Fixed deadlock in `fetch_chunked` by releasing concurrency semaphore before executing recursive retry splits
+* Fixed client lifecycle leak in spatial functions (`spatial_query`, `point_query`, `bbox_query`) by applying `@add_sync_version` decorator
+* Fixed `client=None` handling across convenience, fetch, and WSS functions by delegating client lifecycle to `@add_sync_version` decorator
+* Fixed positional argument handling in `.sync()` decorator — now accepts keyword and positional arguments correctly
+* Fixed double type conversion in response handling — `concat()` now uses raw data rows instead of re-converting from dict output
+* Fixed spatial query table aliases: `mupoint` and `muline` now join `mapunit` for `musym` and `muname` columns, and `legend` and `mapunit` define explicit table aliases in FROM clauses (decision 11)
+
 ## [0.8.1] - 2026-09-16
 
 Documentation and examples overhaul.

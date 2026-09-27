@@ -217,6 +217,38 @@ class TestDownloadWSS:
                 assert mock_wss_client.download_zip.call_count == 2
 
     @pytest.mark.asyncio
+    async def test_download_wss_with_areasymbols_quote_escaping(self, tmp_path):
+        """Test that areasymbols with quotes are properly escaped."""
+        dest_dir = tmp_path / "downloads"
+
+        # Mock SDA response
+        mock_response = MagicMock()
+        mock_df = MagicMock()
+        mock_df.empty = True  # No results is fine for this test
+        mock_response.to_pandas.return_value = mock_df
+
+        # Mock SDA client
+        mock_sda_client = AsyncMock()
+        mock_sda_client.execute.return_value = mock_response
+
+        # Call with areasymbols containing quotes
+        await download_wss(
+            areasymbols=["IA109", "O'Brien"],
+            dest_dir=dest_dir,
+            client=mock_sda_client,
+        )
+
+        # Verify that execute was called with a Query object
+        assert mock_sda_client.execute.called
+        call_args = mock_sda_client.execute.call_args
+        query_arg = call_args[0][0]
+
+        # The query should use Query.where_in which handles escaping
+        query_str = query_arg.to_sql()
+        # Quotes in 'O'Brien' should be escaped to 'O''Brien'
+        assert "'O''Brien'" in query_str or "LOWER('O''Brien')" in query_str
+
+    @pytest.mark.asyncio
     async def test_download_wss_with_where_clause(self, tmp_path):
         """Test downloading with WHERE clause."""
         dest_dir = tmp_path / "downloads"

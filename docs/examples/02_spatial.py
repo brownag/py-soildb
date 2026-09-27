@@ -55,7 +55,7 @@ async def point_buffer_analysis():
     )
 
     if response.data:
-        gdf = response.to_geodataframe()
+        gdf = response.to_geopandas()
 
         print(f"Found {len(gdf)} map units within buffer")
         print(
@@ -112,7 +112,7 @@ async def survey_area_boundaries():
         return_type="spatial",
     )
     if response.data:
-        gdf = response.to_geodataframe()
+        gdf = response.to_geopandas()
         # Filter to requested survey areas
         gdf = gdf[gdf["areasymbol"].isin(areasymbols)]
 
@@ -224,7 +224,7 @@ async def watershed_analysis():
             print(f"  {musym}: {count} polygons")
 
         if SPATIAL_LIBS and HAS_MATPLOTLIB:
-            gdf = response.to_geodataframe()
+            gdf = response.to_geopandas()
 
             # Simple visualization
             fig, ax = plt.subplots(figsize=(10, 8))

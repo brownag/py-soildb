@@ -124,7 +124,7 @@ Response object with type conversion and export methods:
 #| eval: false
 df = response.to_pandas()        # pandas DataFrame
 df = response.to_polars()        # polars DataFrame
-gdf = response.to_geodataframe() # GeoPandas GeoDataFrame (spatial geometry)
+gdf = response.to_geopandas()    # GeoPandas GeoDataFrame (spatial geometry)
 data = response.to_dict()        # List of record dictionaries
 
 rows = response.data             # Raw tabular rows
@@ -136,7 +136,7 @@ count = len(response)            # Row count
 
 - `to_pandas()`: Export to pandas DataFrame.
 - `to_polars()`: Export to polars DataFrame.
-- `to_geodataframe()`: Export to GeoPandas GeoDataFrame with auto-detected geometry and CRS.
+- `to_geopandas()`: Export to GeoPandas GeoDataFrame with auto-detected geometry and CRS.
 - `to_dict()`: Export as a list of column-to-value dictionaries.
 - `to_soilprofilecollection()`: Convert horizon records into a `SoilProfileCollection`.
 

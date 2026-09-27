@@ -11,6 +11,7 @@ SoilDBError (base for all soildb exceptions)
 │   └── SDAMaintenanceError (service maintenance)
 ├── SDAQueryError (query execution failures)
 │   └── SDAResponseError (invalid response format)
+├── AmbiguousPedonError (identifier matched more than one pedon)
 └── AWDBError (AWDB service errors)
     ├── AWDBConnectionError (connection failures)
     └── AWDBQueryError (query failures)
@@ -129,6 +130,25 @@ class SDAResponseError(SDAQueryError):
     def __str__(self) -> str:
         """Return helpful response error message."""
         return f"Received invalid response from USDA Soil Data Access service: {self.message}. This may indicate a service issue or malformed query. Check your query syntax and try again."
+
+
+class AmbiguousPedonError(SoilDBError):
+    """Raised when a single-pedon lookup matches more than one pedon.
+
+    Pedon IDs (``upedonid``) are assigned by the describer and are not
+    guaranteed unique. Retry the lookup by pedon key using one of
+    ``pedon_keys``.
+    """
+
+    def __init__(self, value: str, what: str, pedon_keys: list[str]):
+        self.value = value
+        self.what = what
+        self.pedon_keys = pedon_keys
+        super().__init__(
+            f"{what} {value!r} matches {len(pedon_keys)} pedons "
+            f"(pedon_key {', '.join(pedon_keys)}). "
+            'Look up by what="pedon_key" instead.'
+        )
 
 
 # ============================================================================

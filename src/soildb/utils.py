@@ -3,7 +3,9 @@ Internal utility functions for soildb.
 """
 
 import asyncio
+import functools
 import inspect
+import types
 from collections.abc import Awaitable
 from typing import (
     Any,
@@ -16,6 +18,53 @@ from typing import (
 )
 
 R = TypeVar("R")
+T = TypeVar("T")
+
+
+def _client_supplied(sig: inspect.Signature, args: tuple, kwargs: dict) -> bool:
+    """Check if a client parameter was supplied and is not None.
+
+    Args:
+        sig: Function signature.
+        args: Positional arguments.
+        kwargs: Keyword arguments.
+
+    Returns:
+        True only if client is bound (positionally or by keyword) and not None.
+    """
+    client_param = sig.parameters.get("client")
+    if not client_param:
+        return False
+
+    try:
+        bound = sig.bind_partial(*args, **kwargs)
+        if "client" in bound.arguments:
+            return bound.arguments["client"] is not None
+    except TypeError:
+        # bind_partial failed; check kwargs only
+        if "client" in kwargs:
+            return kwargs["client"] is not None
+
+    return False
+
+
+def require_client(client: Optional[T]) -> T:
+    """Raise TypeError if client is None, otherwise return it unchanged.
+
+    Args:
+        client: The client parameter value (may be None).
+
+    Returns:
+        The client if not None.
+
+    Raises:
+        TypeError: If client is None.
+    """
+    if client is None:
+        raise TypeError(
+            "client is required; call through @add_sync_version or pass a client"
+        )
+    return client
 
 
 class AsyncSyncBridge:
@@ -30,15 +79,13 @@ class AsyncSyncBridge:
         async_fn: Callable[..., Awaitable[R]],
         args: tuple = (),
         kwargs: Optional[dict] = None,
-        client_class: Optional[type] = None,
     ) -> R:
-        """Run an async function synchronously.
+        """Run an async function synchronously in a fresh event loop.
 
         Args:
             async_fn: Async function to run
             args: Positional arguments for the function
             kwargs: Keyword arguments for the function
-            client_class: Optional client class to instantiate if not provided
 
         Returns:
             Result of running the async function
@@ -62,32 +109,19 @@ class AsyncSyncBridge:
                 "Use the async version instead."
             )
 
-        # Handle automatic client instantiation
-        temp_client = None
-        if client_class:
-            sig = inspect.signature(async_fn)
-            client_param = sig.parameters.get("client")
-            if client_param and "client" not in kwargs:
-                temp_client = client_class()
-                kwargs["client"] = temp_client
-
-        # Create coroutine
-        async def _call_and_cleanup() -> R:
-            try:
-                return await async_fn(*args, **kwargs)
-            finally:
-                if temp_client:
-                    await temp_client.close()
+        # Create and run coroutine
+        async def _call() -> R:
+            return await async_fn(*args, **kwargs)
 
         # Run the coroutine
         try:
-            return asyncio.run(_call_and_cleanup())
+            return asyncio.run(_call())
         except RuntimeError:
             # Fallback for environments where asyncio.run() doesn't work
             loop = asyncio.new_event_loop()
             try:
                 asyncio.set_event_loop(loop)
-                return loop.run_until_complete(_call_and_cleanup())
+                return loop.run_until_complete(_call())
             finally:
                 loop.close()
 
@@ -95,25 +129,28 @@ class AsyncSyncBridge:
     def extract_client_class(annotation: Any) -> Optional[type]:
         """Extract client class from type annotation.
 
-        Handles Optional, Union, and direct type annotations.
+        For a Union, returns a class only when exactly one non-None member
+        exists and it is a class. Otherwise returns None.
 
         Args:
             annotation: Type annotation to extract class from
 
         Returns:
-            Client class if found, None otherwise
+            Client class if found and unambiguous, None otherwise
         """
         if annotation is None:
             return None
 
         origin = get_origin(annotation)
-        if origin is Union:
+        is_union = origin is Union or (
+            hasattr(types, "UnionType") and origin is types.UnionType
+        )
+        if is_union:
             args = get_args(annotation)
             non_none_args = [arg for arg in args if arg is not type(None)]
-            if non_none_args:
-                arg = non_none_args[0]
-                if isinstance(arg, type):
-                    return arg
+            if len(non_none_args) == 1 and isinstance(non_none_args[0], type):
+                return non_none_args[0]
+            return None
         else:
             if isinstance(annotation, type):
                 return annotation
@@ -127,6 +164,10 @@ def add_sync_version(
     """
     A decorator that adds a .sync attribute to an async function, allowing it
     to be called synchronously.
+
+    The async wrapper owns the client lifecycle: if a function has a `client`
+    parameter but no client is provided (positional or keyword), the wrapper
+    creates one and closes it after execution.
 
     The .sync version runs the async function in a new asyncio event loop.
 
@@ -142,48 +183,48 @@ def add_sync_version(
         >>> result = my_async_func.sync(5)
     """
 
-    def sync_wrapper(*args: Any, **kwargs: Any) -> R:
-        """Synchronous wrapper for the async function."""
-        # Check if the function has a 'client' parameter and extract client class
+    @functools.wraps(async_fn)
+    async def async_wrapper(*args: Any, **kwargs: Any) -> R:
+        """Async wrapper that manages client lifecycle."""
         sig = inspect.signature(async_fn)
         client_param = sig.parameters.get("client")
-        client_class = None
 
-        if client_param and "client" not in kwargs:
-            # Extract client class from type annotation
+        # Determine if client was supplied (not None)
+        client_supplied = _client_supplied(sig, args, kwargs)
+
+        # Create client if needed
+        temp_client = None
+        if client_param and not client_supplied:
             client_class = AsyncSyncBridge.extract_client_class(client_param.annotation)
+            if client_class:
+                temp_client = client_class()
 
-        return AsyncSyncBridge.run_async(
-            async_fn, args=args, kwargs=kwargs, client_class=client_class
-        )
+                # Bind arguments to handle positional client=None replacement
+                try:
+                    bound = sig.bind_partial(*args, **kwargs)
+                    if "client" in bound.arguments:
+                        # Client was bound positionally as None; replace it
+                        bound.arguments["client"] = temp_client
+                        args = bound.args
+                        kwargs = bound.kwargs
+                    else:
+                        # Client not bound; add it as keyword argument
+                        kwargs["client"] = temp_client
+                except TypeError:
+                    # bind_partial failed; add as keyword argument
+                    kwargs["client"] = temp_client
 
-    # Attach the synchronous wrapper to the original async function
-    async_fn.sync = sync_wrapper  # type: ignore
-    return async_fn
+        # Execute function with automatic cleanup
+        try:
+            return await async_fn(*args, **kwargs)
+        finally:
+            if temp_client:
+                await temp_client.close()
 
+    def sync_wrapper(*args: Any, **kwargs: Any) -> R:
+        """Synchronous wrapper for the async function."""
+        return AsyncSyncBridge.run_async(async_wrapper, args=args, kwargs=kwargs)
 
-# Shared geometry column mappings for spatial tables
-# Used by both fetch.py and spatial.py to ensure consistent behavior
-GEOMETRY_COLUMN_MAPPING = {
-    "mupolygon": "mupolygongeo",
-    "sapolygon": "sapolygongeo",
-    "mupoint": "mupointgeo",
-    "muline": "mulinegeo",
-    "featpoint": "featpointgeo",
-    "featline": "featlinegeo",
-}
-
-
-def get_geometry_column_for_table(table: str) -> Optional[str]:
-    """Get the geometry column name for a spatial table.
-
-    This is the single source of truth for geometry column mappings,
-    shared between fetch.py and spatial.py modules.
-
-    Args:
-        table: Table name (e.g., 'mupolygon', 'sapolygon')
-
-    Returns:
-        Geometry column name if table is spatial, None otherwise
-    """
-    return GEOMETRY_COLUMN_MAPPING.get(table.lower())
+    # Attach the synchronous wrapper to the async wrapper
+    async_wrapper.sync = sync_wrapper  # type: ignore
+    return async_wrapper

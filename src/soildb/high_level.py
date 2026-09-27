@@ -18,13 +18,13 @@ API TIER REFERENCE (in order of preference):
 1. HIGH-LEVEL (this module):
    - fetch_ssurgo_mapunit_by_point() [SSURGO map units]
    - fetch_labpedon_by_bbox()      [Lab pedon data from SDA]
-   - fetch_labpedon_by_id()        [Lab pedon data from SDA]
+   - fetch_labpedon()              [Lab pedon data from SDA]
 
 2. MID-LEVEL (convenience):
    - get_mapunit_by_point()
    - get_mapunit_by_bbox()
    - get_lab_pedons_by_bbox()
-   - get_lab_pedon_by_id()
+   - get_lab_pedon()
 
 3. LOW-LEVEL:
    - Query() / query_templates
@@ -50,19 +50,22 @@ df.to_csv('mapunit.csv')
 ```
 """
 
+import warnings
 from datetime import datetime
 from typing import Any, Optional, Union
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
-from . import (
-    fetch_pedon_horizons,
+from .client import SDAClient
+from .convenience import (
+    LabPedonIdColumn,
+    get_lab_pedon,
     get_lab_pedon_by_id,
     get_lab_pedons_by_bbox,
     get_mapunit_by_point,
 )
-from .client import SDAClient
-from .fetch import fetch_by_keys
+from .exceptions import AmbiguousPedonError
+from .fetch import fetch_by_keys, fetch_pedon_horizons
 from .schema_system import (  # type: ignore
     AggregateHorizon,
     HorizonProperty,
@@ -543,8 +546,9 @@ async def fetch_labpedon_by_bbox(
 
 
 @add_sync_version
-async def fetch_labpedon_by_id(
-    pedon_id: str,
+async def fetch_labpedon(
+    x: Union[str, int],
+    what: LabPedonIdColumn = "pedon_key",
     fill_horizons: bool = True,
     horizon_columns: Optional[list[str]] = None,
     client: Optional[SDAClient] = None,
@@ -558,7 +562,7 @@ async def fetch_labpedon_by_id(
 
     ```python
     # Get single lab pedon with all horizons
-    pedon = await fetch_labpedon_by_id("S1999NY061001")
+    pedon = await fetch_labpedon("S1999NY061001", what="upedonid")
 
     if pedon:
         print(f"Pedon: {pedon.pedon_id}")
@@ -574,20 +578,24 @@ async def fetch_labpedon_by_id(
             if depth_at:
                 print(f"    At 50 cm depth: {depth_at.designation}")
 
-    # Get lab pedon without horizons
-    pedon = await fetch_labpedon_by_id(
-        "S1999NY061001",
+    # Get lab pedon by lab pedon number, without horizons
+    pedon = await fetch_labpedon(
+        "85P0234",
+        what="pedlabsampnum",
         fill_horizons=False
     )
 
     # Compare with raw data API
-    response = await get_lab_pedon_by_id("S1999NY061001")
+    response = await get_lab_pedon("S1999NY061001", what="upedonid")
     df = response.to_pandas()
     # Now use pandas for operations
     ```
 
     Args:
-        pedon_id: Pedon key or user pedon ID
+        x: Identifier value to look up
+        what: Which identifier ``x`` is: 'pedon_key' (default, unique),
+            'pedoniid' (NASIS peiid, unique), 'upedonid' (pedon ID, not unique),
+            or 'pedlabsampnum' (lab pedon number)
         fill_horizons: If True, fetch horizon data for the pedon. Default: True.
         horizon_columns: List of horizon columns to fetch. If None, uses default columns.
                         Extra columns beyond defaults will be stored in horizon extra_fields.
@@ -595,16 +603,84 @@ async def fetch_labpedon_by_id(
 
     Returns:
         PedonData object if found, None if not found.
+
+    Raises:
+        AmbiguousPedonError: If ``x`` matches more than one pedon
+        ValueError: If ``what`` is not a supported identifier column
     """
-    # Step 1: Get pedon site data
-    site_response = await get_lab_pedon_by_id(pedon_id, client=client)
+    site_response = await get_lab_pedon(x, what=what, client=client)
     site_df = site_response.to_pandas()
 
     if site_df.empty:
         return None
 
-    # Step 2: Create PedonData object
-    row = site_df.iloc[0]
+    pedon_keys = site_df["pedon_key"].astype(str).unique().tolist()
+    if len(pedon_keys) > 1:
+        raise AmbiguousPedonError(str(x), what, pedon_keys)
+
+    return await _build_labpedon(
+        site_df.iloc[0],
+        {"query_what": what, "query_value": x},
+        fill_horizons,
+        horizon_columns,
+        client,
+    )
+
+
+@add_sync_version
+async def fetch_labpedon_by_id(
+    pedon_id: str,
+    fill_horizons: bool = True,
+    horizon_columns: Optional[list[str]] = None,
+    client: Optional[SDAClient] = None,
+) -> Optional[PedonData]:
+    """
+    Fetch a lab pedon by pedon key, falling back to pedon ID.
+
+    .. deprecated:: 0.9.0
+        The fallback is ambiguous, and when a pedon ID matches several pedons
+        the first is returned silently. Use ``fetch_labpedon(x, what=...)``.
+
+    Args:
+        pedon_id: Pedon key or pedon ID (``upedonid``).
+        fill_horizons: Whether to fetch and attach horizon records.
+        horizon_columns: Optional column subset for horizons.
+        client: Optional SDAClient instance.
+
+    Returns:
+        PedonData instance if found, None otherwise.
+    """
+    warnings.warn(
+        "fetch_labpedon_by_id() is deprecated; use "
+        'fetch_labpedon(x, what="pedon_key" | "pedoniid" | "upedonid" | "pedlabsampnum")',
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        site_response = await get_lab_pedon_by_id(pedon_id, client=client)
+    site_df = site_response.to_pandas()
+
+    if site_df.empty:
+        return None
+
+    return await _build_labpedon(
+        site_df.iloc[0],
+        {"query_pedon_id": pedon_id},
+        fill_horizons,
+        horizon_columns,
+        client,
+    )
+
+
+async def _build_labpedon(
+    row: Any,
+    query_info: dict[str, Any],
+    fill_horizons: bool,
+    horizon_columns: Optional[list[str]],
+    client: Optional[SDAClient],
+) -> PedonData:
+    """Build a PedonData from one lab pedon site row, optionally with horizons."""
     pedon_schema = get_schema("pedon")
     if not pedon_schema:
         raise ValueError("Pedon schema not found")
@@ -612,10 +688,7 @@ async def fetch_labpedon_by_id(
     processed = pedon_schema.process_row(row)
 
     # Track column information
-    metadata = {
-        "query_pedon_id": pedon_id,
-        "query_date": datetime.now().isoformat(),
-    }
+    metadata = {**query_info, "query_date": datetime.now().isoformat()}
 
     # Add column tracking if custom columns were requested
     if horizon_columns:
@@ -643,7 +716,7 @@ async def fetch_labpedon_by_id(
     if not fill_horizons:
         return pedon
 
-    # Step 3: Fetch horizons
+    # Fetch horizons
     pedon_key = pedon.pedon_key
     horizons_df = (await fetch_pedon_horizons(pedon_key, client=client)).to_pandas()
 

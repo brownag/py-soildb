@@ -141,7 +141,7 @@ df = response.to_pandas()                    # pandas DataFrame
 df = response.to_polars()                    # Polars DataFrame
 data = response.to_dict()                    # List of dicts
 spc = response.to_soilprofilecollection()   # SoilProfileCollection
-gdf = response.to_geodataframe()            # GeoDataFrame (with WKT)
+gdf = response.to_geopandas()               # GeoDataFrame (with WKT)
 ```
 
 ---

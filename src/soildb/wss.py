@@ -15,7 +15,8 @@ import httpx
 
 from .client import SDAClient
 from .exceptions import SoilDBError
-from .utils import add_sync_version
+from .query import Query
+from .utils import add_sync_version, require_client
 
 logger = logging.getLogger(__name__)
 
@@ -279,31 +280,26 @@ async def download_wss(
             dest_dir="./statsgo_data"
         )
     """
+    client = require_client(client)
     if db not in ["SSURGO", "STATSGO"]:
         raise ValueError("db must be 'SSURGO' or 'STATSGO'")
 
     if areasymbols is None and where_clause is None:
         raise ValueError("Either areasymbols or where_clause must be provided")
 
-    # Create SDA client if not provided
-    if client is None:
-        client = SDAClient()
-
     # Get survey area metadata
 
     columns = ["areasymbol", "areaname", "saversion", "saverest"]
 
+    # Build query with escaped areasymbols
+    query = Query().select(*columns).from_("sacatalog")
     if areasymbols:
-        # Build WHERE clause from areasymbols
-        symbols_str = ", ".join(f"'{s}'" for s in areasymbols)
-        where = f"areasymbol IN ({symbols_str})"
+        # Use where_in to safely escape symbol values
+        query.where_in("areasymbol", areasymbols)
     else:
-        where = where_clause  # type: ignore
+        # Use custom WHERE clause
+        query.where(where_clause)  # type: ignore
 
-    # Query sacatalog with custom WHERE
-    from .query import Query
-
-    query = Query().select(*columns).from_("sacatalog").where(where)
     response = await client.execute(query)
     metadata_df = response.to_pandas()
 

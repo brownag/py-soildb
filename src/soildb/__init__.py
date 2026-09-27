@@ -34,6 +34,7 @@ from .awdb import (
 from .base_client import BaseDataAccessClient, ClientConfig
 from .client import SDAClient
 from .convenience import (
+    get_lab_pedon,
     get_lab_pedon_by_id,
     get_lab_pedons_by_bbox,
     get_mapunit_by_areasymbol,
@@ -42,6 +43,7 @@ from .convenience import (
     get_sacatalog,
 )
 from .exceptions import (
+    AmbiguousPedonError,
     SDAConnectionError,
     SDAMaintenanceError,
     SDANetworkError,
@@ -71,6 +73,7 @@ from .henry import (
     list_henry_projects,
 )
 from .high_level import (
+    fetch_labpedon,
     fetch_labpedon_by_bbox,
     fetch_labpedon_by_id,
     fetch_ssurgo_mapunit_by_point,
@@ -187,6 +190,7 @@ __all__ = [
     "HenryDataError",
     # Exceptions
     "SoilDBError",
+    "AmbiguousPedonError",
     "SDANetworkError",
     "SDAConnectionError",
     "SDATimeoutError",
@@ -217,6 +221,7 @@ __all__ = [
     "get_mapunit_by_point",
     "get_mapunit_by_bbox",
     "get_lab_pedons_by_bbox",
+    "get_lab_pedon",
     "get_lab_pedon_by_id",
     "get_sacatalog",
     # Web Soil Survey download functions
@@ -226,6 +231,7 @@ __all__ = [
     # Example: get_mapunit_by_areasymbol.sync("IA109")
     # High-level functions (SSURGO and lab pedon data from SDA)
     "fetch_ssurgo_mapunit_by_point",
+    "fetch_labpedon",
     "fetch_labpedon_by_bbox",
     "fetch_labpedon_by_id",
     # Spatial query functions
