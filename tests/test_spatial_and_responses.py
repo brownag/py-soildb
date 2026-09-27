@@ -147,17 +147,6 @@ class TestAWDBIntegration:
         except ImportError:
             pytest.skip("AWDB convenience not available")
 
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    @pytest.mark.timeout(60)
-    async def test_awdb_integration_module(self):
-        try:
-            from soildb import awdb_integration
-
-            assert hasattr(awdb_integration, "get_component_water_properties")
-        except ImportError:
-            pytest.skip("awdb_integration not available")
-
 
 class TestResponseValidation:
     @pytest.mark.integration

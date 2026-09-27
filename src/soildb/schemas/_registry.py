@@ -47,6 +47,27 @@ def get_schema(table_name: str) -> Optional[TableSchema]:
     return _load_schema(table_name)
 
 
+def load_schema(table_name: str) -> Optional[TableSchema]:
+    """Public API: Load a schema by table name.
+
+    Args:
+        table_name: Name of the table/schema to retrieve
+
+    Returns:
+        TableSchema if found, None otherwise
+    """
+    return _load_schema(table_name)
+
+
+def registered_schema_names() -> list[str]:
+    """Public API: Get list of all registered schema names.
+
+    Returns:
+        List of available schema table names
+    """
+    return sorted(_SCHEMA_LOADERS.keys())
+
+
 def list_available_schemas() -> list:
     """List all available schema table names."""
     return sorted(_SCHEMA_LOADERS.keys())

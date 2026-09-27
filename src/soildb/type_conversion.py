@@ -682,12 +682,273 @@ class TypeMap:
             type_map._build_polars_dtype_map()
         return type_map._polars_dtypes.get(python_type, "Utf8")
 
+    def infer_sda_type(self, value: Any) -> str:
+        """
+        Infer SDA SQL type from a Python value.
+
+        Infers the most appropriate SDA type for a given Python value.
+        Useful for type detection when building dynamic queries or
+        converting heterogeneous data sources.
+
+        Args:
+            value: Python value to infer type for
+
+        Returns:
+            SDA type name: "int", "float", "bit", "varchar", "datetime",
+            "varbinary", or "geometry"
+
+        Note:
+            - Bool types return "bit" (checked before int, since bool is int subclass)
+            - None returns "varchar"
+            - WKT geometry strings return "geometry"
+            - bytes/bytearray return "varbinary"
+
+        Examples:
+            >>> tm = TypeMap.default()
+            >>> tm.infer_sda_type(True)
+            'bit'
+            >>> tm.infer_sda_type(42)
+            'int'
+            >>> tm.infer_sda_type(3.14)
+            'float'
+            >>> tm.infer_sda_type("hello")
+            'varchar'
+            >>> tm.infer_sda_type("POINT (0 0)")
+            'geometry'
+            >>> tm.infer_sda_type(None)
+            'varchar'
+        """
+        if value is None:
+            return "varchar"
+        elif isinstance(value, bool):
+            # bool must come before int (bool is subclass of int)
+            return "bit"
+        elif isinstance(value, int):
+            # Distinguish between int and bigint based on value size
+            return "int" if value < 2**31 else "bigint"
+        elif isinstance(value, float):
+            return "float"
+        elif isinstance(value, datetime):
+            return "datetime"
+        elif isinstance(value, str):
+            # Detect WKT geometry (common in GeoPackage, PostGIS)
+            if value and value.startswith(
+                (
+                    "POINT",
+                    "POLYGON",
+                    "MULTIPOLYGON",
+                    "LINESTRING",
+                    "GEOMETRYCOLLECTION",
+                    "MULTIPOINT",
+                    "MULTILINESTRING",
+                )
+            ):
+                return "geometry"
+            return "varchar"
+        elif isinstance(value, (bytes, bytearray)):
+            # WKB geometry (GeoPackage stores geometry as BLOB)
+            return "varbinary"
+        else:
+            # Unknown type defaults to varchar
+            return "varchar"
+
+    def infer_sda_types(self, rows: list[list[Any]], n_columns: int) -> list[str]:
+        """
+        Infer SDA types for all columns from a list of rows.
+
+        For each column, returns the SDA type of the first non-null value found
+        in that column across all rows. If a column contains only null values,
+        returns "varchar" as the default type.
+
+        Args:
+            rows: List of rows, where each row is a sequence of values
+            n_columns: Number of columns to infer types for
+
+        Returns:
+            List of SDA type names, one per column (in order)
+
+        Example:
+            >>> tm = TypeMap.default()
+            >>> data = [[123, "hello", 3.14], [456, None, 2.71], [None, "world", None]]
+            >>> tm.infer_sda_types(data, 3)
+            ['int', 'varchar', 'float']
+
+        Note:
+            - Returns "varchar" for columns containing only null values
+            - Iterates rows in order, stopping at the first non-null value per column
+            - Uses infer_sda_type() internally for each value
+        """
+        sda_types = []
+        for col_idx in range(n_columns):
+            col_type = "varchar"  # default
+            for row in rows:
+                if col_idx < len(row) and row[col_idx] is not None:
+                    col_type = self.infer_sda_type(row[col_idx])
+                    break
+            sda_types.append(col_type)
+        return sda_types
+
     def __repr__(self) -> str:
         """String representation."""
         return (
             f"TypeMap(processors={len(self._processors)}, "
             f"python_types={len(self._python_types)})"
         )
+
+
+# Module-level type conversion functions
+# These are convenience wrappers around TypeProcessor for common conversions
+
+
+def to_optional_float(value: Any) -> Optional[float]:
+    """
+    Convert to float, returning None if the value is null/NaN.
+
+    Used for numeric SDA columns that may be missing or null.
+
+    Args:
+        value: Value to convert (typically from SDA response)
+
+    Returns:
+        float or None if value is null/missing
+
+    Examples:
+        >>> to_optional_float("3.14")
+        3.14
+        >>> to_optional_float("null")
+        None
+        >>> to_optional_float(None)
+        None
+    """
+    return float(value) if not TypeProcessor._is_null(value) else None
+
+
+def to_optional_int(value: Any) -> Optional[int]:
+    """
+    Convert to int, returning None if the value is null/NaN.
+
+    Used for integer SDA columns that may be missing or null.
+
+    Args:
+        value: Value to convert (typically from SDA response)
+
+    Returns:
+        int or None if value is null/missing
+
+    Examples:
+        >>> to_optional_int("42")
+        42
+        >>> to_optional_int("null")
+        None
+        >>> to_optional_int(None)
+        None
+    """
+    return int(value) if not TypeProcessor._is_null(value) else None
+
+
+def to_str(value: Any) -> str:
+    """
+    Convert to string, returning empty string if null/NaN.
+
+    Used for required string columns in SDA data. Always returns a string
+    (never None) to ensure fields are never null.
+
+    Args:
+        value: Value to convert (typically from SDA response)
+
+    Returns:
+        str (empty string if value is null/missing)
+
+    Examples:
+        >>> to_str("hello")
+        'hello'
+        >>> to_str("null")
+        ''
+        >>> to_str(None)
+        ''
+    """
+    return str(value) if not TypeProcessor._is_null(value) else ""
+
+
+def to_optional_str(value: Any) -> Optional[str]:
+    """
+    Convert to string or None if the value is null/NaN.
+
+    Used for optional string columns in SDA data that may be genuinely null.
+
+    Args:
+        value: Value to convert (typically from SDA response)
+
+    Returns:
+        str or None if value is null/missing
+
+    Examples:
+        >>> to_optional_str("hello")
+        'hello'
+        >>> to_optional_str("null")
+        None
+        >>> to_optional_str(None)
+        None
+    """
+    return str(value) if not TypeProcessor._is_null(value) else None
+
+
+def to_datetime(value: Any) -> Optional[datetime]:
+    """
+    Convert value to datetime, handling various SDA datetime formats.
+
+    Attempts to parse common datetime formats from SDA responses:
+    - ISO formats: "2023-01-15T10:30:00Z", "2023-01-15T10:30:00.123456"
+    - Standard SQL: "2023-01-15 10:30:00", "2023-01-15"
+    - US format: "01/15/2023"
+
+    If dateutil is installed, uses flexible parsing for other formats.
+    Returns None if parsing fails or value is null.
+
+    Args:
+        value: Value to convert (typically from SDA response)
+
+    Returns:
+        datetime or None if value is null/missing or parsing fails
+
+    Examples:
+        >>> to_datetime("2023-01-15").date()
+        datetime.date(2023, 1, 15)
+        >>> to_datetime("2023-01-15 10:30:00").hour
+        10
+        >>> to_datetime("null")
+        None
+    """
+    if value is None or value == "":
+        return None
+    try:
+        # Handle various SDA datetime formats
+        if isinstance(value, str):
+            # Try common date formats
+            for fmt in [
+                "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d",
+                "%m/%d/%Y",
+                "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%dT%H:%M:%S.%f",
+                "%Y-%m-%dT%H:%M:%SZ",
+            ]:
+                try:
+                    return datetime.strptime(value, fmt)
+                except ValueError:
+                    continue
+
+            # Try parsing with dateutil if available
+            try:
+                from dateutil import parser  # type: ignore[import-untyped]
+
+                return parser.parse(value)  # type: ignore[no-any-return]
+            except ImportError:
+                pass
+
+        return None  # Return None if parsing fails, not string
+    except (ValueError, TypeError):
+        return None
 
 
 # Module-level singleton for convenience
@@ -738,4 +999,9 @@ __all__ = [
     "TypeProcessor",
     "get_default_type_map",
     "convert_value",
+    "to_optional_float",
+    "to_optional_int",
+    "to_str",
+    "to_optional_str",
+    "to_datetime",
 ]

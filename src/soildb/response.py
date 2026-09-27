@@ -4,13 +4,13 @@ Response handling for SDA query results with proper data type conversion.
 
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 from .exceptions import SDAResponseError
-from .type_conversion import get_default_type_map
+from .type_conversion import TypeMap, get_default_type_map
 
 if TYPE_CHECKING:
     try:
@@ -29,6 +29,24 @@ if TYPE_CHECKING:
         SoilProfileCollection = None  # type: ignore
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_data_type(meta: str) -> Optional[str]:
+    """Extract the SDA data type from metadata string.
+
+    Parses metadata like "ColumnOrdinal=0,DataTypeName=varchar" and returns
+    the value after "DataTypeName=", stopping at the first comma if present.
+
+    Args:
+        meta: Metadata string from SDA response
+
+    Returns:
+        The data type value, or None if DataTypeName= is not present
+    """
+    if "DataTypeName=" not in meta:
+        return None
+    type_part = meta.split("DataTypeName=")[1]
+    return type_part.split(",")[0] if "," in type_part else type_part
 
 
 class ResponseValidator:
@@ -132,7 +150,7 @@ class ResponseValidator:
         column_types = response.get_column_types()
         unknown_types = 0
         for col_name, sda_type in column_types.items():
-            if sda_type.lower() not in SDAResponse.SDA_TYPE_MAPPING:
+            if sda_type.lower() not in TypeMap.SDA_TYPE_TO_PYTHON:
                 result.add_warning(
                     f"Unknown SDA data type '{sda_type}' for column '{col_name}'"
                 )
@@ -360,39 +378,30 @@ class ResponseValidator:
         column_types = response.get_column_types()
         type_violations = {}
         range_violations = {}
+        type_map = get_default_type_map()
 
         for col_name, sda_type in column_types.items():
             if col_name not in expected_keys:
                 continue
 
-            sda_type_lower = sda_type.lower()
             violations = 0
             range_issues = 0
+            # Get the expected Python type from TypeMap
+            expected_python_type = type_map.get_python_type(sda_type)
 
             for record in data_dicts:
                 value = record.get(col_name)
 
-                # Type validation
+                # Type validation using TypeMap's Python type
                 if value is not None:
-                    if sda_type_lower in [
-                        "int",
-                        "integer",
-                        "bigint",
-                        "smallint",
-                        "tinyint",
-                    ]:
+                    # For numeric types (int, float), be lenient: allow ints for float columns
+                    if expected_python_type is int:
                         if not isinstance(value, int):
                             violations += 1
-                    elif sda_type_lower in [
-                        "float",
-                        "real",
-                        "double",
-                        "decimal",
-                        "numeric",
-                    ]:
+                    elif expected_python_type is float:
                         if not isinstance(value, (int, float)):
                             violations += 1
-                    elif sda_type_lower == "bit":
+                    elif expected_python_type is bool:
                         if not isinstance(value, bool):
                             violations += 1
 
@@ -493,48 +502,6 @@ class ValidationResult:
 class SDAResponse:
     """Represents a response from the Soil Data Access web service."""
 
-    # SDA data type mapping to Python/pandas/polars types
-    SDA_TYPE_MAPPING = {
-        # Numeric types
-        "int": "int64",
-        "integer": "int64",
-        "bigint": "int64",
-        "smallint": "int32",
-        "tinyint": "int16",
-        "bit": "bool",
-        # Floating point types
-        "float": "float64",
-        "real": "float32",
-        "double": "float64",
-        "decimal": "float64",
-        "numeric": "float64",
-        "money": "float64",
-        "smallmoney": "float64",
-        # String types
-        "varchar": "string",
-        "nvarchar": "string",
-        "char": "string",
-        "nchar": "string",
-        "text": "string",
-        "ntext": "string",
-        # Date/time types
-        "datetime": "datetime64[ns]",
-        "datetime2": "datetime64[ns]",
-        "smalldatetime": "datetime64[ns]",
-        "date": "datetime64[ns]",
-        "time": "string",  # Keep as string for time-only values
-        "timestamp": "datetime64[ns]",
-        # Spatial/binary types
-        "geometry": "string",  # Keep WKT as string
-        "geography": "string",
-        "varbinary": "string",
-        "binary": "string",
-        "image": "string",
-        # Other types
-        "uniqueidentifier": "string",
-        "xml": "string",
-    }
-
     def __init__(self, raw_data: dict[str, Any]):
         """Initialize from SDA JSON response."""
         self._raw_data = raw_data
@@ -623,6 +590,121 @@ class SDAResponse:
             return cls(data)
         except json.JSONDecodeError as e:
             raise SDAResponseError(f"Failed to parse JSON response: {e}") from e
+
+    @classmethod
+    def from_rows(
+        cls,
+        rows: Sequence[Sequence[Any]],
+        columns: Sequence[str],
+        sda_types: Sequence[str],
+    ) -> "SDAResponse":
+        """Build an SDAResponse from raw rows and column metadata.
+
+        Creates a response from unconverted rows, column names, and SDA type
+        strings. Type conversion happens during to_dict() or to_pandas() export,
+        same as for SDA JSON responses.
+
+        Args:
+            rows: Sequence of data rows, each a sequence of values.
+            columns: Sequence of column names.
+            sda_types: Sequence of SDA type names ("int", "varchar", "float",
+                "datetime", etc.), one per column.
+
+        Returns:
+            An SDAResponse with the given columns and rows.
+
+        Raises:
+            ValueError: If columns and sda_types have different lengths, or if
+                any row's length differs from the number of columns.
+
+        Examples:
+            >>> rows = [["a", 1], ["b", 2]]
+            >>> cols = ["name", "value"]
+            >>> types = ["varchar", "int"]
+            >>> response = SDAResponse.from_rows(rows, cols, types)
+            >>> response.to_dict()
+            [{"name": "a", "value": 1}, {"name": "b", "value": 2}]
+        """
+        # Validate column and type count match
+        if len(columns) != len(sda_types):
+            raise ValueError(
+                f"Column count ({len(columns)}) does not match type count "
+                f"({len(sda_types)})"
+            )
+
+        # Build metadata row: one string per column with DataTypeName
+        metadata = [f"DataTypeName={sda_type}" for sda_type in sda_types]
+
+        # Validate each row length matches column count
+        for row_idx, row in enumerate(rows):
+            if len(row) != len(columns):
+                raise ValueError(
+                    f"Row {row_idx} has {len(row)} values, expected {len(columns)}"
+                )
+
+        # Assemble SDA response format and construct response
+        raw_data = {"Table": [list(columns), metadata, *rows]}
+        return cls(raw_data)
+
+    @classmethod
+    def concat(cls, responses: Sequence["SDAResponse"]) -> "SDAResponse":
+        """Merge multiple SDAResponse objects into one.
+
+        Concatenates raw data rows from multiple responses. Empty responses
+        (zero data rows) are skipped. Type conversion happens only once during
+        export, not during merge.
+
+        Args:
+            responses: Sequence of SDAResponse objects to merge.
+
+        Returns:
+            A new SDAResponse with merged rows, or an empty response if all
+            inputs are empty or the sequence is empty.
+
+        Raises:
+            ValueError: If two non-empty responses have different column names
+                or ordering.
+
+        Examples:
+            >>> r1 = SDAResponse.from_rows([["a"]], ["x"], ["varchar"])
+            >>> r2 = SDAResponse.from_rows([["b"]], ["x"], ["varchar"])
+            >>> merged = SDAResponse.concat([r1, r2])
+            >>> len(merged)
+            2
+        """
+        # Filter out empty responses
+        non_empty = [r for r in responses if not r.is_empty()]
+
+        # Base case: no non-empty responses
+        if not non_empty:
+            return cls({"Table": [[], []]})
+
+        # Use first non-empty response as reference
+        ref_response = non_empty[0]
+        ref_columns = ref_response.columns
+        ref_metadata = ref_response.metadata
+
+        # Extract SDA types from metadata: parse "DataTypeName=<type>"
+        ref_sda_types = []
+        for meta_str in ref_metadata:
+            sda_type = _parse_data_type(meta_str)
+            ref_sda_types.append(sda_type if sda_type is not None else "varchar")
+
+        # Validate all non-empty responses have the same columns
+        for idx, response in enumerate(non_empty[1:], start=1):
+            if response.columns != ref_columns:
+                raise ValueError(
+                    f"Response {idx} has columns {response.columns}, "
+                    f"expected {ref_columns}"
+                )
+
+        # Merge raw data rows from all non-empty responses
+        merged_rows = []
+        for response in non_empty:
+            merged_rows.extend(response.data)
+
+        # Use from_rows to construct merged response with proper metadata
+        return cls.from_rows(merged_rows, ref_columns, ref_sda_types)
 
     @property
     def columns(self) -> list[str]:
@@ -734,36 +816,14 @@ class SDAResponse:
             logger.warning("Attempting to convert response with no columns")
             return []
 
-        # Get column types for basic conversion
-        column_types = self.get_column_types()
-
         result = []
         conversion_errors = 0
         max_errors = min(10, len(self._data))  # Limit error logging
 
         for row_idx, row in enumerate(self._data):
             try:
-                # Pad row with None if it's shorter than columns
-                padded_row = row + [None] * (len(self._columns) - len(row))
-
-                # Convert values based on inferred types
-                converted_row = {}
-                for _col_idx, (col_name, value) in enumerate(
-                    zip(self._columns, padded_row[: len(self._columns)])
-                ):
-                    try:
-                        sda_type = column_types.get(col_name, "varchar").lower()
-                        converted_value = self._convert_value(value, sda_type)
-                        converted_row[col_name] = converted_value
-                    except Exception as e:
-                        # Log conversion error but continue with original value
-                        if conversion_errors < max_errors:
-                            logger.warning(
-                                f"Failed to convert value in row {row_idx}, column '{col_name}' (type: {sda_type}): {value} -> {e}"
-                            )
-                        conversion_errors += 1
-                        converted_row[col_name] = value  # Keep original value
-
+                # Convert row using shared helper with error tracking enabled
+                converted_row, _ = self._convert_row(row, track_errors=True)
                 result.append(converted_row)
 
             except Exception as e:
@@ -803,6 +863,46 @@ class SDAResponse:
         """
         type_map = get_default_type_map()
         return type_map.convert_value(value, sda_type, strict=False)
+
+    def _convert_row(
+        self, row: list[Any], track_errors: bool = False
+    ) -> tuple[dict[str, Any], Optional[list[dict[str, Any]]]]:
+        """Convert a single row to a dictionary with type conversion.
+
+        Args:
+            row: Raw row from _data
+            track_errors: If True, return per-column errors; if False, return None for errors
+
+        Returns:
+            Tuple of (converted_row_dict, error_list_or_none)
+        """
+        column_types = self.get_column_types()
+
+        # Pad row with None if it's shorter than columns
+        padded_row = row + [None] * (len(self._columns) - len(row))
+
+        # Convert values based on inferred types
+        converted_row = {}
+        row_errors: list[dict[str, Any]] | None = [] if track_errors else None
+
+        for _col_idx, (col_name, value) in enumerate(
+            zip(self._columns, padded_row[: len(self._columns)])
+        ):
+            try:
+                sda_type = column_types.get(col_name, "varchar").lower()
+                converted_value = self._convert_value(value, sda_type)
+                converted_row[col_name] = converted_value
+            except Exception as e:
+                if track_errors and row_errors is not None:
+                    row_errors.append(
+                        {"column": col_name, "value": value, "error": str(e)}
+                    )
+                    # Use fallback value
+                    converted_row[col_name] = value if value is not None else None
+                else:
+                    raise
+
+        return converted_row, row_errors
 
     def _get_pandas_dtype_mapping(self) -> dict[str, str]:
         """Get pandas-compatible dtype mapping using unified TypeMap."""
@@ -1080,17 +1180,6 @@ class SDAResponse:
 
         return gdf
 
-    def to_geodataframe(
-        self,
-        convert_types: bool = True,
-        geometry_col: Optional[str] = None,
-        crs: Optional[str] = None,
-    ) -> Any:
-        """Alias for to_geopandas() for compatibility."""
-        return self.to_geopandas(
-            convert_types=convert_types, geometry_col=geometry_col, crs=crs
-        )
-
     @staticmethod
     def _detect_geometry_column(df: Any) -> tuple[str, str]:
         """Auto-detect a geometry column and infer its CRS.
@@ -1213,12 +1302,8 @@ class SDAResponse:
         for i, col_name in enumerate(self._columns):
             if i < len(self._metadata):
                 metadata_str = self._metadata[i]
-                # Parse metadata like "ColumnOrdinal=0,DataTypeName=varchar"
-                if "DataTypeName=" in metadata_str:
-                    type_part = metadata_str.split("DataTypeName=")[1]
-                    data_type = (
-                        type_part.split(",")[0] if "," in type_part else type_part
-                    )
+                data_type = _parse_data_type(metadata_str)
+                if data_type is not None:
                     types[col_name] = data_type
 
         return types
@@ -1231,7 +1316,7 @@ class SDAResponse:
 
         for col_name, sda_type in sda_types.items():
             python_type = type_map.get_python_type(sda_type)
-            # Map Python types to string names used by SDA_TYPE_MAPPING
+            # Map Python types back to SDA type name strings for consistency
             type_name_map = {
                 int: "int",
                 float: "float",
@@ -1299,30 +1384,10 @@ class SDAResponse:
         error_records = []
         error_count = 0
 
-        column_types = self.get_column_types()
-
         for row_idx, row in enumerate(self._data):
             try:
-                # Pad row with None if it's shorter than columns
-                padded_row = row + [None] * (len(self._columns) - len(row))
-
-                # Convert values with error recovery
-                converted_row = {}
-                row_errors = []
-
-                for _col_idx, (col_name, value) in enumerate(
-                    zip(self._columns, padded_row[: len(self._columns)])
-                ):
-                    try:
-                        sda_type = column_types.get(col_name, "varchar").lower()
-                        converted_value = self._convert_value(value, sda_type)
-                        converted_row[col_name] = converted_value
-                    except Exception as e:
-                        row_errors.append(
-                            {"column": col_name, "value": value, "error": str(e)}
-                        )
-                        # Use fallback value
-                        converted_row[col_name] = value if value is not None else None
+                # Convert row using shared helper with error tracking
+                converted_row, row_errors = self._convert_row(row, track_errors=True)
 
                 if row_errors:
                     error_records.append(

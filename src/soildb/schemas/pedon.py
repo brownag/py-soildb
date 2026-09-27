@@ -7,7 +7,7 @@ Version: 1.0 (Last updated: 2025-10-27)
 
 from typing import Optional
 
-from ..type_processors import (
+from ..type_conversion import (
     to_optional_float,
     to_optional_int,
     to_optional_str,

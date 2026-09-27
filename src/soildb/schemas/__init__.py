@@ -29,6 +29,8 @@ from ._registry import (
     get_pedon_schema,
     get_schema,
     list_available_schemas,
+    load_schema,
+    registered_schema_names,
 )
 
 __all__ = [
@@ -37,6 +39,8 @@ __all__ = [
     "TableSchema",
     # Registry functions
     "get_schema",
+    "load_schema",
+    "registered_schema_names",
     "list_available_schemas",
     # Convenience functions for commonly-used schemas
     "get_mapunit_schema",

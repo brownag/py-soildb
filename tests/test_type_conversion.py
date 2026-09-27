@@ -14,6 +14,11 @@ from soildb.type_conversion import (
     TypeProcessor,
     convert_value,
     get_default_type_map,
+    to_datetime,
+    to_optional_float,
+    to_optional_int,
+    to_optional_str,
+    to_str,
 )
 
 
@@ -412,6 +417,271 @@ class TestEdgeCases:
         tm = TypeMap.default()
         assert tm.convert_value("1.5e2", "float") == 150.0
         assert tm.convert_value("1.5E-2", "float") == 0.015
+
+
+class TestMovedFunctions:
+    """Test functions moved from type_processors.py to type_conversion.py."""
+
+    def test_to_optional_float_valid_values(self):
+        """Test to_optional_float with valid numeric values."""
+        assert to_optional_float("3.14") == 3.14
+        assert to_optional_float("42") == 42.0
+        assert to_optional_float(3.14) == 3.14
+        assert to_optional_float(42) == 42.0
+
+    def test_to_optional_float_null_values(self):
+        """Test to_optional_float with null/missing values."""
+        assert to_optional_float(None) is None
+        assert to_optional_float("null") is None
+        assert to_optional_float("") is None
+        assert to_optional_float("NULL") is None
+        assert to_optional_float("none") is None
+
+    def test_to_optional_float_nan(self):
+        """Test to_optional_float with NaN and inf values."""
+        assert to_optional_float(float("nan")) is None
+        assert to_optional_float(float("inf")) is None
+        assert to_optional_float(float("-inf")) is None
+
+    def test_to_optional_int_valid_values(self):
+        """Test to_optional_int with valid numeric values."""
+        assert to_optional_int("42") == 42
+        assert to_optional_int(42) == 42
+        # Note: to_optional_int("42.7") raises ValueError (not handled by original)
+        assert to_optional_int(42.7) == 42
+
+    def test_to_optional_int_null_values(self):
+        """Test to_optional_int with null/missing values."""
+        assert to_optional_int(None) is None
+        assert to_optional_int("null") is None
+        assert to_optional_int("") is None
+        assert to_optional_int("NULL") is None
+        assert to_optional_int("none") is None
+
+    def test_to_optional_int_nan(self):
+        """Test to_optional_int with NaN and inf values."""
+        assert to_optional_int(float("nan")) is None
+        assert to_optional_int(float("inf")) is None
+        assert to_optional_int(float("-inf")) is None
+
+    def test_to_str_valid_values(self):
+        """Test to_str with valid string values."""
+        assert to_str("hello") == "hello"
+        assert to_str(42) == "42"
+        assert to_str(3.14) == "3.14"
+
+    def test_to_str_null_values_returns_empty_string(self):
+        """Test to_str with null values returns empty string."""
+        assert to_str(None) == ""
+        assert to_str("null") == ""
+        assert to_str("") == ""
+        assert to_str("NULL") == ""
+        assert to_str("none") == ""
+
+    def test_to_optional_str_valid_values(self):
+        """Test to_optional_str with valid string values."""
+        assert to_optional_str("hello") == "hello"
+        assert to_optional_str(42) == "42"
+        assert to_optional_str(3.14) == "3.14"
+
+    def test_to_optional_str_null_values_returns_none(self):
+        """Test to_optional_str with null values returns None."""
+        assert to_optional_str(None) is None
+        assert to_optional_str("null") is None
+        assert to_optional_str("") is None
+        assert to_optional_str("NULL") is None
+        assert to_optional_str("none") is None
+
+    def test_to_datetime_iso_format(self):
+        """Test to_datetime with ISO date format."""
+        result = to_datetime("2023-01-15")
+        assert result is not None
+        assert result.year == 2023
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_to_datetime_datetime_format(self):
+        """Test to_datetime with datetime format."""
+        result = to_datetime("2023-01-15 10:30:00")
+        assert result is not None
+        assert result.year == 2023
+        assert result.hour == 10
+        assert result.minute == 30
+
+    def test_to_datetime_us_format(self):
+        """Test to_datetime with US date format."""
+        result = to_datetime("01/15/2023")
+        assert result is not None
+        assert result.year == 2023
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_to_datetime_iso_with_time(self):
+        """Test to_datetime with ISO datetime with Z suffix."""
+        result = to_datetime("2023-01-15T10:30:00Z")
+        assert result is not None
+        assert result.year == 2023
+        assert result.hour == 10
+
+    def test_to_datetime_null_values(self):
+        """Test to_datetime with null/missing values."""
+        assert to_datetime(None) is None
+        assert to_datetime("") is None
+        assert to_datetime("null") is None
+        assert to_datetime("NULL") is None
+        assert to_datetime("none") is None
+
+    def test_to_datetime_nan(self):
+        """Test to_datetime with NaN and inf values."""
+        assert to_datetime(float("nan")) is None
+        assert to_datetime(float("inf")) is None
+        assert to_datetime(float("-inf")) is None
+
+
+class TestInferSDAType:
+    """Test TypeMap.infer_sda_type() method."""
+
+    def test_infer_sda_type_bool_before_int(self):
+        """Test that bool is inferred before int (bool is int subclass)."""
+        tm = TypeMap.default()
+        assert tm.infer_sda_type(True) == "bit"
+        assert tm.infer_sda_type(False) == "bit"
+
+    def test_infer_sda_type_int(self):
+        """Test integer type inference."""
+        tm = TypeMap.default()
+        assert tm.infer_sda_type(42) == "int"
+        assert tm.infer_sda_type(-42) == "int"
+        assert tm.infer_sda_type(0) == "int"
+        # Small int should be "int"
+        assert tm.infer_sda_type(100) == "int"
+
+    def test_infer_sda_type_bigint(self):
+        """Test big integer type inference."""
+        tm = TypeMap.default()
+        # 2^31 = 2147483648
+        large_int = 2**31 + 1
+        assert tm.infer_sda_type(large_int) == "bigint"
+
+    def test_infer_sda_type_float(self):
+        """Test float type inference."""
+        tm = TypeMap.default()
+        assert tm.infer_sda_type(3.14) == "float"
+        assert tm.infer_sda_type(-3.14) == "float"
+        assert tm.infer_sda_type(0.0) == "float"
+
+    def test_infer_sda_type_varchar_string(self):
+        """Test string type inference."""
+        tm = TypeMap.default()
+        assert tm.infer_sda_type("hello") == "varchar"
+        assert tm.infer_sda_type("") == "varchar"
+        assert tm.infer_sda_type("123") == "varchar"
+
+    def test_infer_sda_type_geometry_wkt(self):
+        """Test geometry type inference from WKT strings."""
+        tm = TypeMap.default()
+        assert tm.infer_sda_type("POINT (0 0)") == "geometry"
+        assert tm.infer_sda_type("POLYGON ((0 0, 1 1, 1 0, 0 0))") == "geometry"
+        assert tm.infer_sda_type("MULTIPOLYGON (((0 0, 1 1, 1 0, 0 0)))") == "geometry"
+        assert tm.infer_sda_type("LINESTRING (0 0, 1 1)") == "geometry"
+        assert tm.infer_sda_type("MULTIPOINT (0 0, 1 1)") == "geometry"
+        assert tm.infer_sda_type("MULTILINESTRING ((0 0, 1 1))") == "geometry"
+        assert tm.infer_sda_type("GEOMETRYCOLLECTION (POINT (0 0))") == "geometry"
+
+    def test_infer_sda_type_varbinary(self):
+        """Test binary type inference."""
+        tm = TypeMap.default()
+        assert tm.infer_sda_type(b"hello") == "varbinary"
+        assert tm.infer_sda_type(bytearray(b"hello")) == "varbinary"
+
+    def test_infer_sda_type_datetime(self):
+        """Test datetime type inference."""
+        tm = TypeMap.default()
+        from datetime import datetime as dt
+
+        assert tm.infer_sda_type(dt.now()) == "datetime"
+        assert tm.infer_sda_type(dt(2023, 1, 15, 10, 30, 0)) == "datetime"
+
+    def test_infer_sda_type_none(self):
+        """Test None type inference."""
+        tm = TypeMap.default()
+        # Per spec: None → "varchar"
+        assert tm.infer_sda_type(None) == "varchar"
+
+
+class TestInferSDATypes:
+    """Test TypeMap.infer_sda_types() method for multiple columns."""
+
+    def test_infer_sda_types_empty_rows(self):
+        """Test type inference with empty rows list."""
+        tm = TypeMap.default()
+        result = tm.infer_sda_types([], 3)
+        assert result == ["varchar", "varchar", "varchar"]
+
+    def test_infer_sda_types_all_null_column(self):
+        """Test type inference when column contains only null values."""
+        tm = TypeMap.default()
+        rows = [[None, 42, "hello"], [None, 100, "world"]]
+        result = tm.infer_sda_types(rows, 3)
+        assert result == ["varchar", "int", "varchar"]
+
+    def test_infer_sda_types_mixed_types(self):
+        """Test type inference with mixed column types."""
+        tm = TypeMap.default()
+        rows = [[123, "hello", 3.14], [456, "world", 2.71], [789, "test", 1.41]]
+        result = tm.infer_sda_types(rows, 3)
+        assert result == ["int", "varchar", "float"]
+
+    def test_infer_sda_types_first_non_null(self):
+        """Test that first non-null value determines type."""
+        tm = TypeMap.default()
+        rows = [[None, None, None], [None, None, "hello"], [42, 100, None]]
+        result = tm.infer_sda_types(rows, 3)
+        assert result == ["int", "int", "varchar"]
+
+    def test_infer_sda_types_single_column(self):
+        """Test type inference for a single column."""
+        tm = TypeMap.default()
+        rows = [[42], [100], [None]]
+        result = tm.infer_sda_types(rows, 1)
+        assert result == ["int"]
+
+    def test_infer_sda_types_bool_values(self):
+        """Test type inference with boolean values."""
+        tm = TypeMap.default()
+        rows = [[True, False], [True, None]]
+        result = tm.infer_sda_types(rows, 2)
+        assert result == ["bit", "bit"]
+
+    def test_infer_sda_types_datetime(self):
+        """Test type inference with datetime values."""
+        tm = TypeMap.default()
+        from datetime import datetime as dt
+
+        rows = [[None, dt(2023, 1, 15)], [None, dt(2023, 1, 16)]]
+        result = tm.infer_sda_types(rows, 2)
+        assert result == ["varchar", "datetime"]
+
+    def test_infer_sda_types_geometry(self):
+        """Test type inference with geometry WKT strings."""
+        tm = TypeMap.default()
+        rows = [["POINT (0 0)", "hello"], [None, "world"]]
+        result = tm.infer_sda_types(rows, 2)
+        assert result == ["geometry", "varchar"]
+
+    def test_infer_sda_types_binary(self):
+        """Test type inference with binary values."""
+        tm = TypeMap.default()
+        rows = [[b"hello", 42], [None, 100]]
+        result = tm.infer_sda_types(rows, 2)
+        assert result == ["varbinary", "int"]
+
+    def test_infer_sda_types_large_dataset(self):
+        """Test type inference with many rows."""
+        tm = TypeMap.default()
+        rows = [[i, f"name_{i}", float(i) * 1.5] for i in range(1000)]
+        result = tm.infer_sda_types(rows, 3)
+        assert result == ["int", "varchar", "float"]
 
 
 class TestIntegration:

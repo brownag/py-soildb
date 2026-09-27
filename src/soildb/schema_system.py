@@ -44,8 +44,13 @@ if TYPE_CHECKING:
         pd = None  # type: ignore
 
 # Import base classes and registry from modular schema system
-from .schemas import ColumnSchema, TableSchema, list_available_schemas
-from .schemas._registry import _SCHEMA_LOADERS, _load_schema
+from .schemas import (
+    ColumnSchema,
+    TableSchema,
+    list_available_schemas,
+    load_schema,
+    registered_schema_names,
+)
 
 
 class _LazySchemaDict(dict):
@@ -57,38 +62,38 @@ class _LazySchemaDict(dict):
 
     def __getitem__(self, key: str) -> TableSchema:
         """Get schema by table name, loading if necessary."""
-        schema = _load_schema(key)
+        schema = load_schema(key)
         if schema is None:
             raise KeyError(f"Schema not found for table: {key}")
         return schema
 
     def __contains__(self, key: Any) -> bool:
         """Check if schema exists."""
-        return key in _SCHEMA_LOADERS
+        return key in registered_schema_names()
 
     def keys(self) -> list[str]:  # type: ignore[override]
         """Get all available schema table names."""
-        return sorted(_SCHEMA_LOADERS.keys())
+        return registered_schema_names()
 
     def get(self, key: str, default: Any = None) -> Optional[TableSchema]:
         """Get schema or return default."""
-        return _load_schema(key) or default
+        return load_schema(key) or default
 
     def items(self) -> list[tuple[str, Optional[TableSchema]]]:  # type: ignore[override]
         """Get all schema items (loads all schemas)."""
-        return [(k, _load_schema(k)) for k in sorted(_SCHEMA_LOADERS.keys())]
+        return [(k, load_schema(k)) for k in registered_schema_names()]
 
     def values(self) -> list[Optional[TableSchema]]:  # type: ignore[override]
         """Get all schema values (loads all schemas)."""
-        return [_load_schema(k) for k in sorted(_SCHEMA_LOADERS.keys())]
+        return [load_schema(k) for k in registered_schema_names()]
 
     def __iter__(self) -> Iterator[str]:
         """Iterate over schema table names."""
-        return iter(sorted(_SCHEMA_LOADERS.keys()))
+        return iter(registered_schema_names())
 
     def __len__(self) -> int:
         """Get count of available schemas."""
-        return len(_SCHEMA_LOADERS)
+        return len(registered_schema_names())
 
 
 # Maintain backward compatibility - SCHEMAS dictionary now uses lazy-loading
@@ -112,7 +117,7 @@ def get_schema(table_name: str) -> Optional[TableSchema]:
         if schema:
             print(f"Default columns: {schema.get_default_columns()}")
     """
-    return _load_schema(table_name)
+    return load_schema(table_name)
 
 
 def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
@@ -126,7 +131,7 @@ def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
 
     Example:
         from soildb.schema_system import add_column_to_schema, ColumnSchema
-        from soildb.type_processors import to_optional_str
+        from soildb.type_conversion import to_optional_str
 
         new_col = ColumnSchema(
             "custom_field", str, to_optional_str,
@@ -134,7 +139,7 @@ def add_column_to_schema(table_name: str, column_schema: ColumnSchema) -> None:
         )
         add_column_to_schema("mapunit", new_col)
     """
-    schema = _load_schema(table_name)
+    schema = load_schema(table_name)
     if schema:
         schema.columns[column_schema.name] = column_schema
 
